@@ -4,7 +4,8 @@ class BattlePage {
         this.battleSystem = null;
         this.renderer = null;
         this.animationTime = 0;
-        this.isAnimating = false;
+        this.is3DAnimating = false;
+        this.isBattleProcessing = false;
         this.playerPokemon = null;
         this.enemyPokemon = null;
         this.playerShapes = {};
@@ -34,7 +35,7 @@ class BattlePage {
     bindEvents() {
         this.moveButtons.forEach(button => {
             button.addEventListener('click', (e) => {
-                if (this.isAnimating || !this.battleSystem || !this.battleSystem.isPlayerTurn) return;
+                if (this.isBattleProcessing || !this.battleSystem || !this.battleSystem.isPlayerTurn) return;
                 
                 const moveIndex = parseInt(e.target.dataset.move);
                 this.executePlayerMove(moveIndex);
@@ -83,11 +84,11 @@ class BattlePage {
     }
 
     startAnimation() {
-        this.isAnimating = true;
+        this.is3DAnimating = true;
         
         const animate = () => {
             if (!this.battleSystem) {
-                this.isAnimating = false;
+                this.is3DAnimating = false;
                 return;
             }
             
@@ -204,7 +205,7 @@ class BattlePage {
     }
 
     executePlayerMove(moveIndex) {
-        if (!this.battleSystem || this.battleSystem.battleOver || !this.battleSystem.isPlayerTurn) return;
+        if (!this.battleSystem || this.battleSystem.battleOver || !this.battleSystem.isPlayerTurn || this.isBattleProcessing) return;
         
         const move = this.playerPokemon.moves[moveIndex];
         if (!move || move.currentPp <= 0) {
@@ -212,6 +213,7 @@ class BattlePage {
             return;
         }
         
+        this.isBattleProcessing = true;
         this.disableMoveButtons();
         
         const result = this.battleSystem.playerTurn(moveIndex);
@@ -255,6 +257,7 @@ class BattlePage {
                     this.endBattle();
                 } else {
                     this.battleMessage.textContent = `轮到 ${this.playerPokemon.name} 行动！`;
+                    this.isBattleProcessing = false;
                     this.enableMoveButtons();
                 }
             }, 1500);
@@ -381,7 +384,8 @@ class BattlePage {
 
     hide() {
         document.getElementById('battle-page').classList.remove('active');
-        this.isAnimating = false;
+        this.is3DAnimating = false;
+        this.isBattleProcessing = false;
         this.battleSystem = null;
     }
 }
