@@ -10,8 +10,8 @@ class BattlePage {
         this.enemyPokemon = null;
         this.playerShapes = {};
         this.enemyShapes = {};
-        this.playerPosition = { x: 2, y: 0, z: 0 };
-        this.enemyPosition = { x: -2, y: 0, z: 0 };
+        this.playerPosition = { x: 2, y: 0.3, z: 0 };
+        this.enemyPosition = { x: -2, y: 0.3, z: 0 };
         this.playerShake = { x: 0, y: 0, z: 0 };
         this.enemyShake = { x: 0, y: 0, z: 0 };
         
