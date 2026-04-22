@@ -18,7 +18,7 @@ class WebGLRenderer {
             
             uniform mat4 uModelViewMatrix;
             uniform mat4 uProjectionMatrix;
-            uniform mat4 uNormalMatrix;
+            uniform mat3 uNormalMatrix;
             
             varying vec4 vColor;
             varying vec3 vNormal;
@@ -27,7 +27,7 @@ class WebGLRenderer {
             void main() {
                 gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
                 vColor = aVertexColor;
-                vNormal = (uNormalMatrix * vec4(aVertexNormal, 0.0)).xyz;
+                vNormal = uNormalMatrix * aVertexNormal;
                 vPosition = (uModelViewMatrix * aVertexPosition).xyz;
             }
         `;

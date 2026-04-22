@@ -266,14 +266,8 @@ class SelectionPage {
 
     selectEnemyPokemon() {
         const allPokemon = getAllPokemonData();
-        const availablePokemon = allPokemon.filter(p => p.id !== this.selectedPokemonId);
-        
-        if (availablePokemon.length > 0) {
-            const randomIndex = Math.floor(Math.random() * availablePokemon.length);
-            this.enemyPokemonId = availablePokemon[randomIndex].id;
-        } else {
-            this.enemyPokemonId = allPokemon[0].id;
-        }
+        const randomIndex = Math.floor(Math.random() * allPokemon.length);
+        this.enemyPokemonId = allPokemon[randomIndex].id;
     }
 
     updatePokemonInfo() {
