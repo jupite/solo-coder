@@ -16,6 +16,7 @@ class BattlePage {
         this.isForcedSwitch = false;
         this.playerActiveRenderer = null;
         this.enemyActiveRenderer = null;
+        this.currentBackground = 'grassland';
         
         this.init();
     }
@@ -80,6 +81,8 @@ class BattlePage {
     startBattle(playerPokemonIds, enemyPokemonIds) {
         const ai = new PokemonAI('medium');
         this.battleSystem = new BattleSystem(playerPokemonIds, enemyPokemonIds, ai);
+        
+        this.currentBackground = getRandomBackground();
         
         this.updateUI();
         this.initRenderer();
@@ -185,50 +188,270 @@ class BattlePage {
     }
 
     drawMiniPokemonShape(renderer, pokemon, time, isPlayer) {
+        const model = getPokemonModel(pokemon.shape);
         const color = pokemon.color;
         const secondaryColor = pokemon.secondaryColor || color;
-        
-        const body = new Sphere(renderer, color, 0.4, 12);
-        const head = new Sphere(renderer, color, 0.32, 12);
-        const eyeWhite = new Sphere(renderer, [1.0, 1.0, 1.0, 1.0], 0.08, 6);
-        const eyeBlack = new Sphere(renderer, [0.0, 0.0, 0.0, 1.0], 0.04, 6);
+        const elements = model.elements;
         
         const bobY = Math.sin(time * 2) * 0.03;
         const baseY = bobY;
+        const scaleFactor = 0.75;
         
-        let bodyMatrix = renderer.translateMatrix(0, baseY, 0);
-        bodyMatrix = renderer.multiplyMatrices(bodyMatrix, renderer.scaleMatrix(1.1, 1.1, 1.1));
-        renderer.drawShape(body, bodyMatrix);
-        
-        let headMatrix = renderer.translateMatrix(0, baseY + 0.4, 0);
-        headMatrix = renderer.multiplyMatrices(headMatrix, renderer.scaleMatrix(1.0, 1.0, 1.0));
-        renderer.drawShape(head, headMatrix);
-        
-        const eyeOffsetX = isPlayer ? 0.1 : -0.1;
-        
-        let leftEyeMatrix = renderer.translateMatrix(-0.1 + eyeOffsetX * 0.5, baseY + 0.45, 0.25);
-        renderer.drawShape(eyeWhite, leftEyeMatrix);
-        
-        let rightEyeMatrix = renderer.translateMatrix(0.1 + eyeOffsetX * 0.5, baseY + 0.45, 0.25);
-        renderer.drawShape(eyeWhite, rightEyeMatrix);
-        
-        let leftPupilMatrix = renderer.translateMatrix(-0.08 + eyeOffsetX, baseY + 0.45, 0.3);
-        renderer.drawShape(eyeBlack, leftPupilMatrix);
-        
-        let rightPupilMatrix = renderer.translateMatrix(0.12 + eyeOffsetX, baseY + 0.45, 0.3);
-        renderer.drawShape(eyeBlack, rightPupilMatrix);
-        
-        if (pokemon.shape === 'pikachu' || pokemon.shape === 'raichu') {
-            const ear = new Cone(renderer, secondaryColor, 0.1, 0.3, 6);
-            
-            let leftEarMatrix = renderer.translateMatrix(-0.15, baseY + 0.65, 0);
-            leftEarMatrix = renderer.multiplyMatrices(leftEarMatrix, renderer.rotateZMatrix(-0.3));
-            renderer.drawShape(ear, leftEarMatrix);
-            
-            let rightEarMatrix = renderer.translateMatrix(0.15, baseY + 0.65, 0);
-            rightEarMatrix = renderer.multiplyMatrices(rightEarMatrix, renderer.rotateZMatrix(0.3));
-            renderer.drawShape(ear, rightEarMatrix);
+        if (elements.body) {
+            this.renderMiniPokemonElement(renderer, elements.body, 0, baseY, 0, color, secondaryColor, scaleFactor, isPlayer);
         }
+        
+        if (elements.head) {
+            const headPos = elements.head.position || { x: 0, y: 0, z: 0 };
+            this.renderMiniPokemonElement(renderer, elements.head, headPos.x * scaleFactor, baseY + headPos.y * scaleFactor, headPos.z * scaleFactor, color, secondaryColor, scaleFactor, isPlayer);
+        }
+        
+        if (elements.ears && elements.ears.length > 0) {
+            elements.ears.forEach(ear => {
+                const earPos = ear.position || { x: 0, y: 0, z: 0 };
+                const earRot = ear.rotation || { x: 0, y: 0, z: 0 };
+                const earColor = ear.useSecondaryColor ? secondaryColor : color;
+                this.renderMiniPokemonElementWithRotation(renderer, ear, earPos.x * scaleFactor, baseY + earPos.y * scaleFactor, earPos.z * scaleFactor, earColor, earRot, scaleFactor, isPlayer);
+            });
+        }
+        
+        if (elements.earTips && elements.earTips.length > 0) {
+            elements.earTips.forEach(ear => {
+                const earPos = ear.position || { x: 0, y: 0, z: 0 };
+                const earColor = ear.color || secondaryColor;
+                this.renderMiniPokemonElement(renderer, ear, earPos.x * scaleFactor, baseY + earPos.y * scaleFactor, earPos.z * scaleFactor, earColor, secondaryColor, scaleFactor, isPlayer);
+            });
+        }
+        
+        if (elements.tail) {
+            if (Array.isArray(elements.tail)) {
+                elements.tail.forEach(tail => {
+                    const tailPos = tail.position || { x: 0, y: 0, z: 0 };
+                    const tailRot = tail.rotation || { x: 0, y: 0, z: 0 };
+                    const tailColor = tail.color || secondaryColor;
+                    this.renderMiniPokemonElementWithRotation(renderer, tail, tailPos.x * scaleFactor, baseY + tailPos.y * scaleFactor, tailPos.z * scaleFactor, tailColor, tailRot, scaleFactor, isPlayer);
+                });
+            } else {
+                const tailPos = elements.tail.position || { x: 0, y: 0, z: 0 };
+                const tailRot = elements.tail.rotation || { x: 0, y: 0, z: 0 };
+                const tailColor = elements.tail.color || secondaryColor;
+                this.renderMiniPokemonElementWithRotation(renderer, elements.tail, tailPos.x * scaleFactor, baseY + tailPos.y * scaleFactor, tailPos.z * scaleFactor, tailColor, tailRot, scaleFactor, isPlayer);
+            }
+        }
+        
+        if (elements.tailBase) {
+            const tailBasePos = elements.tailBase.position || { x: 0, y: 0, z: 0 };
+            const tailBaseRot = elements.tailBase.rotation || { x: 0, y: 0, z: 0 };
+            this.renderMiniPokemonElementWithRotation(renderer, elements.tailBase, tailBasePos.x * scaleFactor, baseY + tailBasePos.y * scaleFactor, tailBasePos.z * scaleFactor, color, tailBaseRot, scaleFactor, isPlayer);
+        }
+        
+        if (elements.legs && elements.legs.length > 0) {
+            elements.legs.forEach(leg => {
+                const legPos = leg.position || { x: 0, y: 0, z: 0 };
+                const legColor = leg.useSecondaryColor ? secondaryColor : color;
+                this.renderMiniPokemonElement(renderer, leg, legPos.x * scaleFactor, baseY + legPos.y * scaleFactor, legPos.z * scaleFactor, legColor, secondaryColor, scaleFactor, isPlayer);
+            });
+        }
+        
+        if (elements.arms && elements.arms.length > 0) {
+            elements.arms.forEach(arm => {
+                const armPos = arm.position || { x: 0, y: 0, z: 0 };
+                const armRot = arm.rotation || { x: 0, y: 0, z: 0 };
+                const armColor = arm.useSecondaryColor ? secondaryColor : color;
+                this.renderMiniPokemonElementWithRotation(renderer, arm, armPos.x * scaleFactor, baseY + armPos.y * scaleFactor, armPos.z * scaleFactor, armColor, armRot, scaleFactor, isPlayer);
+            });
+        }
+        
+        if (elements.eyes && elements.eyes.length > 0) {
+            elements.eyes.forEach(eye => {
+                const eyePos = eye.position || { x: 0, y: 0, z: 0 };
+                const eyeColor = eye.color || [1.0, 1.0, 1.0, 1.0];
+                const eyeOffsetX = isPlayer ? 0.03 : -0.03;
+                this.renderMiniPokemonElement(renderer, eye, (eyePos.x + eyeOffsetX) * scaleFactor, baseY + eyePos.y * scaleFactor, eyePos.z * scaleFactor, eyeColor, secondaryColor, scaleFactor, isPlayer);
+            });
+        }
+        
+        if (elements.cheeks && elements.cheeks.length > 0) {
+            elements.cheeks.forEach(cheek => {
+                const cheekPos = cheek.position || { x: 0, y: 0, z: 0 };
+                const cheekColor = cheek.color || secondaryColor;
+                this.renderMiniPokemonElement(renderer, cheek, cheekPos.x * scaleFactor, baseY + cheekPos.y * scaleFactor, cheekPos.z * scaleFactor, cheekColor, secondaryColor, scaleFactor, isPlayer);
+            });
+        }
+        
+        if (elements.wings && elements.wings.length > 0) {
+            elements.wings.forEach(wing => {
+                const wingPos = wing.position || { x: 0, y: 0, z: 0 };
+                const wingRot = wing.rotation || { x: 0, y: 0, z: 0 };
+                const wingColor = wing.useSecondaryColor ? secondaryColor : color;
+                this.renderMiniPokemonElementWithRotation(renderer, wing, wingPos.x * scaleFactor, baseY + wingPos.y * scaleFactor, wingPos.z * scaleFactor, wingColor, wingRot, scaleFactor, isPlayer);
+            });
+        }
+        
+        if (elements.belly) {
+            const bellyPos = elements.belly.position || { x: 0, y: 0, z: 0 };
+            const bellyColor = elements.belly.useSecondaryColor ? secondaryColor : color;
+            this.renderMiniPokemonElement(renderer, elements.belly, bellyPos.x * scaleFactor, baseY + bellyPos.y * scaleFactor, bellyPos.z * scaleFactor, bellyColor, secondaryColor, scaleFactor, isPlayer);
+        }
+        
+        if (elements.horns && elements.horns.length > 0) {
+            elements.horns.forEach(horn => {
+                const hornPos = horn.position || { x: 0, y: 0, z: 0 };
+                const hornRot = horn.rotation || { x: 0, y: 0, z: 0 };
+                this.renderMiniPokemonElementWithRotation(renderer, horn, hornPos.x * scaleFactor, baseY + hornPos.y * scaleFactor, hornPos.z * scaleFactor, color, hornRot, scaleFactor, isPlayer);
+            });
+        }
+        
+        if (elements.snout) {
+            const snoutPos = elements.snout.position || { x: 0, y: 0, z: 0 };
+            const snoutRot = elements.snout.rotation || { x: 0, y: 0, z: 0 };
+            const snoutColor = elements.snout.useSecondaryColor ? secondaryColor : color;
+            this.renderMiniPokemonElementWithRotation(renderer, elements.snout, snoutPos.x * scaleFactor, baseY + snoutPos.y * scaleFactor, snoutPos.z * scaleFactor, snoutColor, snoutRot, scaleFactor, isPlayer);
+        }
+        
+        if (elements.beak) {
+            const beakPos = elements.beak.position || { x: 0, y: 0, z: 0 };
+            const beakRot = elements.beak.rotation || { x: 0, y: 0, z: 0 };
+            const beakColor = elements.beak.color || secondaryColor;
+            this.renderMiniPokemonElementWithRotation(renderer, elements.beak, beakPos.x * scaleFactor, baseY + beakPos.y * scaleFactor, beakPos.z * scaleFactor, beakColor, beakRot, scaleFactor, isPlayer);
+        }
+        
+        if (elements.bulb) {
+            const bulbPos = elements.bulb.position || { x: 0, y: 0, z: 0 };
+            this.renderMiniPokemonElement(renderer, elements.bulb, bulbPos.x * scaleFactor, baseY + bulbPos.y * scaleFactor, bulbPos.z * scaleFactor, color, secondaryColor, scaleFactor, isPlayer);
+        }
+        
+        if (elements.spots && elements.spots.length > 0) {
+            elements.spots.forEach(spot => {
+                const spotPos = spot.position || { x: 0, y: 0, z: 0 };
+                const spotColor = spot.useSecondaryColor ? secondaryColor : color;
+                this.renderMiniPokemonElement(renderer, spot, spotPos.x * scaleFactor, baseY + spotPos.y * scaleFactor, spotPos.z * scaleFactor, spotColor, secondaryColor, scaleFactor, isPlayer);
+            });
+        }
+        
+        if (elements.fangs && elements.fangs.length > 0) {
+            elements.fangs.forEach(fang => {
+                const fangPos = fang.position || { x: 0, y: 0, z: 0 };
+                const fangRot = fang.rotation || { x: 0, y: 0, z: 0 };
+                const fangColor = fang.color || [1.0, 1.0, 1.0, 1.0];
+                this.renderMiniPokemonElementWithRotation(renderer, fang, fangPos.x * scaleFactor, baseY + fangPos.y * scaleFactor, fangPos.z * scaleFactor, fangColor, fangRot, scaleFactor, isPlayer);
+            });
+        }
+        
+        if (elements.hair && elements.hair.length > 0) {
+            elements.hair.forEach(hair => {
+                const hairPos = hair.position || { x: 0, y: 0, z: 0 };
+                const hairRot = hair.rotation || { x: 0, y: 0, z: 0 };
+                this.renderMiniPokemonElementWithRotation(renderer, hair, hairPos.x * scaleFactor, baseY + hairPos.y * scaleFactor, hairPos.z * scaleFactor, color, hairRot, scaleFactor, isPlayer);
+            });
+        }
+        
+        if (elements.mouth) {
+            const mouthPos = elements.mouth.position || { x: 0, y: 0, z: 0 };
+            const mouthColor = elements.mouth.color || secondaryColor;
+            this.renderMiniPokemonElement(renderer, elements.mouth, mouthPos.x * scaleFactor, baseY + mouthPos.y * scaleFactor, mouthPos.z * scaleFactor, mouthColor, secondaryColor, scaleFactor, isPlayer);
+        }
+        
+        if (elements.shell) {
+            const shellPos = elements.shell.position || { x: 0, y: 0, z: 0 };
+            const shellColor = elements.shell.useSecondaryColor ? secondaryColor : color;
+            this.renderMiniPokemonElement(renderer, elements.shell, shellPos.x * scaleFactor, baseY + shellPos.y * scaleFactor, shellPos.z * scaleFactor, shellColor, secondaryColor, scaleFactor, isPlayer);
+        }
+    }
+
+    renderMiniPokemonElement(renderer, element, x, y, z, color, secondaryColor, scaleFactor, isPlayer) {
+        let shape;
+        const elementColor = element.color || color;
+        const scale = element.scale || 0.3;
+        
+        switch (element.type) {
+            case 'sphere':
+                shape = new Sphere(renderer, elementColor, scale * scaleFactor, 10);
+                break;
+            case 'ellipsoid':
+                shape = new Ellipsoid(renderer, elementColor, 
+                    (scale.x || 0.5) * scaleFactor, (scale.y || 0.5) * scaleFactor, (scale.z || 0.5) * scaleFactor, 10);
+                break;
+            case 'cone':
+                shape = new Cone(renderer, elementColor, 
+                    (scale.radius || 0.1) * scaleFactor, (scale.height || 0.3) * scaleFactor, 6);
+                break;
+            case 'cylinder':
+                shape = new Cylinder(renderer, elementColor, 
+                    (scale.radius || 0.1) * scaleFactor, (scale.height || 0.3) * scaleFactor, 6);
+                break;
+            case 'lightning':
+                shape = new LightningTail(renderer, elementColor, (scale || 1.0) * scaleFactor);
+                break;
+            case 'flame':
+                shape = new Flame(renderer, elementColor, (scale || 1.0) * scaleFactor, 6);
+                break;
+            case 'wing':
+                shape = new Wing(renderer, elementColor, (scale || 1.0) * scaleFactor, 6);
+                break;
+            case 'shell':
+                shape = new Shell(renderer, elementColor, (scale || 1.0) * scaleFactor, 6);
+                break;
+            case 'plantBulb':
+                shape = new PlantBulb(renderer, color, secondaryColor, (scale || 1.0) * scaleFactor, 6);
+                break;
+            default:
+                shape = new Sphere(renderer, elementColor, 0.3 * scaleFactor, 10);
+        }
+        
+        let matrix = renderer.translateMatrix(x, y, z);
+        renderer.drawShape(shape, matrix);
+    }
+
+    renderMiniPokemonElementWithRotation(renderer, element, x, y, z, color, rotation, scaleFactor, isPlayer) {
+        let shape;
+        const elementColor = element.color || color;
+        const scale = element.scale || 0.3;
+        
+        switch (element.type) {
+            case 'sphere':
+                shape = new Sphere(renderer, elementColor, scale * scaleFactor, 10);
+                break;
+            case 'ellipsoid':
+                shape = new Ellipsoid(renderer, elementColor, 
+                    (scale.x || 0.5) * scaleFactor, (scale.y || 0.5) * scaleFactor, (scale.z || 0.5) * scaleFactor, 10);
+                break;
+            case 'cone':
+                shape = new Cone(renderer, elementColor, 
+                    (scale.radius || 0.1) * scaleFactor, (scale.height || 0.3) * scaleFactor, 6);
+                break;
+            case 'cylinder':
+                shape = new Cylinder(renderer, elementColor, 
+                    (scale.radius || 0.1) * scaleFactor, (scale.height || 0.3) * scaleFactor, 6);
+                break;
+            case 'lightning':
+                shape = new LightningTail(renderer, elementColor, (scale || 1.0) * scaleFactor);
+                break;
+            case 'flame':
+                shape = new Flame(renderer, elementColor, (scale || 1.0) * scaleFactor, 6);
+                break;
+            case 'wing':
+                shape = new Wing(renderer, elementColor, (scale || 1.0) * scaleFactor, 6);
+                break;
+            case 'shell':
+                shape = new Shell(renderer, elementColor, (scale || 1.0) * scaleFactor, 6);
+                break;
+            default:
+                shape = new Sphere(renderer, elementColor, 0.3 * scaleFactor, 10);
+        }
+        
+        let matrix = renderer.translateMatrix(x, y, z);
+        const rot = rotation || { x: 0, y: 0, z: 0 };
+        if (rot.z !== 0) {
+            matrix = renderer.multiplyMatrices(matrix, renderer.rotateZMatrix(rot.z));
+        }
+        if (rot.x !== 0) {
+            matrix = renderer.multiplyMatrices(matrix, renderer.rotateXMatrix(rot.x));
+        }
+        if (rot.y !== 0) {
+            matrix = renderer.multiplyMatrices(matrix, renderer.rotateYMatrix(rot.y));
+        }
+        renderer.drawShape(shape, matrix);
     }
 
     renderBattleScene() {
@@ -237,7 +460,6 @@ class BattlePage {
         const gl = this.renderer.gl;
         const canvas = this.renderer.canvas;
         
-        this.renderer.clear(0.3, 0.6, 0.9, 1.0);
         this.renderer.setViewport(canvas.width, canvas.height);
         this.renderer.useProgram();
         
@@ -254,76 +476,283 @@ class BattlePage {
             32
         );
         
-        this.drawBattleGround();
+        renderBackground(this.renderer, this.currentBackground, this.animationTime);
         
         if (this.playerPokemon && !this.playerPokemon.isFainted()) {
-            this.drawPokemon(this.playerPokemon, { x: -2, y: 0.3, z: 0 }, this.playerShake, true);
+            this.drawPokemonAdvanced(this.playerPokemon, { x: -2, y: 0.3, z: 0 }, this.playerShake, true);
         }
         
         if (this.enemyPokemon && !this.enemyPokemon.isFainted()) {
-            this.drawPokemon(this.enemyPokemon, { x: 2, y: 0.3, z: 0 }, this.enemyShake, false);
+            this.drawPokemonAdvanced(this.enemyPokemon, { x: 2, y: 0.3, z: 0 }, this.enemyShake, false);
         }
     }
 
-    drawBattleGround() {
-        const ground = new Cube(this.renderer, [0.4, 0.8, 0.4, 1.0], 1);
-        
-        for (let i = -3; i <= 3; i++) {
-            for (let j = -3; j <= 3; j++) {
-                let groundMatrix = this.renderer.translateMatrix(i * 0.9, -0.6, j * 0.9);
-                groundMatrix = this.renderer.multiplyMatrices(groundMatrix, this.renderer.scaleMatrix(0.8, 0.2, 0.8));
-                this.renderer.drawShape(ground, groundMatrix);
-            }
-        }
-    }
-
-    drawPokemon(pokemon, position, shake, isPlayer) {
+    drawPokemonAdvanced(pokemon, position, shake, isPlayer) {
+        const model = getPokemonModel(pokemon.shape);
         const color = pokemon.color;
         const secondaryColor = pokemon.secondaryColor || color;
-        
-        const body = new Sphere(this.renderer, color, 0.5, 16);
-        const head = new Sphere(this.renderer, color, 0.4, 16);
-        const eyeWhite = new Sphere(this.renderer, [1.0, 1.0, 1.0, 1.0], 0.1, 8);
-        const eyeBlack = new Sphere(this.renderer, [0.0, 0.0, 0.0, 1.0], 0.05, 8);
+        const elements = model.elements;
         
         const bobY = Math.sin(this.animationTime * 2) * 0.05;
         const baseX = position.x + shake.x;
         const baseY = position.y + shake.y + bobY;
         const baseZ = position.z + shake.z;
         
-        let bodyMatrix = this.renderer.translateMatrix(baseX, baseY, baseZ);
-        bodyMatrix = this.renderer.multiplyMatrices(bodyMatrix, this.renderer.scaleMatrix(1.2, 1.2, 1.2));
-        this.renderer.drawShape(body, bodyMatrix);
+        const eyeOffsetX = isPlayer ? 0.05 : -0.05;
+        const eyeOffsetZ = isPlayer ? 0 : 0;
         
-        let headMatrix = this.renderer.translateMatrix(baseX, baseY + 0.5, baseZ);
-        headMatrix = this.renderer.multiplyMatrices(headMatrix, this.renderer.scaleMatrix(1.1, 1.1, 1.1));
-        this.renderer.drawShape(head, headMatrix);
-        
-        const eyeOffsetX = isPlayer ? 0.12 : -0.12;
-        
-        let leftEyeMatrix = this.renderer.translateMatrix(baseX - 0.12 + eyeOffsetX * 0.5, baseY + 0.55, baseZ + 0.3);
-        this.renderer.drawShape(eyeWhite, leftEyeMatrix);
-        
-        let rightEyeMatrix = this.renderer.translateMatrix(baseX + 0.12 + eyeOffsetX * 0.5, baseY + 0.55, baseZ + 0.3);
-        this.renderer.drawShape(eyeWhite, rightEyeMatrix);
-        
-        let leftPupilMatrix = this.renderer.translateMatrix(baseX - 0.1 + eyeOffsetX, baseY + 0.55, baseZ + 0.35);
-        this.renderer.drawShape(eyeBlack, leftPupilMatrix);
-        
-        let rightPupilMatrix = this.renderer.translateMatrix(baseX + 0.14 + eyeOffsetX, baseY + 0.55, baseZ + 0.35);
-        this.renderer.drawShape(eyeBlack, rightPupilMatrix);
-        
-        if (pokemon.shape === 'pikachu' || pokemon.shape === 'raichu') {
-            const ear = new Cone(this.renderer, secondaryColor, 0.12, 0.35, 8);
-            
-            let leftEarMatrix = this.renderer.translateMatrix(baseX - 0.2, baseY + 0.8, baseZ);
-            leftEarMatrix = this.renderer.multiplyMatrices(leftEarMatrix, this.renderer.rotateZMatrix(-0.4));
-            this.renderer.drawShape(ear, leftEarMatrix);
-            
-            let rightEarMatrix = this.renderer.translateMatrix(baseX + 0.2, baseY + 0.8, baseZ);
-            rightEarMatrix = this.renderer.multiplyMatrices(rightEarMatrix, this.renderer.rotateZMatrix(0.4));
-            this.renderer.drawShape(ear, rightEarMatrix);
+        if (elements.body) {
+            this.renderPokemonElement(elements.body, baseX, baseY, baseZ, color, secondaryColor);
         }
+        
+        if (elements.head) {
+            const headPos = elements.head.position || { x: 0, y: 0, z: 0 };
+            this.renderPokemonElement(elements.head, baseX + headPos.x, baseY + headPos.y, baseZ + headPos.z, color, secondaryColor);
+        }
+        
+        if (elements.ears && elements.ears.length > 0) {
+            elements.ears.forEach(ear => {
+                const earPos = ear.position || { x: 0, y: 0, z: 0 };
+                const earRot = ear.rotation || { x: 0, y: 0, z: 0 };
+                const earColor = ear.useSecondaryColor ? secondaryColor : color;
+                this.renderPokemonElementWithRotation(ear, baseX + earPos.x, baseY + earPos.y, baseZ + earPos.z, earColor, earRot);
+            });
+        }
+        
+        if (elements.earTips && elements.earTips.length > 0) {
+            elements.earTips.forEach(ear => {
+                const earPos = ear.position || { x: 0, y: 0, z: 0 };
+                const earColor = ear.color || secondaryColor;
+                this.renderPokemonElement(ear, baseX + earPos.x, baseY + earPos.y, baseZ + earPos.z, earColor, secondaryColor);
+            });
+        }
+        
+        if (elements.tail) {
+            if (Array.isArray(elements.tail)) {
+                elements.tail.forEach(tail => {
+                    const tailPos = tail.position || { x: 0, y: 0, z: 0 };
+                    const tailRot = tail.rotation || { x: 0, y: 0, z: 0 };
+                    const tailColor = tail.color || secondaryColor;
+                    this.renderPokemonElementWithRotation(tail, baseX + tailPos.x, baseY + tailPos.y, baseZ + tailPos.z, tailColor, tailRot);
+                });
+            } else {
+                const tailPos = elements.tail.position || { x: 0, y: 0, z: 0 };
+                const tailRot = elements.tail.rotation || { x: 0, y: 0, z: 0 };
+                const tailColor = elements.tail.color || secondaryColor;
+                this.renderPokemonElementWithRotation(elements.tail, baseX + tailPos.x, baseY + tailPos.y, baseZ + tailPos.z, tailColor, tailRot);
+            }
+        }
+        
+        if (elements.tailBase) {
+            const tailBasePos = elements.tailBase.position || { x: 0, y: 0, z: 0 };
+            const tailBaseRot = elements.tailBase.rotation || { x: 0, y: 0, z: 0 };
+            this.renderPokemonElementWithRotation(elements.tailBase, baseX + tailBasePos.x, baseY + tailBasePos.y, baseZ + tailBasePos.z, color, tailBaseRot);
+        }
+        
+        if (elements.legs && elements.legs.length > 0) {
+            elements.legs.forEach(leg => {
+                const legPos = leg.position || { x: 0, y: 0, z: 0 };
+                this.renderPokemonElement(leg, baseX + legPos.x, baseY + legPos.y, baseZ + legPos.z, color, secondaryColor);
+            });
+        }
+        
+        if (elements.arms && elements.arms.length > 0) {
+            elements.arms.forEach(arm => {
+                const armPos = arm.position || { x: 0, y: 0, z: 0 };
+                const armRot = arm.rotation || { x: 0, y: 0, z: 0 };
+                this.renderPokemonElementWithRotation(arm, baseX + armPos.x, baseY + armPos.y, baseZ + armPos.z, color, armRot);
+            });
+        }
+        
+        if (elements.eyes && elements.eyes.length > 0) {
+            elements.eyes.forEach(eye => {
+                const eyePos = eye.position || { x: 0, y: 0, z: 0 };
+                const eyeColor = eye.color || [1.0, 1.0, 1.0, 1.0];
+                this.renderPokemonElement(eye, baseX + eyePos.x + eyeOffsetX, baseY + eyePos.y, baseZ + eyePos.z + eyeOffsetZ, eyeColor, secondaryColor);
+            });
+        }
+        
+        if (elements.cheeks && elements.cheeks.length > 0) {
+            elements.cheeks.forEach(cheek => {
+                const cheekPos = cheek.position || { x: 0, y: 0, z: 0 };
+                const cheekColor = cheek.color || secondaryColor;
+                this.renderPokemonElement(cheek, baseX + cheekPos.x, baseY + cheekPos.y, baseZ + cheekPos.z, cheekColor, secondaryColor);
+            });
+        }
+        
+        if (elements.wings && elements.wings.length > 0) {
+            elements.wings.forEach(wing => {
+                const wingPos = wing.position || { x: 0, y: 0, z: 0 };
+                const wingRot = wing.rotation || { x: 0, y: 0, z: 0 };
+                const wingColor = wing.useSecondaryColor ? secondaryColor : color;
+                this.renderPokemonElementWithRotation(wing, baseX + wingPos.x, baseY + wingPos.y, baseZ + wingPos.z, wingColor, wingRot);
+            });
+        }
+        
+        if (elements.belly) {
+            const bellyPos = elements.belly.position || { x: 0, y: 0, z: 0 };
+            const bellyColor = elements.belly.useSecondaryColor ? secondaryColor : color;
+            this.renderPokemonElement(elements.belly, baseX + bellyPos.x, baseY + bellyPos.y, baseZ + bellyPos.z, bellyColor, secondaryColor);
+        }
+        
+        if (elements.horns && elements.horns.length > 0) {
+            elements.horns.forEach(horn => {
+                const hornPos = horn.position || { x: 0, y: 0, z: 0 };
+                const hornRot = horn.rotation || { x: 0, y: 0, z: 0 };
+                this.renderPokemonElementWithRotation(horn, baseX + hornPos.x, baseY + hornPos.y, baseZ + hornPos.z, color, hornRot);
+            });
+        }
+        
+        if (elements.snout) {
+            const snoutPos = elements.snout.position || { x: 0, y: 0, z: 0 };
+            const snoutRot = elements.snout.rotation || { x: 0, y: 0, z: 0 };
+            const snoutColor = elements.snout.useSecondaryColor ? secondaryColor : color;
+            this.renderPokemonElementWithRotation(elements.snout, baseX + snoutPos.x, baseY + snoutPos.y, baseZ + snoutPos.z, snoutColor, snoutRot);
+        }
+        
+        if (elements.beak) {
+            const beakPos = elements.beak.position || { x: 0, y: 0, z: 0 };
+            const beakRot = elements.beak.rotation || { x: 0, y: 0, z: 0 };
+            const beakColor = elements.beak.color || secondaryColor;
+            this.renderPokemonElementWithRotation(elements.beak, baseX + beakPos.x, baseY + beakPos.y, baseZ + beakPos.z, beakColor, beakRot);
+        }
+        
+        if (elements.bulb) {
+            const bulbPos = elements.bulb.position || { x: 0, y: 0, z: 0 };
+            this.renderPokemonElement(elements.bulb, baseX + bulbPos.x, baseY + bulbPos.y, baseZ + bulbPos.z, color, secondaryColor);
+        }
+        
+        if (elements.spots && elements.spots.length > 0) {
+            elements.spots.forEach(spot => {
+                const spotPos = spot.position || { x: 0, y: 0, z: 0 };
+                const spotColor = spot.useSecondaryColor ? secondaryColor : color;
+                this.renderPokemonElement(spot, baseX + spotPos.x, baseY + spotPos.y, baseZ + spotPos.z, spotColor, secondaryColor);
+            });
+        }
+        
+        if (elements.fangs && elements.fangs.length > 0) {
+            elements.fangs.forEach(fang => {
+                const fangPos = fang.position || { x: 0, y: 0, z: 0 };
+                const fangRot = fang.rotation || { x: 0, y: 0, z: 0 };
+                const fangColor = fang.color || [1.0, 1.0, 1.0, 1.0];
+                this.renderPokemonElementWithRotation(fang, baseX + fangPos.x, baseY + fangPos.y, baseZ + fangPos.z, fangColor, fangRot);
+            });
+        }
+        
+        if (elements.hair && elements.hair.length > 0) {
+            elements.hair.forEach(hair => {
+                const hairPos = hair.position || { x: 0, y: 0, z: 0 };
+                const hairRot = hair.rotation || { x: 0, y: 0, z: 0 };
+                this.renderPokemonElementWithRotation(hair, baseX + hairPos.x, baseY + hairPos.y, baseZ + hairPos.z, color, hairRot);
+            });
+        }
+        
+        if (elements.mouth) {
+            const mouthPos = elements.mouth.position || { x: 0, y: 0, z: 0 };
+            const mouthColor = elements.mouth.color || secondaryColor;
+            this.renderPokemonElement(elements.mouth, baseX + mouthPos.x, baseY + mouthPos.y, baseZ + mouthPos.z, mouthColor, secondaryColor);
+        }
+        
+        if (elements.shell) {
+            const shellPos = elements.shell.position || { x: 0, y: 0, z: 0 };
+            const shellColor = elements.shell.useSecondaryColor ? secondaryColor : color;
+            this.renderPokemonElement(elements.shell, baseX + shellPos.x, baseY + shellPos.y, baseZ + shellPos.z, shellColor, secondaryColor);
+        }
+    }
+
+    renderPokemonElement(element, x, y, z, color, secondaryColor) {
+        let shape;
+        const elementColor = element.color || color;
+        const scale = element.scale || 0.3;
+        
+        switch (element.type) {
+            case 'sphere':
+                shape = new Sphere(this.renderer, elementColor, scale, 12);
+                break;
+            case 'ellipsoid':
+                shape = new Ellipsoid(this.renderer, elementColor, 
+                    scale.x || 0.5, scale.y || 0.5, scale.z || 0.5, 12);
+                break;
+            case 'cone':
+                shape = new Cone(this.renderer, elementColor, 
+                    scale.radius || 0.1, scale.height || 0.3, 8);
+                break;
+            case 'cylinder':
+                shape = new Cylinder(this.renderer, elementColor, 
+                    scale.radius || 0.1, scale.height || 0.3, 8);
+                break;
+            case 'lightning':
+                shape = new LightningTail(this.renderer, elementColor, scale || 1.0);
+                break;
+            case 'flame':
+                shape = new Flame(this.renderer, elementColor, scale || 1.0, 8);
+                break;
+            case 'wing':
+                shape = new Wing(this.renderer, elementColor, scale || 1.0, 8);
+                break;
+            case 'shell':
+                shape = new Shell(this.renderer, elementColor, scale || 1.0, 8);
+                break;
+            case 'plantBulb':
+                shape = new PlantBulb(this.renderer, color, secondaryColor, scale || 1.0, 8);
+                break;
+            default:
+                shape = new Sphere(this.renderer, elementColor, 0.3, 12);
+        }
+        
+        let matrix = this.renderer.translateMatrix(x, y, z);
+        this.renderer.drawShape(shape, matrix);
+    }
+
+    renderPokemonElementWithRotation(element, x, y, z, color, rotation) {
+        let shape;
+        const elementColor = element.color || color;
+        const scale = element.scale || 0.3;
+        
+        switch (element.type) {
+            case 'sphere':
+                shape = new Sphere(this.renderer, elementColor, scale, 12);
+                break;
+            case 'ellipsoid':
+                shape = new Ellipsoid(this.renderer, elementColor, 
+                    scale.x || 0.5, scale.y || 0.5, scale.z || 0.5, 12);
+                break;
+            case 'cone':
+                shape = new Cone(this.renderer, elementColor, 
+                    scale.radius || 0.1, scale.height || 0.3, 8);
+                break;
+            case 'cylinder':
+                shape = new Cylinder(this.renderer, elementColor, 
+                    scale.radius || 0.1, scale.height || 0.3, 8);
+                break;
+            case 'lightning':
+                shape = new LightningTail(this.renderer, elementColor, scale || 1.0);
+                break;
+            case 'flame':
+                shape = new Flame(this.renderer, elementColor, scale || 1.0, 8);
+                break;
+            case 'wing':
+                shape = new Wing(this.renderer, elementColor, scale || 1.0, 8);
+                break;
+            case 'shell':
+                shape = new Shell(this.renderer, elementColor, scale || 1.0, 8);
+                break;
+            default:
+                shape = new Sphere(this.renderer, elementColor, 0.3, 12);
+        }
+        
+        let matrix = this.renderer.translateMatrix(x, y, z);
+        const rot = rotation || { x: 0, y: 0, z: 0 };
+        if (rot.x !== 0) {
+            matrix = this.renderer.multiplyMatrices(matrix, this.renderer.rotateXMatrix(rot.x));
+        }
+        if (rot.y !== 0) {
+            matrix = this.renderer.multiplyMatrices(matrix, this.renderer.rotateYMatrix(rot.y));
+        }
+        if (rot.z !== 0) {
+            matrix = this.renderer.multiplyMatrices(matrix, this.renderer.rotateZMatrix(rot.z));
+        }
+        this.renderer.drawShape(shape, matrix);
     }
 
     renderTeamSidebar() {
