@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 宝可梦对战游戏</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <!-- 选宝可梦页面 -->
+        <div id="selection-page" class="page active">
+            <h1>选择你的宝可梦</h1>
+            <div id="pokemon-list" class="pokemon-grid"></div>
+            <div class="selection-info">
+                <div id="player-pokemon" class="selected-pokemon">
+                    <h3>你的宝可梦</h3>
+                    <div class="pokemon-preview">
+                        <canvas id="player-preview-canvas" width="200" height="200"></canvas>
+                        <div id="player-stats" class="pokemon-stats"></div>
+                    </div>
+                </div>
+                <div id="enemy-pokemon" class="selected-pokemon">
+                    <h3>对手宝可梦</h3>
+                    <div class="pokemon-preview">
+                        <canvas id="enemy-preview-canvas" width="200" height="200"></canvas>
+                        <div id="enemy-stats" class="pokemon-stats"></div>
+                    </div>
+                </div>
+            </div>
+            <button id="start-battle" class="btn-primary" disabled>开始战斗</button>
+        </div>
+
+        <!-- 对战页面 -->
+        <div id="battle-page" class="page">
+            <div id="battle-scene">
+                <canvas id="battle-canvas" width="800" height="500"></canvas>
+                <div id="battle-ui">
+                    <div id="enemy-info" class="battle-info">
+                        <h3 id="enemy-name"></h3>
+                        <div class="hp-bar">
+                            <div class="hp-bar-label">HP</div>
+                            <div class="hp-bar-bg">
+                                <div id="enemy-hp-bar" class="hp-bar-fill"></div>
+                            </div>
+                            <div id="enemy-hp-text" class="hp-bar-text">0/0</div>
+                        </div>
+                    </div>
+                    <div id="player-info" class="battle-info">
+                        <h3 id="player-name"></h3>
+                        <div class="hp-bar">
+                            <div class="hp-bar-label">HP</div>
+                            <div class="hp-bar-bg">
+                                <div id="player-hp-bar" class="hp-bar-fill"></div>
+                            </div>
+                            <div id="player-hp-text" class="hp-bar-text">0/0</div>
+                        </div>
+                    </div>
+                    <div id="battle-menu">
+                        <div id="move-buttons" class="move-grid">
+                            <button class="move-btn" data-move="0"></button>
+                            <button class="move-btn" data-move="1"></button>
+                            <button class="move-btn" data-move="2"></button>
+                            <button class="move-btn" data-move="3"></button>
+                        </div>
+                        <button id="switch-btn" class="btn-secondary">换宝可梦</button>
+                    </div>
+                    <div id="battle-message" class="battle-message"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 结算页面 -->
+        <div id="result-page" class="page">
+            <div id="result-container">
+                <h1 id="result-title"></h1>
+                <div id="result-details">
+                    <div id="result-pokemon" class="result-pokemon">
+                        <div class="result-pokemon-card">
+                            <h3>你的宝可梦</h3>
+                            <canvas id="result-player-canvas" width="150" height="150"></canvas>
+                            <div id="result-player-stats"></div>
+                        </div>
+                        <div class="result-vs">VS</div>
+                        <div class="result-pokemon-card">
+                            <h3>对手宝可梦</h3>
+                            <canvas id="result-enemy-canvas" width="150" height="150"></canvas>
+                            <div id="result-enemy-stats"></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="result-stats" class="result-stats"></div>
+                <div class="result-buttons">
+                    <button id="play-again" class="btn-primary">再来一局</button>
+                    <button id="back-to-selection" class="btn-secondary">返回选择</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script defer src="js/pokemon/types.js"></script>
+    <script defer src="js/pokemon/moves.js"></script>
+    <script defer src="js/pokemon/pokemon.js"></script>
+    <script defer src="js/webgl/renderer.js"></script>
+    <script defer src="js/webgl/shapes.js"></script>
+    <script defer src="js/game/ai.js"></script>
+    <script defer src="js/game/battle.js"></script>
+    <script defer src="js/pages/selection.js"></script>
+    <script defer src="js/pages/battle.js"></script>
+    <script defer src="js/pages/result.js"></script>
+    <script defer src="js/app.js"></script>
+</body>
+</html>
