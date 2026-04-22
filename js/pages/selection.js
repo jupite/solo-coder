@@ -2,9 +2,6 @@ class SelectionPage {
     constructor(game) {
         this.game = game;
         this.selectedPokemonId = null;
-        this.enemyPokemonId = null;
-        this.playerRenderer = null;
-        this.enemyRenderer = null;
         this.cardRenderers = {};
         
         this.init();
@@ -13,8 +10,9 @@ class SelectionPage {
     init() {
         this.pokemonList = document.getElementById('pokemon-list');
         this.startBattleBtn = document.getElementById('start-battle');
-        this.playerPokemonInfo = document.getElementById('player-stats');
-        this.enemyPokemonInfo = document.getElementById('enemy-stats');
+        this.selectedPokemonInfo = document.getElementById('selected-pokemon-info');
+        this.selectedPokemonName = document.getElementById('selected-pokemon-name');
+        this.selectedPokemonStats = document.getElementById('selected-pokemon-stats');
         
         this.renderPokemonList();
         this.bindEvents();
@@ -241,7 +239,8 @@ class SelectionPage {
         
         this.startBattleBtn.addEventListener('click', () => {
             if (this.selectedPokemonId) {
-                this.game.startBattle(this.selectedPokemonId, this.enemyPokemonId);
+                const enemyPokemonId = this.generateRandomEnemy();
+                this.game.startBattle(this.selectedPokemonId, enemyPokemonId);
             }
         });
     }
@@ -258,36 +257,33 @@ class SelectionPage {
             }
         });
         
-        this.selectEnemyPokemon();
-        this.updatePokemonInfo();
-        
-        this.startBattleBtn.disabled = !this.selectedPokemonId || !this.enemyPokemonId;
+        this.updateSelectedPokemonInfo();
+        this.startBattleBtn.disabled = !this.selectedPokemonId;
     }
 
-    selectEnemyPokemon() {
+    generateRandomEnemy() {
         const allPokemon = getAllPokemonData();
         const randomIndex = Math.floor(Math.random() * allPokemon.length);
-        this.enemyPokemonId = allPokemon[randomIndex].id;
+        return allPokemon[randomIndex].id;
     }
 
-    updatePokemonInfo() {
-        if (this.selectedPokemonId) {
-            const pokemonData = getAllPokemonData().find(p => p.id === this.selectedPokemonId);
-            if (pokemonData) {
-                const pokemon = new Pokemon(pokemonData, 50);
-                this.playerPokemonInfo.innerHTML = this.createStatsHTML(pokemon);
-                this.renderPreviewPokemon('player', pokemonData);
-            }
+    updateSelectedPokemonInfo() {
+        if (!this.selectedPokemonId) {
+            this.selectedPokemonInfo.style.display = 'none';
+            return;
         }
         
-        if (this.enemyPokemonId) {
-            const pokemonData = getAllPokemonData().find(p => p.id === this.enemyPokemonId);
-            if (pokemonData) {
-                const pokemon = new Pokemon(pokemonData, 50);
-                this.enemyPokemonInfo.innerHTML = this.createStatsHTML(pokemon);
-                this.renderPreviewPokemon('enemy', pokemonData);
-            }
+        const pokemonData = getAllPokemonData().find(p => p.id === this.selectedPokemonId);
+        if (!pokemonData) {
+            this.selectedPokemonInfo.style.display = 'none';
+            return;
         }
+        
+        const pokemon = new Pokemon(pokemonData, 50);
+        
+        this.selectedPokemonName.textContent = `已选择: ${pokemon.name}`;
+        this.selectedPokemonStats.innerHTML = this.createStatsHTML(pokemon);
+        this.selectedPokemonInfo.style.display = 'block';
     }
 
     createStatsHTML(pokemon) {
@@ -303,38 +299,18 @@ class SelectionPage {
         `;
     }
 
-    renderPreviewPokemon(side, pokemonData) {
-        const canvasId = side === 'player' ? 'player-preview-canvas' : 'enemy-preview-canvas';
-        const canvas = document.getElementById(canvasId);
-        
-        if (!canvas) return;
-        
-        try {
-            const renderer = new WebGLRenderer(canvas);
-            
-            if (side === 'player') {
-                this.playerRenderer = renderer;
-            } else {
-                this.enemyRenderer = renderer;
-            }
-            
-            const animate = () => {
-                if (!canvas.isConnected) return;
-                
-                this.renderPokemon3D(renderer, pokemonData, Date.now() * 0.001, 0);
-                requestAnimationFrame(animate);
-            };
-            animate();
-        } catch (e) {
-            console.error('无法创建 WebGL 上下文:', e);
-            this.renderPokemon2D(canvas, pokemonData);
-        }
-    }
-
     show() {
         document.getElementById('selection-page').classList.add('active');
         document.getElementById('battle-page').classList.remove('active');
         document.getElementById('result-page').classList.remove('active');
+        
+        this.selectedPokemonId = null;
+        this.startBattleBtn.disabled = true;
+        this.selectedPokemonInfo.style.display = 'none';
+        
+        document.querySelectorAll('.pokemon-card').forEach(card => {
+            card.classList.remove('selected');
+        });
     }
 
     hide() {

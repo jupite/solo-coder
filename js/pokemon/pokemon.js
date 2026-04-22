@@ -188,11 +188,28 @@ class Pokemon {
         this.types = pokemonData.types;
         this.level = level;
         this.baseStats = pokemonData.baseStats;
-        this.moves = pokemonData.moves.map(moveId => ({
-            ...getMove(moveId),
-            id: moveId,
-            currentPp: getMove(moveId).pp
-        }));
+        this.moves = pokemonData.moves.map(moveId => {
+            const move = getMove(moveId);
+            if (!move) {
+                console.error(`招式 ${moveId} 未定义，使用默认招式`);
+                return {
+                    name: '撞击',
+                    type: PokemonTypes.NORMAL,
+                    power: 40,
+                    accuracy: 100,
+                    pp: 35,
+                    category: 'physical',
+                    description: '用整个身体撞击对手。',
+                    id: 'tackle',
+                    currentPp: 35
+                };
+            }
+            return {
+                ...move,
+                id: moveId,
+                currentPp: move.pp
+            };
+        });
         this.color = pokemonData.color;
         this.secondaryColor = pokemonData.secondaryColor;
         this.description = pokemonData.description;

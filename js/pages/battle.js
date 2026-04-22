@@ -26,7 +26,6 @@ class BattlePage {
         this.playerHpText = document.getElementById('player-hp-text');
         this.enemyHpText = document.getElementById('enemy-hp-text');
         this.moveButtons = document.querySelectorAll('.move-btn');
-        this.switchButton = document.getElementById('switch-btn');
         this.battleMessage = document.getElementById('battle-message');
         
         this.bindEvents();
@@ -40,11 +39,6 @@ class BattlePage {
                 const moveIndex = parseInt(e.target.dataset.move);
                 this.executePlayerMove(moveIndex);
             });
-        });
-        
-        this.switchButton.addEventListener('click', () => {
-            if (this.isAnimating) return;
-            this.game.showSelectionPage();
         });
     }
 
@@ -347,7 +341,6 @@ class BattlePage {
         this.moveButtons.forEach(button => {
             button.disabled = true;
         });
-        this.switchButton.disabled = true;
     }
 
     enableMoveButtons() {
@@ -359,7 +352,6 @@ class BattlePage {
                 this.moveButtons[index].disabled = move.currentPp <= 0;
             }
         });
-        this.switchButton.disabled = false;
     }
 
     endBattle() {

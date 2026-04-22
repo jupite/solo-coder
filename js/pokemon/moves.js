@@ -232,6 +232,96 @@ const PokemonMoves = {
         pp: 25,
         category: 'special',
         description: '用冰冷的雪攻击对手。'
+    },
+    wingAttack: {
+        name: '翅膀攻击',
+        type: PokemonTypes.FLYING,
+        power: 60,
+        accuracy: 100,
+        pp: 35,
+        category: 'physical',
+        description: '用翅膀攻击对手。'
+    },
+    thunder: {
+        name: '打雷',
+        type: PokemonTypes.ELECTRIC,
+        power: 110,
+        accuracy: 70,
+        pp: 10,
+        category: 'special',
+        description: '用强烈的雷电攻击对手。'
+    },
+    sing: {
+        name: '唱歌',
+        type: PokemonTypes.NORMAL,
+        power: 0,
+        accuracy: 55,
+        pp: 15,
+        category: 'status',
+        description: '用悦耳的歌声让对手入睡。'
+    },
+    moonblast: {
+        name: '月亮之力',
+        type: PokemonTypes.FAIRY,
+        power: 95,
+        accuracy: 100,
+        pp: 15,
+        category: 'special',
+        description: '借助月亮的力量攻击对手。'
+    },
+    playRough: {
+        name: '嬉闹',
+        type: PokemonTypes.FAIRY,
+        power: 90,
+        accuracy: 90,
+        pp: 10,
+        category: 'physical',
+        description: '与对手嬉闹并攻击。'
+    },
+    supersonic: {
+        name: '超音波',
+        type: PokemonTypes.NORMAL,
+        power: 0,
+        accuracy: 55,
+        pp: 20,
+        category: 'status',
+        description: '发出特殊的声波让对手混乱。'
+    },
+    poisonFang: {
+        name: '毒牙',
+        type: PokemonTypes.POISON,
+        power: 50,
+        accuracy: 100,
+        pp: 15,
+        category: 'physical',
+        description: '用毒牙撕咬对手。'
+    },
+    bubble: {
+        name: '泡泡',
+        type: PokemonTypes.WATER,
+        power: 40,
+        accuracy: 100,
+        pp: 30,
+        category: 'special',
+        description: '喷出无数泡泡攻击对手。'
+    },
+    hypnosis: {
+        name: '催眠术',
+        type: PokemonTypes.PSYCHIC,
+        power: 0,
+        accuracy: 60,
+        pp: 20,
+        category: 'status',
+        description: '施加催眠让对手入睡。'
+    },
+    doubleSlap: {
+        name: '连环巴掌',
+        type: PokemonTypes.NORMAL,
+        power: 15,
+        accuracy: 85,
+        pp: 10,
+        category: 'physical',
+        description: '用巴掌连续拍打对手。'
     }
 };
 

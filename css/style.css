@@ -87,6 +87,30 @@ body {
     margin: 2px;
 }
 
+.selected-pokemon-info {
+    background: linear-gradient(145deg, #f8f8f8, #eee);
+    border-radius: 15px;
+    padding: 20px;
+    margin: 20px 0;
+    text-align: center;
+}
+
+.selected-pokemon-info h3 {
+    margin-bottom: 15px;
+    color: #667eea;
+}
+
+.selected-stats {
+    text-align: left;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.selected-stats p {
+    margin: 5px 0;
+    font-size: 0.95em;
+}
+
 .selection-info {
     display: flex;
     justify-content: space-around;

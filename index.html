@@ -12,21 +12,9 @@
         <div id="selection-page" class="page active">
             <h1>选择你的宝可梦</h1>
             <div id="pokemon-list" class="pokemon-grid"></div>
-            <div class="selection-info">
-                <div id="player-pokemon" class="selected-pokemon">
-                    <h3>你的宝可梦</h3>
-                    <div class="pokemon-preview">
-                        <canvas id="player-preview-canvas" width="200" height="200"></canvas>
-                        <div id="player-stats" class="pokemon-stats"></div>
-                    </div>
-                </div>
-                <div id="enemy-pokemon" class="selected-pokemon">
-                    <h3>对手宝可梦</h3>
-                    <div class="pokemon-preview">
-                        <canvas id="enemy-preview-canvas" width="200" height="200"></canvas>
-                        <div id="enemy-stats" class="pokemon-stats"></div>
-                    </div>
-                </div>
+            <div id="selected-pokemon-info" class="selected-pokemon-info" style="display: none;">
+                <h3 id="selected-pokemon-name"></h3>
+                <div id="selected-pokemon-stats" class="selected-stats"></div>
             </div>
             <button id="start-battle" class="btn-primary" disabled>开始战斗</button>
         </div>
@@ -63,7 +51,6 @@
                             <button class="move-btn" data-move="2"></button>
                             <button class="move-btn" data-move="3"></button>
                         </div>
-                        <button id="switch-btn" class="btn-secondary">换宝可梦</button>
                     </div>
                     <div id="battle-message" class="battle-message"></div>
                 </div>
