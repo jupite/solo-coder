@@ -27,7 +27,7 @@ class PokemonGame {
         }
     }
 
-    startBattle(playerPokemonId, enemyPokemonId) {
+    startBattle(playerPokemonIds, enemyPokemonIds) {
         if (this.selectionPage) {
             this.selectionPage.hide();
         }
@@ -36,7 +36,7 @@ class PokemonGame {
         }
         if (this.battlePage) {
             this.battlePage.show();
-            this.battlePage.startBattle(playerPokemonId, enemyPokemonId);
+            this.battlePage.startBattle(playerPokemonIds, enemyPokemonIds);
         }
     }
 

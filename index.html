@@ -22,29 +22,58 @@
         <!-- 对战页面 -->
         <div id="battle-page" class="page">
             <div id="battle-scene">
-                <!-- 上部：宝可梦对战场景 -->
-                <div id="battle-top">
-                    <canvas id="battle-canvas" width="800" height="500"></canvas>
-                    <div id="battle-overlay">
-                        <div id="enemy-info" class="battle-info">
-                            <h3 id="enemy-name"></h3>
-                            <div class="hp-bar">
-                                <div class="hp-bar-label">HP</div>
-                                <div class="hp-bar-bg">
-                                    <div id="enemy-hp-bar" class="hp-bar-fill"></div>
+                <!-- 上部：对战区域（左中右结构） -->
+                <div id="battle-top-section">
+                    <!-- 左侧：我的宝可梦信息 -->
+                    <div id="player-panel" class="side-panel">
+                        <div class="panel-header">
+                            <h3>我的宝可梦</h3>
+                        </div>
+                        <div id="player-active-pokemon" class="active-pokemon-card">
+                            <canvas id="player-active-canvas" width="120" height="120"></canvas>
+                            <div class="active-pokemon-info">
+                                <h4 id="player-active-name"></h4>
+                                <div class="hp-bar-small">
+                                    <div class="hp-bar-label-small">HP</div>
+                                    <div class="hp-bar-bg-small">
+                                        <div id="player-active-hp-bar" class="hp-bar-fill-small"></div>
+                                    </div>
+                                    <div id="player-active-hp-text" class="hp-bar-text-small">0/0</div>
                                 </div>
-                                <div id="enemy-hp-text" class="hp-bar-text">0/0</div>
                             </div>
                         </div>
-                        <div id="player-info" class="battle-info">
-                            <h3 id="player-name"></h3>
-                            <div class="hp-bar">
-                                <div class="hp-bar-label">HP</div>
-                                <div class="hp-bar-bg">
-                                    <div id="player-hp-bar" class="hp-bar-fill"></div>
+                        <div class="team-section">
+                            <h4>后备宝可梦</h4>
+                            <div id="player-team-list" class="team-list-small"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 中间：3D对战场景 -->
+                    <div id="battle-center">
+                        <canvas id="battle-canvas" width="800" height="500"></canvas>
+                    </div>
+                    
+                    <!-- 右侧：对手宝可梦信息 -->
+                    <div id="enemy-panel" class="side-panel">
+                        <div class="panel-header">
+                            <h3>对手宝可梦</h3>
+                        </div>
+                        <div id="enemy-active-pokemon" class="active-pokemon-card">
+                            <canvas id="enemy-active-canvas" width="120" height="120"></canvas>
+                            <div class="active-pokemon-info">
+                                <h4 id="enemy-active-name"></h4>
+                                <div class="hp-bar-small">
+                                    <div class="hp-bar-label-small">HP</div>
+                                    <div class="hp-bar-bg-small">
+                                        <div id="enemy-active-hp-bar" class="hp-bar-fill-small"></div>
+                                    </div>
+                                    <div id="enemy-active-hp-text" class="hp-bar-text-small">0/0</div>
                                 </div>
-                                <div id="player-hp-text" class="hp-bar-text">0/0</div>
                             </div>
+                        </div>
+                        <div class="team-section">
+                            <h4>后备宝可梦</h4>
+                            <div id="enemy-team-list" class="team-list-small"></div>
                         </div>
                     </div>
                 </div>
@@ -57,11 +86,24 @@
                 <!-- 下部：技能选择 -->
                 <div id="battle-bottom">
                     <div id="battle-menu">
+                        <!-- 切换按钮区域 -->
+                        <div id="switch-area" class="switch-area">
+                            <button id="switch-pokemon-btn" class="switch-btn">切换宝可梦</button>
+                        </div>
+                        
+                        <!-- 技能按钮区域 -->
                         <div id="move-buttons" class="move-grid">
                             <button class="move-btn" data-move="0"></button>
                             <button class="move-btn" data-move="1"></button>
                             <button class="move-btn" data-move="2"></button>
                             <button class="move-btn" data-move="3"></button>
+                        </div>
+                        
+                        <!-- 切换选择弹窗 -->
+                        <div id="switch-modal" class="switch-modal" style="display: none;">
+                            <h3 id="switch-modal-title">选择要切换的宝可梦</h3>
+                            <div id="switch-options" class="switch-options"></div>
+                            <button id="cancel-switch-btn" class="cancel-switch-btn" style="display: none;">取消</button>
                         </div>
                     </div>
                 </div>

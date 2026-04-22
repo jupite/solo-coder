@@ -193,55 +193,205 @@ body {
 #battle-scene {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 15px;
 }
 
-/* 上部：宝可梦对战场景 */
-#battle-top {
-    position: relative;
+/* 上部：对战区域（左中右结构） */
+#battle-top-section {
+    display: flex;
+    gap: 15px;
+    flex: 1;
+    min-height: 500px;
+}
+
+/* 左侧/右侧面板 */
+.side-panel {
+    width: 220px;
     flex-shrink: 0;
+    background: linear-gradient(145deg, #f8f8f8, #eee);
+    border-radius: 15px;
+    padding: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-header {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.panel-header h3 {
+    color: #667eea;
+    font-size: 1.2em;
+}
+
+/* 活跃宝可梦卡片 */
+.active-pokemon-card {
+    background: linear-gradient(145deg, #e8f0fe, #d4e4ff);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+    border: 2px solid #667eea;
+    box-shadow: 0 0 15px rgba(102, 126, 234, 0.3);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.active-pokemon-card canvas {
+    width: 100px;
+    height: 100px;
+    margin-bottom: 10px;
+}
+
+.active-pokemon-info {
+    width: 100%;
+    text-align: center;
+}
+
+.active-pokemon-info h4 {
+    color: #333;
+    margin-bottom: 8px;
+    font-size: 1.1em;
+}
+
+/* 小HP条 */
+.hp-bar-small {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.hp-bar-label-small {
+    font-weight: bold;
+    color: #555;
+    font-size: 0.85em;
+    min-width: 25px;
+}
+
+.hp-bar-bg-small {
+    flex: 1;
+    height: 12px;
+    background: #ddd;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.hp-bar-fill-small {
+    height: 100%;
+    background: linear-gradient(90deg, #4caf50, #8bc34a);
+    transition: width 0.5s ease;
+    border-radius: 6px;
+}
+
+.hp-bar-fill-small.low {
+    background: linear-gradient(90deg, #ff9800, #ffeb3b);
+}
+
+.hp-bar-fill-small.critical {
+    background: linear-gradient(90deg, #f44336, #e91e63);
+}
+
+.hp-bar-text-small {
+    font-size: 0.8em;
+    color: #666;
+    min-width: 50px;
+    text-align: right;
+}
+
+/* 后备宝可梦区域 */
+.team-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.team-section h4 {
+    color: #666;
+    margin-bottom: 10px;
+    font-size: 0.95em;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+}
+
+.team-list-small {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.team-pokemon-small {
+    background: linear-gradient(145deg, #fff, #f5f5f5);
+    border-radius: 8px;
+    padding: 10px;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.team-pokemon-small:hover:not(.fainted) {
+    transform: translateX(3px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.team-pokemon-small.fainted {
+    opacity: 0.5;
+    filter: grayscale(100%);
+}
+
+.team-pokemon-small .team-name {
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 5px;
+    font-size: 0.9em;
+}
+
+.team-pokemon-small .team-hp {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.team-pokemon-small .team-hp-bar {
+    flex: 1;
+    height: 6px;
+    background: #ddd;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.team-pokemon-small .team-hp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4caf50, #8bc34a);
+    border-radius: 3px;
+}
+
+.team-pokemon-small .team-hp-fill.low {
+    background: linear-gradient(90deg, #ff9800, #ffeb3b);
+}
+
+.team-pokemon-small .team-hp-fill.critical {
+    background: linear-gradient(90deg, #f44336, #e91e63);
+}
+
+.team-pokemon-small .team-hp-text {
+    font-size: 0.75em;
+    color: #666;
+}
+
+/* 中间：3D对战场景 */
+#battle-center {
+    flex: 1;
+    min-width: 0;
+    position: relative;
 }
 
 #battle-canvas {
     width: 100%;
-    height: 500px;
+    height: 100%;
+    min-height: 500px;
     border-radius: 10px;
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
-}
-
-#battle-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    padding: 20px;
-}
-
-.battle-info {
-    pointer-events: auto;
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 10px;
-    padding: 15px;
-    width: 300px;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-}
-
-#enemy-info {
-    align-self: flex-start;
-}
-
-#player-info {
-    align-self: flex-end;
-}
-
-.battle-info h3 {
-    margin-bottom: 10px;
-    color: #667eea;
 }
 
 .hp-bar {
@@ -347,6 +497,142 @@ body {
 .move-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+/* 切换按钮区域 */
+.switch-area {
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.switch-btn {
+    padding: 12px 30px;
+    font-size: 1em;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: bold;
+    background: linear-gradient(135deg, #43e97b, #38f9d7);
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 3px 10px rgba(67, 233, 123, 0.4);
+}
+
+.switch-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(67, 233, 123, 0.5);
+}
+
+.switch-btn:disabled,
+.switch-btn.disabled {
+    background: linear-gradient(135deg, #999, #bbb);
+    box-shadow: none;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* 切换选择弹窗 */
+.switch-modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(145deg, #fff, #f5f5f5);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+    min-width: 300px;
+}
+
+.switch-modal h3 {
+    text-align: center;
+    color: #667eea;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+}
+
+.switch-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.switch-option {
+    background: linear-gradient(145deg, #e8f0fe, #d4e4ff);
+    border-radius: 10px;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.switch-option:hover {
+    transform: translateX(5px);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+    border-color: #667eea;
+}
+
+.switch-option-name {
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 8px;
+    font-size: 1em;
+}
+
+.switch-option-hp {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.switch-hp-bar-bg {
+    height: 10px;
+    background: #ddd;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.switch-hp-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4caf50, #8bc34a);
+    transition: width 0.5s ease;
+    border-radius: 5px;
+}
+
+.switch-hp-bar-fill.low {
+    background: linear-gradient(90deg, #ff9800, #ffeb3b);
+}
+
+.switch-hp-bar-fill.critical {
+    background: linear-gradient(90deg, #f44336, #e91e63);
+}
+
+.switch-hp-text {
+    font-size: 0.85em;
+    color: #666;
+    text-align: right;
+}
+
+.cancel-switch-btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 1em;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: bold;
+    background: linear-gradient(135deg, #f093fb, #f5576c);
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.cancel-switch-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(240, 147, 251, 0.4);
 }
 
 /* 结算页面样式 */

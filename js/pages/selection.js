@@ -1,7 +1,8 @@
 class SelectionPage {
     constructor(game) {
         this.game = game;
-        this.selectedPokemonId = null;
+        this.selectedPokemonIds = [];
+        this.maxSelection = 3;
         this.cardRenderers = {};
         
         this.init();
@@ -16,6 +17,7 @@ class SelectionPage {
         
         this.renderPokemonList();
         this.bindEvents();
+        this.updateSelectionUI();
     }
 
     renderPokemonList() {
@@ -233,57 +235,102 @@ class SelectionPage {
             const card = e.target.closest('.pokemon-card');
             if (card) {
                 const pokemonId = parseInt(card.dataset.pokemonId);
-                this.selectPokemon(pokemonId);
+                this.togglePokemonSelection(pokemonId);
             }
         });
         
         this.startBattleBtn.addEventListener('click', () => {
-            if (this.selectedPokemonId) {
-                const enemyPokemonId = this.generateRandomEnemy();
-                this.game.startBattle(this.selectedPokemonId, enemyPokemonId);
+            if (this.selectedPokemonIds.length === this.maxSelection) {
+                const enemyPokemonIds = this.generateRandomEnemies();
+                this.game.startBattle(this.selectedPokemonIds, enemyPokemonIds);
             }
         });
     }
 
-    selectPokemon(pokemonId) {
-        this.selectedPokemonId = pokemonId;
+    togglePokemonSelection(pokemonId) {
+        const index = this.selectedPokemonIds.indexOf(pokemonId);
         
+        if (index !== -1) {
+            this.selectedPokemonIds.splice(index, 1);
+        } else if (this.selectedPokemonIds.length < this.maxSelection) {
+            this.selectedPokemonIds.push(pokemonId);
+        }
+        
+        this.updateSelectionUI();
+    }
+
+    updateSelectionUI() {
         document.querySelectorAll('.pokemon-card').forEach(card => {
             const id = parseInt(card.dataset.pokemonId);
-            if (id === pokemonId) {
+            if (this.selectedPokemonIds.includes(id)) {
                 card.classList.add('selected');
             } else {
                 card.classList.remove('selected');
             }
         });
         
+        this.startBattleBtn.disabled = this.selectedPokemonIds.length !== this.maxSelection;
         this.updateSelectedPokemonInfo();
-        this.startBattleBtn.disabled = !this.selectedPokemonId;
     }
 
-    generateRandomEnemy() {
+    generateRandomEnemies() {
         const allPokemon = getAllPokemonData();
-        const randomIndex = Math.floor(Math.random() * allPokemon.length);
-        return allPokemon[randomIndex].id;
+        const enemies = [];
+        const availableIds = allPokemon.filter(p => !this.selectedPokemonIds.includes(p.id)).map(p => p.id);
+        
+        while (enemies.length < this.maxSelection && availableIds.length > 0) {
+            const randomIndex = Math.floor(Math.random() * availableIds.length);
+            enemies.push(availableIds[randomIndex]);
+            availableIds.splice(randomIndex, 1);
+        }
+        
+        if (enemies.length < this.maxSelection) {
+            const fallbackIds = allPokemon.map(p => p.id);
+            while (enemies.length < this.maxSelection) {
+                const randomIndex = Math.floor(Math.random() * fallbackIds.length);
+                enemies.push(fallbackIds[randomIndex]);
+            }
+        }
+        
+        return enemies;
     }
 
     updateSelectedPokemonInfo() {
-        if (!this.selectedPokemonId) {
+        if (this.selectedPokemonIds.length === 0) {
             this.selectedPokemonInfo.style.display = 'none';
             return;
         }
         
-        const pokemonData = getAllPokemonData().find(p => p.id === this.selectedPokemonId);
-        if (!pokemonData) {
-            this.selectedPokemonInfo.style.display = 'none';
-            return;
-        }
+        let infoHTML = `<h3>已选择 ${this.selectedPokemonIds.length}/${this.maxSelection} 只宝可梦</h3>`;
+        infoHTML += '<div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">';
         
-        const pokemon = new Pokemon(pokemonData, 50);
+        this.selectedPokemonIds.forEach(pokemonId => {
+            const pokemonData = getAllPokemonData().find(p => p.id === pokemonId);
+            if (pokemonData) {
+                const pokemon = new Pokemon(pokemonData, 50);
+                infoHTML += `
+                    <div style="text-align: left; padding: 10px; background: #f0f0f0; border-radius: 8px;">
+                        <h4 style="margin-bottom: 5px; color: #667eea;">${pokemon.name}</h4>
+                        ${this.createMiniStatsHTML(pokemon)}
+                    </div>
+                `;
+            }
+        });
         
-        this.selectedPokemonName.textContent = `已选择: ${pokemon.name}`;
-        this.selectedPokemonStats.innerHTML = this.createStatsHTML(pokemon);
+        infoHTML += '</div>';
+        
+        this.selectedPokemonName.innerHTML = infoHTML;
+        this.selectedPokemonStats.innerHTML = '';
         this.selectedPokemonInfo.style.display = 'block';
+    }
+
+    createMiniStatsHTML(pokemon) {
+        return `
+            <p style="margin: 3px 0; font-size: 0.9em;"><strong>HP:</strong> ${pokemon.maxHp}</p>
+            <p style="margin: 3px 0; font-size: 0.9em;"><strong>攻击:</strong> ${pokemon.stats.attack}</p>
+            <p style="margin: 3px 0; font-size: 0.9em;"><strong>防御:</strong> ${pokemon.stats.defense}</p>
+            <p style="margin: 3px 0; font-size: 0.9em;"><strong>速度:</strong> ${pokemon.stats.speed}</p>
+        `;
     }
 
     createStatsHTML(pokemon) {
@@ -304,9 +351,8 @@ class SelectionPage {
         document.getElementById('battle-page').classList.remove('active');
         document.getElementById('result-page').classList.remove('active');
         
-        this.selectedPokemonId = null;
-        this.startBattleBtn.disabled = true;
-        this.selectedPokemonInfo.style.display = 'none';
+        this.selectedPokemonIds = [];
+        this.updateSelectionUI();
         
         document.querySelectorAll('.pokemon-card').forEach(card => {
             card.classList.remove('selected');
