@@ -76,7 +76,6 @@ function renderBackground(renderer, backgroundName, animationTime) {
 
     renderBackgroundGround(renderer, bg, animationTime);
     renderBackgroundElements(renderer, bg, animationTime);
-    renderBattleGround(renderer, bg, animationTime);
 }
 
 function getBackgroundBaseZ() {
