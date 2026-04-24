@@ -4,6 +4,9 @@ class SelectionPage {
         this.selectedPokemonIds = [];
         this.maxSelection = 3;
         this.cardRenderers = {};
+        this.initialMoney = 1000; // 初始资金
+        this.money = this.initialMoney;
+        this.backpack = []; // 背包
         
         this.init();
     }
@@ -14,10 +17,17 @@ class SelectionPage {
         this.selectedPokemonInfo = document.getElementById('selected-pokemon-info');
         this.selectedPokemonName = document.getElementById('selected-pokemon-name');
         this.selectedPokemonStats = document.getElementById('selected-pokemon-stats');
+        this.moneyDisplay = document.getElementById('money-display');
+        this.itemsList = document.getElementById('items-list');
+        this.backpackList = document.getElementById('backpack-list');
+        this.clearBackpackBtn = document.getElementById('clear-backpack-btn');
         
         this.renderPokemonList();
+        this.renderItemsList();
         this.bindEvents();
         this.updateSelectionUI();
+        this.updateMoneyDisplay();
+        this.updateBackpackDisplay();
     }
 
     renderPokemonList() {
@@ -59,6 +69,42 @@ class SelectionPage {
         });
     }
 
+    renderItemsList() {
+        if (!this.itemsList) return;
+        
+        const allItems = Items.getAllItems();
+        this.itemsList.innerHTML = '';
+        
+        allItems.forEach(item => {
+            const itemCard = document.createElement('div');
+            itemCard.className = 'item-card';
+            
+            const itemName = document.createElement('h4');
+            itemName.textContent = item.name;
+            
+            const itemDescription = document.createElement('p');
+            itemDescription.textContent = item.description;
+            
+            const itemPrice = document.createElement('div');
+            itemPrice.className = 'item-price';
+            itemPrice.textContent = `价格: ${item.price}`;
+            
+            const buyButton = document.createElement('button');
+            buyButton.className = 'buy-btn';
+            buyButton.textContent = '购买';
+            buyButton.addEventListener('click', () => {
+                this.buyItem(item);
+            });
+            
+            itemCard.appendChild(itemName);
+            itemCard.appendChild(itemDescription);
+            itemCard.appendChild(itemPrice);
+            itemCard.appendChild(buyButton);
+            
+            this.itemsList.appendChild(itemCard);
+        });
+    }
+
     getTypeName(type) {
         const typeNames = {
             normal: '一般',
@@ -81,6 +127,128 @@ class SelectionPage {
             fairy: '妖精'
         };
         return typeNames[type] || type;
+    }
+
+    buyItem(item) {
+        if (this.money >= item.price) {
+            this.money -= item.price;
+            this.backpack.push({ ...item, quantity: 1 });
+            this.updateMoneyDisplay();
+            this.updateBackpackDisplay();
+        } else {
+            alert('资金不足！');
+        }
+    }
+
+    updateMoneyDisplay() {
+        if (this.moneyDisplay) {
+            this.moneyDisplay.textContent = `资金: ${this.money}`;
+        }
+    }
+
+    updateBackpackDisplay() {
+        if (!this.backpackList) return;
+        
+        this.backpackList.innerHTML = '';
+        
+        if (this.backpack.length === 0) {
+            const emptyMessage = document.createElement('p');
+            emptyMessage.textContent = '背包为空';
+            this.backpackList.appendChild(emptyMessage);
+            return;
+        }
+        
+        // 按道具类型分组
+        const groupedItems = this.backpack.reduce((acc, item) => {
+            if (!acc[item.id]) {
+                acc[item.id] = { ...item, quantity: 0 };
+            }
+            acc[item.id].quantity += 1;
+            return acc;
+        }, {});
+        
+        Object.values(groupedItems).forEach(item => {
+            const itemElement = document.createElement('div');
+            itemElement.className = 'backpack-item';
+            
+            itemElement.innerHTML = `
+                <div class="backpack-item-header">
+                    <div class="backpack-item-name">${item.name}</div>
+                    <button class="delete-item-btn" data-item-id="${item.id}">删除</button>
+                </div>
+                <div class="backpack-item-description">${item.description}</div>
+                <div class="backpack-item-quantity-control">
+                    <button class="decrease-item-btn" data-item-id="${item.id}">-</button>
+                    <span class="item-quantity">数量: ${item.quantity}</span>
+                    <button class="increase-item-btn" data-item-id="${item.id}">+</button>
+                </div>
+            `;
+            
+            this.backpackList.appendChild(itemElement);
+        });
+        
+        // 绑定事件
+        this.bindBackpackEvents();
+    }
+
+    bindBackpackEvents() {
+        // 增加道具数量
+        document.querySelectorAll('.increase-item-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const itemId = e.target.dataset.itemId;
+                this.increaseItemQuantity(itemId);
+            });
+        });
+        
+        // 减少道具数量
+        document.querySelectorAll('.decrease-item-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const itemId = e.target.dataset.itemId;
+                this.decreaseItemQuantity(itemId);
+            });
+        });
+        
+        // 删除道具
+        document.querySelectorAll('.delete-item-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const itemId = e.target.dataset.itemId;
+                this.deleteItem(itemId);
+            });
+        });
+    }
+
+    increaseItemQuantity(itemId) {
+        const item = Items.getItemById(itemId);
+        if (item && this.money >= item.price) {
+            this.money -= item.price;
+            this.backpack.push({ ...item, quantity: 1 });
+            this.updateMoneyDisplay();
+            this.updateBackpackDisplay();
+        } else {
+            alert('资金不足！');
+        }
+    }
+
+    decreaseItemQuantity(itemId) {
+        const itemIndex = this.backpack.findIndex(item => item.id === itemId);
+        if (itemIndex !== -1) {
+            const item = this.backpack[itemIndex];
+            this.money += item.price;
+            this.backpack.splice(itemIndex, 1);
+            this.updateMoneyDisplay();
+            this.updateBackpackDisplay();
+        }
+    }
+
+    deleteItem(itemId) {
+        const itemCount = this.backpack.filter(item => item.id === itemId).length;
+        const item = Items.getItemById(itemId);
+        if (item) {
+            this.money += item.price * itemCount;
+            this.backpack = this.backpack.filter(item => item.id !== itemId);
+            this.updateMoneyDisplay();
+            this.updateBackpackDisplay();
+        }
     }
 
     renderPokemonCard(pokemon, canvas) {
@@ -462,9 +630,28 @@ class SelectionPage {
         this.startBattleBtn.addEventListener('click', () => {
             if (this.selectedPokemonIds.length === this.maxSelection) {
                 const enemyPokemonIds = this.generateRandomEnemies();
-                this.game.startBattle(this.selectedPokemonIds, enemyPokemonIds);
+                this.game.startBattle(this.selectedPokemonIds, enemyPokemonIds, this.backpack);
             }
         });
+        
+        if (this.clearBackpackBtn) {
+            this.clearBackpackBtn.addEventListener('click', () => {
+                this.clearBackpack();
+            });
+        }
+    }
+
+    clearBackpack() {
+        if (this.backpack.length > 0) {
+            // 计算所有道具的总价值并返还资金
+            const totalValue = this.backpack.reduce((total, item) => {
+                return total + item.price;
+            }, 0);
+            this.money += totalValue;
+            this.backpack = [];
+            this.updateMoneyDisplay();
+            this.updateBackpackDisplay();
+        }
     }
 
     togglePokemonSelection(pokemonId) {

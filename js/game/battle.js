@@ -1,8 +1,9 @@
 class BattleSystem {
-    constructor(playerPokemonIds, enemyPokemonIds, ai) {
+    constructor(playerPokemonIds, enemyPokemonIds, ai, playerBackpack = []) {
         this.playerTeam = playerPokemonIds.map(id => createPokemon(id, 50));
         this.enemyTeam = enemyPokemonIds.map(id => createPokemon(id, 50));
         this.ai = ai || new PokemonAI('medium');
+        this.playerBackpack = playerBackpack;
         
         this.activePlayerIndex = 0;
         this.activeEnemyIndex = 0;
@@ -249,6 +250,83 @@ class BattleSystem {
         return result;
     }
 
+    useItem(itemIndex) {
+        if (this.battleOver || !this.isPlayerTurn) {
+            return null;
+        }
+        
+        if (itemIndex < 0 || itemIndex >= this.playerBackpack.length) {
+            return null;
+        }
+        
+        const item = this.playerBackpack[itemIndex];
+        let message = '';
+        let result = { damage: 0, missed: false };
+        
+        switch (item.type) {
+            case 'heal':
+                const healAmount = item.effect;
+                const oldHp = this.playerPokemon.currentHp;
+                this.playerPokemon.heal(healAmount);
+                const actualHeal = this.playerPokemon.currentHp - oldHp;
+                message = `使用了 ${item.name}！回复了 ${actualHeal} 点HP！`;
+                break;
+            
+            case 'damage':
+                const damageAmount = item.effect;
+                this.enemyPokemon.takeDamage(damageAmount);
+                message = `使用了 ${item.name}！对 ${this.enemyPokemon.name} 造成了 ${damageAmount} 点伤害！`;
+                result.damage = damageAmount;
+                break;
+            
+            case 'buff':
+                if (item.stat === 'evasion') {
+                    // 闪避率提升（在战斗计算中使用）
+                    message = `使用了 ${item.name}！提升了闪避率！`;
+                } else {
+                    const statName = item.stat;
+                    const boostAmount = item.effect;
+                    this.playerPokemon.stats[statName] *= (1 + boostAmount);
+                    message = `使用了 ${item.name}！提升了 ${this.getStatName(statName)}！`;
+                }
+                break;
+        }
+        
+        // 从背包中移除使用的道具
+        this.playerBackpack.splice(itemIndex, 1);
+        
+        this.battleLog.push(message);
+        this.turn++;
+        
+        if (this.enemyPokemon.isFainted()) {
+            this.battleLog.push(`${this.enemyPokemon.name} 倒下了！`);
+            
+            const availableEnemyIndices = this.getEnemyAvailableIndices();
+            if (availableEnemyIndices.length > 0) {
+                this.battleLog.push('请选择下一只宝可梦！');
+                this.isPlayerTurn = false;
+            } else {
+                this.battleOver = true;
+                this.winner = 'player';
+            }
+        } else {
+            this.isPlayerTurn = false;
+        }
+        
+        return { message, ...result, item };
+    }
+
+    getStatName(stat) {
+        const statNames = {
+            attack: '攻击力',
+            defense: '防御力',
+            specialAttack: '特攻',
+            specialDefense: '特防',
+            evasion: '闪避率'
+        };
+        return statNames[stat] || stat;
+    }
+
     enemyTurn() {
         if (this.battleOver || this.isPlayerTurn) {
             return null;
@@ -367,6 +445,7 @@ class BattleSystem {
                 maxHp: this.enemyPokemon.maxHp,
                 types: this.enemyPokemon.types
             },
+            playerBackpack: this.playerBackpack,
             battleLog: this.battleLog.slice(-5)
         };
     }

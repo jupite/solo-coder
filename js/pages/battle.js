@@ -46,10 +46,15 @@ class BattlePage {
         this.playerTeamList = document.getElementById('player-team-list');
         this.enemyTeamList = document.getElementById('enemy-team-list');
         this.switchPokemonBtn = document.getElementById('switch-pokemon-btn');
+        this.backpackBtn = document.getElementById('backpack-btn');
         this.switchModal = document.getElementById('switch-modal');
+        this.backpackModal = document.getElementById('backpack-modal');
         this.switchModalTitle = document.getElementById('switch-modal-title');
+        this.backpackModalTitle = document.getElementById('backpack-modal-title');
         this.switchOptions = document.getElementById('switch-options');
+        this.backpackOptions = document.getElementById('backpack-options');
         this.cancelSwitchBtn = document.getElementById('cancel-switch-btn');
+        this.cancelBackpackBtn = document.getElementById('cancel-backpack-btn');
         
         this.bindEvents();
     }
@@ -59,6 +64,7 @@ class BattlePage {
             button.addEventListener('click', (e) => {
                 if (this.isBattleProcessing || !this.battleSystem || !this.battleSystem.isPlayerTurn) return;
                 if (this.isSwitchModalOpen) return;
+                if (this.isBackpackModalOpen) return;
                 
                 const moveIndex = parseInt(e.target.dataset.move);
                 this.executePlayerMove(moveIndex);
@@ -72,15 +78,26 @@ class BattlePage {
             this.openSwitchModal(false);
         });
         
+        this.backpackBtn.addEventListener('click', () => {
+            if (this.isBattleProcessing || !this.battleSystem || !this.battleSystem.isPlayerTurn) return;
+            
+            this.openBackpackModal();
+        });
+        
         this.cancelSwitchBtn.addEventListener('click', () => {
             if (this.isForcedSwitch) return;
             this.closeSwitchModal();
         });
+        
+        this.cancelBackpackBtn.addEventListener('click', () => {
+            this.closeBackpackModal();
+        });
     }
 
-    startBattle(playerPokemonIds, enemyPokemonIds) {
+    startBattle(playerPokemonIds, enemyPokemonIds, playerBackpack = []) {
         const ai = new PokemonAI('medium');
-        this.battleSystem = new BattleSystem(playerPokemonIds, enemyPokemonIds, ai);
+        this.battleSystem = new BattleSystem(playerPokemonIds, enemyPokemonIds, ai, playerBackpack);
+        this.isBackpackModalOpen = false;
         
         this.currentBackground = getRandomBackground();
         
@@ -879,6 +896,110 @@ class BattlePage {
         this.isSwitchModalOpen = false;
         this.isForcedSwitch = false;
         this.enableMoveButtons();
+    }
+
+    openBackpackModal() {
+        if (!this.battleSystem) return;
+        
+        this.backpackOptions.innerHTML = '';
+        
+        const backpack = this.battleSystem.playerBackpack;
+        
+        if (backpack.length === 0) {
+            const emptyMessage = document.createElement('p');
+            emptyMessage.textContent = '背包为空';
+            this.backpackOptions.appendChild(emptyMessage);
+        } else {
+            // 按道具类型分组
+            const groupedItems = backpack.reduce((acc, item) => {
+                if (!acc[item.id]) {
+                    acc[item.id] = { ...item, quantity: 0, indices: [] };
+                }
+                acc[item.id].quantity += 1;
+                acc[item.id].indices.push(backpack.indexOf(item));
+                return acc;
+            }, {});
+            
+            Object.values(groupedItems).forEach(item => {
+                const option = document.createElement('div');
+                option.className = 'backpack-option';
+                option.dataset.itemId = item.id;
+                
+                // 检查是否是回血药且血量已满
+                const isHealItem = item.type === 'heal';
+                const isHpFull = this.playerPokemon.currentHp >= this.playerPokemon.maxHp;
+                const isDisabled = isHealItem && isHpFull;
+                
+                if (isDisabled) {
+                    option.classList.add('backpack-option-disabled');
+                }
+                
+                option.innerHTML = `
+                    <div class="backpack-option-header">
+                        <div class="backpack-option-name">${item.name}</div>
+                        <div class="backpack-option-quantity">数量: ${item.quantity}</div>
+                    </div>
+                    <div class="backpack-option-description">${item.description}</div>
+                    ${isDisabled ? '<div class="backpack-option-disabled-message">血量已满，无法使用</div>' : ''}
+                `;
+                
+                option.addEventListener('click', () => {
+                    if (isDisabled) {
+                        this.battleMessage.textContent = '血量已满，无法使用回血药！';
+                        return;
+                    }
+                    
+                    // 使用第一个找到的该类型道具
+                    const firstIndex = backpack.findIndex(i => i.id === item.id);
+                    if (firstIndex !== -1) {
+                        this.useItem(firstIndex);
+                    }
+                });
+                
+                this.backpackOptions.appendChild(option);
+            });
+        }
+        
+        this.backpackModal.style.display = 'block';
+        this.isBackpackModalOpen = true;
+        this.disableMoveButtons();
+    }
+
+    closeBackpackModal() {
+        this.backpackModal.style.display = 'none';
+        this.isBackpackModalOpen = false;
+        this.enableMoveButtons();
+    }
+
+    useItem(itemIndex) {
+        this.closeBackpackModal();
+        
+        if (!this.battleSystem || this.battleSystem.battleOver || !this.battleSystem.isPlayerTurn || this.isBattleProcessing) return;
+        
+        this.isBattleProcessing = true;
+        this.disableMoveButtons();
+        this.switchPokemonBtn.disabled = true;
+        
+        const result = this.battleSystem.useItem(itemIndex);
+        
+        if (result) {
+            this.battleMessage.textContent = result.message;
+            
+            if (result.damage > 0) {
+                this.shakeEnemy();
+            }
+            
+            this.updateUI();
+            
+            setTimeout(() => {
+                if (this.battleSystem.battleOver) {
+                    this.endBattle();
+                } else {
+                    this.battleMessage.textContent = `轮到 ${this.enemyPokemon.name} 行动！`;
+                    setTimeout(() => this.executeEnemyTurn(), 1000);
+                }
+            }, 1500);
+        }
     }
 
     quickSwitchPokemon(newIndex) {

@@ -11,7 +11,24 @@
         <!-- 选宝可梦页面 -->
         <div id="selection-page" class="page active">
             <h1>选择你的宝可梦</h1>
-            <div id="pokemon-list" class="pokemon-grid"></div>
+            <div class="selection-container">
+                <div class="pokemon-selection">
+                    <h2>选择宝可梦</h2>
+                    <div id="pokemon-list" class="pokemon-grid"></div>
+                </div>
+                <div class="item-selection">
+                    <div id="money-display" class="money-display">资金: 1000</div>
+                    <h2>购买道具</h2>
+                    <div id="items-list" class="items-grid"></div>
+                </div>
+                <div class="backpack-selection">
+                    <div class="backpack-header">
+                        <h2>背包</h2>
+                        <button id="clear-backpack-btn" class="clear-backpack-btn">清空背包</button>
+                    </div>
+                    <div id="backpack-list" class="backpack-list"></div>
+                </div>
+            </div>
             <div id="selected-pokemon-info" class="selected-pokemon-info" style="display: none;">
                 <h3 id="selected-pokemon-name"></h3>
                 <div id="selected-pokemon-stats" class="selected-stats"></div>
@@ -89,6 +106,7 @@
                         <!-- 切换按钮区域 -->
                         <div id="switch-area" class="switch-area">
                             <button id="switch-pokemon-btn" class="switch-btn">切换宝可梦</button>
+                            <button id="backpack-btn" class="backpack-btn">背包</button>
                         </div>
                         
                         <!-- 技能按钮区域 -->
@@ -104,6 +122,13 @@
                             <h3 id="switch-modal-title">选择要切换的宝可梦</h3>
                             <div id="switch-options" class="switch-options"></div>
                             <button id="cancel-switch-btn" class="cancel-switch-btn" style="display: none;">取消</button>
+                        </div>
+                        
+                        <!-- 背包弹窗 -->
+                        <div id="backpack-modal" class="backpack-modal" style="display: none;">
+                            <h3 id="backpack-modal-title">背包</h3>
+                            <div id="backpack-options" class="backpack-options"></div>
+                            <button id="cancel-backpack-btn" class="cancel-backpack-btn">取消</button>
                         </div>
                     </div>
                 </div>
@@ -146,6 +171,7 @@
     <script defer src="js/webgl/pokemon-models.js"></script>
     <script defer src="js/webgl/backgrounds.js"></script>
     <script defer src="js/game/ai.js"></script>
+    <script defer src="js/game/items.js"></script>
     <script defer src="js/game/battle.js"></script>
     <script defer src="js/pages/selection.js"></script>
     <script defer src="js/pages/battle.js"></script>

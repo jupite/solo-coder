@@ -27,7 +27,7 @@ class PokemonGame {
         }
     }
 
-    startBattle(playerPokemonIds, enemyPokemonIds) {
+    startBattle(playerPokemonIds, enemyPokemonIds, playerBackpack = []) {
         if (this.selectionPage) {
             this.selectionPage.hide();
         }
@@ -36,7 +36,7 @@ class PokemonGame {
         }
         if (this.battlePage) {
             this.battlePage.show();
-            this.battlePage.startBattle(playerPokemonIds, enemyPokemonIds);
+            this.battlePage.startBattle(playerPokemonIds, enemyPokemonIds, playerBackpack);
         }
     }
 
