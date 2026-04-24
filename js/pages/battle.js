@@ -16,7 +16,8 @@ class BattlePage {
         this.isForcedSwitch = false;
         this.playerActiveRenderer = null;
         this.enemyActiveRenderer = null;
-        this.currentBackground = 'grassland';
+        this.currentBackground = 'platform1';
+        this.currentView = '45';
         
         this.init();
     }
@@ -56,7 +57,31 @@ class BattlePage {
         this.cancelSwitchBtn = document.getElementById('cancel-switch-btn');
         this.cancelBackpackBtn = document.getElementById('cancel-backpack-btn');
         
+        this.createViewSwitchButton();
         this.bindEvents();
+    }
+    
+    createViewSwitchButton() {
+        const viewButton = document.createElement('button');
+        viewButton.id = 'view-switch-btn';
+        viewButton.className = 'view-switch-btn';
+        viewButton.textContent = '切换视角 (45°)';
+        viewButton.style.position = 'absolute';
+        viewButton.style.top = '10px';
+        viewButton.style.right = '10px';
+        viewButton.style.padding = '8px 16px';
+        viewButton.style.backgroundColor = '#333';
+        viewButton.style.color = 'white';
+        viewButton.style.border = 'none';
+        viewButton.style.borderRadius = '4px';
+        viewButton.style.cursor = 'pointer';
+        viewButton.style.zIndex = '1000';
+        
+        const battleCenter = document.getElementById('battle-center');
+        if (battleCenter) {
+            battleCenter.style.position = 'relative';
+            battleCenter.appendChild(viewButton);
+        }
     }
 
     bindEvents() {
@@ -92,6 +117,26 @@ class BattlePage {
         this.cancelBackpackBtn.addEventListener('click', () => {
             this.closeBackpackModal();
         });
+        
+        const viewSwitchBtn = document.getElementById('view-switch-btn');
+        if (viewSwitchBtn) {
+            viewSwitchBtn.addEventListener('click', () => {
+                this.switchView();
+            });
+        }
+    }
+    
+    switchView() {
+        const views = ['top', '45', 'side'];
+        const viewNames = ['俯视角', '45°视角', '侧面视角'];
+        const currentIndex = views.indexOf(this.currentView);
+        const nextIndex = (currentIndex + 1) % views.length;
+        this.currentView = views[nextIndex];
+        
+        const viewButton = document.getElementById('view-switch-btn');
+        if (viewButton) {
+            viewButton.textContent = `切换视角 (${viewNames[nextIndex]})`;
+        }
     }
 
     startBattle(playerPokemonIds, enemyPokemonIds, playerBackpack = []) {
@@ -139,7 +184,7 @@ class BattlePage {
         
         const container = this.battleCanvas.parentElement;
         const width = container.clientWidth;
-        const height = 500;
+        const height = 650;
         
         this.renderer.resize(width, height);
     }
@@ -482,7 +527,31 @@ class BattlePage {
         
         const aspect = canvas.width / canvas.height;
         this.renderer.projectionMatrix = this.renderer.perspectiveMatrix(Math.PI / 4, aspect, 0.1, 100);
-        this.renderer.modelViewMatrix = this.renderer.lookAt([0, 2, 6], [0, 0.5, 0], [0, 1, 0]);
+        
+        let eye, center, up;
+        switch (this.currentView) {
+            case 'top':
+                eye = [0, 15, 0];
+                center = [0, 0, 0];
+                up = [0, 0, -1];
+                break;
+            case '45':
+                eye = [-3, 5, 5];
+                center = [0, 0, 0];
+                up = [0, 1, 0];
+                break;
+            case 'side':
+                eye = [8, 2, 0];
+                center = [0, 0, 0];
+                up = [0, 1, 0];
+                break;
+            default:
+                eye = [-3, 5, 5];
+                center = [0, 0, 0];
+                up = [0, 1, 0];
+        }
+        
+        this.renderer.modelViewMatrix = this.renderer.lookAt(eye, center, up);
         
         this.renderer.setLighting(
             [5, 5, 5],
@@ -496,11 +565,11 @@ class BattlePage {
         renderBackground(this.renderer, this.currentBackground, this.animationTime);
         
         if (this.playerPokemon && !this.playerPokemon.isFainted()) {
-            this.drawPokemonAdvanced(this.playerPokemon, { x: -2, y: 0.3, z: 0 }, this.playerShake, true);
+            this.drawPokemonAdvanced(this.playerPokemon, { x: -2, y: 0.5, z: 0 }, this.playerShake, true);
         }
         
         if (this.enemyPokemon && !this.enemyPokemon.isFainted()) {
-            this.drawPokemonAdvanced(this.enemyPokemon, { x: 2, y: 0.3, z: 0 }, this.enemyShake, false);
+            this.drawPokemonAdvanced(this.enemyPokemon, { x: 2, y: 0.5, z: 0 }, this.enemyShake, false);
         }
     }
 

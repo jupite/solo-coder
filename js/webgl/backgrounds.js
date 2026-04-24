@@ -1,63 +1,28 @@
 const BattleBackgrounds = {
-    grassland: {
-        name: '草地',
-        skyColor: [0.3, 0.6, 0.9, 1.0],
-        groundColor: [0.4, 0.8, 0.4, 1.0],
-        secondaryGroundColor: [0.3, 0.7, 0.3, 1.0],
-        elements: [
-            { type: 'grassPatch', count: 15, color: [0.35, 0.75, 0.35, 1.0] },
-            { type: 'flower', count: 8, colors: [[1.0, 0.8, 0.9, 1.0], [1.0, 1.0, 0.8, 1.0], [0.9, 0.9, 1.0, 1.0]] }
-        ]
+    platform1: {
+        name: '平台1',
+        skyColor: [0.1, 0.1, 0.2, 1.0],
+        platformColor: [0.2, 0.4, 0.6, 1.0],
+        patternColor: [0.3, 0.6, 0.9, 1.0],
+        patternType: 'circles'
     },
-    snowfield: {
-        name: '雪地',
-        skyColor: [0.7, 0.8, 0.9, 1.0],
-        groundColor: [0.9, 0.95, 1.0, 1.0],
-        secondaryGroundColor: [0.8, 0.9, 0.95, 1.0],
-        elements: [
-            { type: 'snowflake', count: 30 },
-            { type: 'snowdrift', count: 6 },
-            { type: 'iceCrystal', count: 4 }
-        ]
+    platform2: {
+        name: '平台2',
+        skyColor: [0.2, 0.1, 0.1, 1.0],
+        platformColor: [0.6, 0.3, 0.3, 1.0],
+        patternColor: [0.9, 0.4, 0.4, 1.0],
+        patternType: 'grid'
     },
-    volcano: {
-        name: '火山',
-        skyColor: [0.5, 0.3, 0.3, 1.0],
-        groundColor: [0.4, 0.3, 0.25, 1.0],
-        secondaryGroundColor: [0.3, 0.2, 0.15, 1.0],
-        elements: [
-            { type: 'lavaPool', count: 4 },
-            { type: 'ashParticle', count: 20 },
-            { type: 'rock', count: 8 }
-        ]
-    },
-    beach: {
-        name: '海滩',
-        skyColor: [0.4, 0.7, 0.9, 1.0],
-        groundColor: [0.95, 0.9, 0.75, 1.0],
-        secondaryGroundColor: [0.2, 0.5, 0.8, 1.0],
-        elements: [
-            { type: 'palmTree', count: 4 },
-            { type: 'wave', count: 3 },
-            { type: 'shell', count: 6 },
-            { type: 'waterRipple', count: 10 }
-        ]
-    },
-    forest: {
-        name: '森林',
-        skyColor: [0.35, 0.5, 0.6, 1.0],
-        groundColor: [0.35, 0.55, 0.35, 1.0],
-        secondaryGroundColor: [0.4, 0.3, 0.2, 1.0],
-        elements: [
-            { type: 'tree', count: 12 },
-            { type: 'mushroom', count: 8 },
-            { type: 'leafParticle', count: 15 },
-            { type: 'log', count: 4 }
-        ]
+    platform3: {
+        name: '平台3',
+        skyColor: [0.1, 0.2, 0.1, 1.0],
+        platformColor: [0.3, 0.6, 0.3, 1.0],
+        patternColor: [0.5, 0.8, 0.5, 1.0],
+        patternType: 'hexagons'
     }
 };
 
-const BackgroundList = ['grassland', 'snowfield', 'volcano', 'beach', 'forest'];
+const BackgroundList = ['platform1', 'platform2', 'platform3'];
 
 function getRandomBackground() {
     const randomIndex = Math.floor(Math.random() * BackgroundList.length);
@@ -65,7 +30,7 @@ function getRandomBackground() {
 }
 
 function getBackground(backgroundName) {
-    return BattleBackgrounds[backgroundName] || BattleBackgrounds.grassland;
+    return BattleBackgrounds[backgroundName] || BattleBackgrounds.platform1;
 }
 
 function renderBackground(renderer, backgroundName, animationTime) {
@@ -74,92 +39,117 @@ function renderBackground(renderer, backgroundName, animationTime) {
 
     renderer.clear(bg.skyColor[0], bg.skyColor[1], bg.skyColor[2], bg.skyColor[3]);
 
-    renderBackgroundGround(renderer, bg, animationTime);
-    renderBackgroundElements(renderer, bg, animationTime);
+    renderBattlePlatform(renderer, bg, animationTime);
 }
 
 function getBackgroundBaseZ() {
     return -5.0;
 }
 
-function renderBattleGround(renderer, bg, animationTime) {
-    for (let i = -5; i <= 5; i++) {
-        for (let j = -2; j <= 3; j++) {
-            const z = j * 0.9;
+function renderBattlePlatform(renderer, bg, animationTime) {
+    const platformRadius = 3.5;
+    const platformHeight = 0.2;
+    const platformY = -0.1;
+    
+    const platform = new Cylinder(renderer, bg.platformColor, platformRadius, platformHeight, 32);
+    let platformMatrix = renderer.translateMatrix(0, platformY, 0);
+    renderer.drawShape(platform, platformMatrix);
+    
+    switch (bg.patternType) {
+        case 'circles':
+            renderCirclePattern(renderer, bg, platformRadius, platformY);
+            break;
+        case 'grid':
+            renderGridPattern(renderer, bg, platformRadius, platformY);
+            break;
+        case 'hexagons':
+            renderHexagonPattern(renderer, bg, platformRadius, platformY);
+            break;
+    }
+}
+
+function renderCirclePattern(renderer, bg, platformRadius, platformY) {
+    const patternColor = bg.patternColor;
+    
+    for (let i = 1; i <= 3; i++) {
+        const radius = platformRadius * (i / 4);
+        const ring = new Cylinder(renderer, patternColor, radius, 0.01, 32);
+        let ringMatrix = renderer.translateMatrix(0, platformY + 0.105, 0);
+        ringMatrix = renderer.multiplyMatrices(ringMatrix, renderer.scaleMatrix(1, 0.05, 1));
+        renderer.drawShape(ring, ringMatrix);
+    }
+    
+    const center = new Sphere(renderer, patternColor, 0.3, 16);
+    let centerMatrix = renderer.translateMatrix(0, platformY + 0.11, 0);
+    renderer.drawShape(center, centerMatrix);
+}
+
+function renderGridPattern(renderer, bg, platformRadius, platformY) {
+    const patternColor = bg.patternColor;
+    const gridSize = 0.5;
+    
+    for (let x = -platformRadius; x <= platformRadius; x += gridSize) {
+        if (Math.abs(x) > platformRadius) continue;
+        
+        const line = new Cylinder(renderer, patternColor, 0.05, platformRadius * 2, 8);
+        let lineMatrix = renderer.translateMatrix(x, platformY + 0.105, 0);
+        lineMatrix = renderer.multiplyMatrices(lineMatrix, renderer.rotateXMatrix(Math.PI / 2));
+        lineMatrix = renderer.multiplyMatrices(lineMatrix, renderer.scaleMatrix(1, 1, 0.05));
+        renderer.drawShape(line, lineMatrix);
+    }
+    
+    for (let z = -platformRadius; z <= platformRadius; z += gridSize) {
+        if (Math.abs(z) > platformRadius) continue;
+        
+        const line = new Cylinder(renderer, patternColor, 0.05, platformRadius * 2, 8);
+        let lineMatrix = renderer.translateMatrix(0, platformY + 0.105, z);
+        lineMatrix = renderer.multiplyMatrices(lineMatrix, renderer.rotateXMatrix(Math.PI / 2));
+        lineMatrix = renderer.multiplyMatrices(lineMatrix, renderer.rotateZMatrix(Math.PI / 2));
+        lineMatrix = renderer.multiplyMatrices(lineMatrix, renderer.scaleMatrix(1, 1, 0.05));
+        renderer.drawShape(line, lineMatrix);
+    }
+}
+
+function renderHexagonPattern(renderer, bg, platformRadius, platformY) {
+    const patternColor = bg.patternColor;
+    const hexSize = 0.4;
+    const hexHeight = Math.sqrt(3) * hexSize / 2;
+    
+    for (let row = -Math.floor(platformRadius / hexHeight); row <= Math.floor(platformRadius / hexHeight); row++) {
+        for (let col = -Math.floor(platformRadius / hexSize); col <= Math.floor(platformRadius / hexSize); col++) {
+            const x = col * hexSize * 1.5;
+            const z = row * hexHeight + (col % 2) * hexHeight / 2;
             
-            const color = (i + j) % 2 === 0 ? bg.groundColor : bg.secondaryGroundColor;
-            const groundTile = new Cube(renderer, color, 1);
+            if (Math.sqrt(x * x + z * z) > platformRadius - hexSize) continue;
             
-            let groundMatrix = renderer.translateMatrix(i * 0.9, -1.2, z);
-            groundMatrix = renderer.multiplyMatrices(groundMatrix, renderer.scaleMatrix(0.8, 0.2, 0.8));
-            renderer.drawShape(groundTile, groundMatrix);
+            const hexagon = createHexagon(renderer, patternColor, hexSize);
+            let hexMatrix = renderer.translateMatrix(x, platformY + 0.105, z);
+            renderer.drawShape(hexagon, hexMatrix);
         }
     }
 }
 
-function renderBackgroundGround(renderer, bg, animationTime) {
-    for (let i = -7; i <= 7; i++) {
-        for (let j = -13; j <= -3; j++) {
-            const color = (i + j) % 2 === 0 ? bg.groundColor : bg.secondaryGroundColor;
-            const groundTile = new Cube(renderer, color, 1);
-            
-            const z = j * 0.9;
-            const scale = 0.8 + (z + 10) * 0.03;
-            
-            let groundMatrix = renderer.translateMatrix(i * 0.9, -1.2, z);
-            groundMatrix = renderer.multiplyMatrices(groundMatrix, renderer.scaleMatrix(0.8 * scale, 0.2, 0.8 * scale));
-            renderer.drawShape(groundTile, groundMatrix);
-        }
+function createHexagon(renderer, color, size) {
+    const positions = [];
+    const colors = [];
+    const normals = [];
+    const indices = [];
+    const numSides = 6;
+    
+    for (let i = 0; i < numSides; i++) {
+        const angle = (i / numSides) * Math.PI * 2;
+        const x = Math.cos(angle) * size;
+        const z = Math.sin(angle) * size;
+        positions.push(x, 0, z);
+        colors.push(color[0], color[1], color[2], color[3]);
+        normals.push(0, 1, 0);
     }
-}
-
-function renderBackgroundElements(renderer, bg, animationTime) {
-    bg.elements.forEach(element => {
-        switch (element.type) {
-            case 'grassPatch':
-                renderGrassPatches(renderer, element, animationTime);
-                break;
-            case 'flower':
-                renderFlowers(renderer, element, animationTime);
-                break;
-            case 'snowflake':
-                renderSnowflakes(renderer, element, animationTime);
-                break;
-            case 'snowdrift':
-                renderSnowdrifts(renderer, element, animationTime);
-                break;
-            case 'lavaPool':
-                renderLavaPools(renderer, element, animationTime);
-                break;
-            case 'ashParticle':
-                renderAshParticles(renderer, element, animationTime);
-                break;
-            case 'rock':
-                renderRocks(renderer, element, animationTime);
-                break;
-            case 'palmTree':
-                renderPalmTrees(renderer, element, animationTime);
-                break;
-            case 'wave':
-                renderWaves(renderer, element, animationTime);
-                break;
-            case 'shell':
-                renderShells(renderer, element, animationTime);
-                break;
-            case 'tree':
-                renderTrees(renderer, element, animationTime);
-                break;
-            case 'mushroom':
-                renderMushrooms(renderer, element, animationTime);
-                break;
-            case 'leafParticle':
-                renderLeafParticles(renderer, element, animationTime);
-                break;
-            case 'log':
-                renderLogs(renderer, element, animationTime);
-                break;
-        }
-    });
+    
+    for (let i = 1; i < numSides - 1; i++) {
+        indices.push(0, i, i + 1);
+    }
+    
+    return new Shape(renderer, positions, colors, normals, indices);
 }
 
 function renderGrassPatches(renderer, element, animationTime) {
