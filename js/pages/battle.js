@@ -271,9 +271,9 @@ class BattlePage {
         this.renderer.projectionMatrix = this.renderer.perspectiveMatrix(Math.PI / 3, aspect, 0.1, 100);
         
         const viewConfig = {
-            '45deg': { eye: [-3, 6, 7], target: [0, 0.8, 0], up: [0, 1, 0] },
-            'top': { eye: [0, 15, 0], target: [0, 0, 0], up: [0, 0, -1] },
-            'side': { eye: [8, 4, 0], target: [0, 0.8, 0], up: [0, 1, 0] }
+            '45deg': { eye: [-3, 4, 7], target: [0, 0.8, 0], up: [0, 1, 0] },
+            'top': { eye: [0, 10, 0], target: [0, 0.5, 0], up: [0, 1, 0] },
+            'side': { eye: [7, 3, 0], target: [0, 0.8, 0], up: [0, 1, 0] }
         };
         
         const config = viewConfig[this.viewMode] || viewConfig['45deg'];
@@ -291,11 +291,11 @@ class BattlePage {
         this.drawBattleArena();
         
         if (this.playerPokemon && !this.playerPokemon.isFainted()) {
-            this.drawPokemon(this.playerPokemon, { x: -2, y: 0.6, z: 1.5 }, this.playerShake, true);
+            this.drawPokemon(this.playerPokemon, { x: -2.5, y: 0.6, z: 0 }, this.playerShake, true);
         }
         
         if (this.enemyPokemon && !this.enemyPokemon.isFainted()) {
-            this.drawPokemon(this.enemyPokemon, { x: 2, y: 0.6, z: -1.5 }, this.enemyShake, false);
+            this.drawPokemon(this.enemyPokemon, { x: 2.5, y: 0.6, z: 0 }, this.enemyShake, false);
         }
     }
 
