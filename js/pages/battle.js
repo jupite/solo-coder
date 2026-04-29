@@ -271,13 +271,13 @@ class BattlePage {
         this.renderer.projectionMatrix = this.renderer.perspectiveMatrix(Math.PI / 3, aspect, 0.1, 100);
         
         const viewConfig = {
-            '45deg': { eye: [0, 4, 8], target: [0, 0, 0] },
-            'top': { eye: [0, 12, 0], target: [0, 0, 0] },
-            'side': { eye: [10, 3, 0], target: [0, 0, 0] }
+            '45deg': { eye: [-3, 6, 7], target: [0, 0.8, 0], up: [0, 1, 0] },
+            'top': { eye: [0, 15, 0], target: [0, 0, 0], up: [0, 0, -1] },
+            'side': { eye: [8, 4, 0], target: [0, 0.8, 0], up: [0, 1, 0] }
         };
         
         const config = viewConfig[this.viewMode] || viewConfig['45deg'];
-        this.renderer.modelViewMatrix = this.renderer.lookAt(config.eye, config.target, [0, 1, 0]);
+        this.renderer.modelViewMatrix = this.renderer.lookAt(config.eye, config.target, config.up);
         
         this.renderer.setLighting(
             [5, 5, 5],
@@ -291,27 +291,28 @@ class BattlePage {
         this.drawBattleArena();
         
         if (this.playerPokemon && !this.playerPokemon.isFainted()) {
-            this.drawPokemon(this.playerPokemon, { x: -2, y: 0.3, z: 1 }, this.playerShake, true);
+            this.drawPokemon(this.playerPokemon, { x: -2, y: 0.6, z: 1.5 }, this.playerShake, true);
         }
         
         if (this.enemyPokemon && !this.enemyPokemon.isFainted()) {
-            this.drawPokemon(this.enemyPokemon, { x: 2, y: 0.3, z: -1 }, this.enemyShake, false);
+            this.drawPokemon(this.enemyPokemon, { x: 2, y: 0.6, z: -1.5 }, this.enemyShake, false);
         }
     }
 
     drawBattleArena() {
         const platformRadius = 4;
+        const platformHeight = 0.2;
         
-        const outerRing = new Disc(this.renderer, [0.3, 0.3, 0.5, 1.0], platformRadius + 0.3, 64, 0.15);
-        let outerRingMatrix = this.renderer.translateMatrix(0, -0.05, 0);
+        const outerRing = new Disc(this.renderer, [0.3, 0.3, 0.5, 1.0], platformRadius + 0.3, 64, platformHeight * 0.8);
+        let outerRingMatrix = this.renderer.translateMatrix(0, -platformHeight * 0.8, 0);
         this.renderer.drawShape(outerRing, outerRingMatrix);
         
-        const innerRing = new Disc(this.renderer, [0.4, 0.4, 0.6, 1.0], platformRadius, 64, 0.12);
-        let innerRingMatrix = this.renderer.translateMatrix(0, 0.05, 0);
-        this.renderer.drawShape(innerRing, innerRingMatrix);
+        const mainPlatform = new Disc(this.renderer, [0.4, 0.5, 0.6, 1.0], platformRadius, 64, platformHeight);
+        let mainMatrix = this.renderer.translateMatrix(0, -platformHeight, 0);
+        this.renderer.drawShape(mainPlatform, mainMatrix);
         
-        const centerDisc = new Disc(this.renderer, [0.5, 0.5, 0.7, 1.0], platformRadius * 0.8, 64, 0.1);
-        let centerMatrix = this.renderer.translateMatrix(0, 0.12, 0);
+        const centerDisc = new Disc(this.renderer, [0.5, 0.6, 0.7, 1.0], platformRadius * 0.8, 64, platformHeight * 0.5);
+        let centerMatrix = this.renderer.translateMatrix(0, -platformHeight * 0.5, 0);
         this.renderer.drawShape(centerDisc, centerMatrix);
         
         const pattern = new PatternShape(this.renderer, this.patternType, platformRadius * 0.7);

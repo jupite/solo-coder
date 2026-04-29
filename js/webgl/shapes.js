@@ -285,7 +285,7 @@ class PatternShape extends Shape {
         const indices = [];
 
         const centerX = 0;
-        const centerY = 0.02;
+        const centerY = 0;
         const centerZ = 0;
 
         if (patternType === 'spiral') {
