@@ -17,7 +17,15 @@ class BattlePage {
         this.playerActiveRenderer = null;
         this.enemyActiveRenderer = null;
         
+        this.viewMode = '45deg';
+        this.patternType = this.getRandomPattern();
+        
         this.init();
+    }
+    
+    getRandomPattern() {
+        const patterns = ['spiral', 'star', 'rings'];
+        return patterns[Math.floor(Math.random() * patterns.length)];
     }
 
     get playerPokemon() {
@@ -49,6 +57,7 @@ class BattlePage {
         this.switchModalTitle = document.getElementById('switch-modal-title');
         this.switchOptions = document.getElementById('switch-options');
         this.cancelSwitchBtn = document.getElementById('cancel-switch-btn');
+        this.viewToggleBtn = document.getElementById('view-toggle-btn');
         
         this.bindEvents();
     }
@@ -75,6 +84,23 @@ class BattlePage {
             if (this.isForcedSwitch) return;
             this.closeSwitchModal();
         });
+        
+        this.viewToggleBtn.addEventListener('click', () => {
+            this.toggleViewMode();
+        });
+    }
+    
+    toggleViewMode() {
+        const modes = ['45deg', 'top', 'side'];
+        const currentIndex = modes.indexOf(this.viewMode);
+        this.viewMode = modes[(currentIndex + 1) % modes.length];
+        
+        const modeNames = {
+            '45deg': '45度视角',
+            'top': '俯视角',
+            'side': '侧面视角'
+        };
+        this.viewToggleBtn.textContent = modeNames[this.viewMode];
     }
 
     startBattle(playerPokemonIds, enemyPokemonIds) {
@@ -119,7 +145,7 @@ class BattlePage {
         
         const container = this.battleCanvas.parentElement;
         const width = container.clientWidth;
-        const height = 500;
+        const height = 600;
         
         this.renderer.resize(width, height);
     }
@@ -242,8 +268,16 @@ class BattlePage {
         this.renderer.useProgram();
         
         const aspect = canvas.width / canvas.height;
-        this.renderer.projectionMatrix = this.renderer.perspectiveMatrix(Math.PI / 4, aspect, 0.1, 100);
-        this.renderer.modelViewMatrix = this.renderer.lookAt([0, 2, 6], [0, 0.5, 0], [0, 1, 0]);
+        this.renderer.projectionMatrix = this.renderer.perspectiveMatrix(Math.PI / 3, aspect, 0.1, 100);
+        
+        const viewConfig = {
+            '45deg': { eye: [0, 4, 8], target: [0, 0, 0] },
+            'top': { eye: [0, 12, 0], target: [0, 0, 0] },
+            'side': { eye: [10, 3, 0], target: [0, 0, 0] }
+        };
+        
+        const config = viewConfig[this.viewMode] || viewConfig['45deg'];
+        this.renderer.modelViewMatrix = this.renderer.lookAt(config.eye, config.target, [0, 1, 0]);
         
         this.renderer.setLighting(
             [5, 5, 5],
@@ -254,27 +288,34 @@ class BattlePage {
             32
         );
         
-        this.drawBattleGround();
+        this.drawBattleArena();
         
         if (this.playerPokemon && !this.playerPokemon.isFainted()) {
-            this.drawPokemon(this.playerPokemon, { x: -2, y: 0.3, z: 0 }, this.playerShake, true);
+            this.drawPokemon(this.playerPokemon, { x: -2, y: 0.3, z: 1 }, this.playerShake, true);
         }
         
         if (this.enemyPokemon && !this.enemyPokemon.isFainted()) {
-            this.drawPokemon(this.enemyPokemon, { x: 2, y: 0.3, z: 0 }, this.enemyShake, false);
+            this.drawPokemon(this.enemyPokemon, { x: 2, y: 0.3, z: -1 }, this.enemyShake, false);
         }
     }
 
-    drawBattleGround() {
-        const ground = new Cube(this.renderer, [0.4, 0.8, 0.4, 1.0], 1);
+    drawBattleArena() {
+        const platformRadius = 4;
         
-        for (let i = -3; i <= 3; i++) {
-            for (let j = -3; j <= 3; j++) {
-                let groundMatrix = this.renderer.translateMatrix(i * 0.9, -0.6, j * 0.9);
-                groundMatrix = this.renderer.multiplyMatrices(groundMatrix, this.renderer.scaleMatrix(0.8, 0.2, 0.8));
-                this.renderer.drawShape(ground, groundMatrix);
-            }
-        }
+        const outerRing = new Disc(this.renderer, [0.3, 0.3, 0.5, 1.0], platformRadius + 0.3, 64, 0.15);
+        let outerRingMatrix = this.renderer.translateMatrix(0, -0.05, 0);
+        this.renderer.drawShape(outerRing, outerRingMatrix);
+        
+        const innerRing = new Disc(this.renderer, [0.4, 0.4, 0.6, 1.0], platformRadius, 64, 0.12);
+        let innerRingMatrix = this.renderer.translateMatrix(0, 0.05, 0);
+        this.renderer.drawShape(innerRing, innerRingMatrix);
+        
+        const centerDisc = new Disc(this.renderer, [0.5, 0.5, 0.7, 1.0], platformRadius * 0.8, 64, 0.1);
+        let centerMatrix = this.renderer.translateMatrix(0, 0.12, 0);
+        this.renderer.drawShape(centerDisc, centerMatrix);
+        
+        const pattern = new PatternShape(this.renderer, this.patternType, platformRadius * 0.7);
+        this.renderer.drawShape(pattern, this.renderer.identityMatrix());
     }
 
     drawPokemon(pokemon, position, shake, isPlayer) {

@@ -228,6 +228,191 @@ class Torus extends Shape {
     }
 }
 
+class Disc extends Shape {
+    constructor(renderer, color, radius = 1, segments = 32, height = 0.1) {
+        const positions = [];
+        const colors = [];
+        const normals = [];
+        const indices = [];
+
+        for (let i = 0; i <= segments; i++) {
+            const angle = i * 2 * Math.PI / segments;
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+
+            positions.push(radius * cos, 0, radius * sin);
+            colors.push(color[0], color[1], color[2], color[3]);
+            normals.push(0, 1, 0);
+
+            positions.push(radius * cos, height, radius * sin);
+            colors.push(color[0], color[1], color[2], color[3]);
+            normals.push(0, 1, 0);
+        }
+
+        positions.push(0, 0, 0);
+        colors.push(color[0], color[1], color[2], color[3]);
+        normals.push(0, -1, 0);
+
+        positions.push(0, height, 0);
+        colors.push(color[0], color[1], color[2], color[3]);
+        normals.push(0, 1, 0);
+
+        const topCenter = (segments + 1) * 2;
+        const bottomCenter = topCenter + 1;
+
+        for (let i = 0; i < segments; i++) {
+            const first = i * 2;
+            const second = first + 1;
+            const third = first + 2;
+            const fourth = first + 3;
+
+            indices.push(first, second, third);
+            indices.push(second, fourth, third);
+
+            indices.push(bottomCenter, first, third);
+            indices.push(topCenter, third + 1, first + 1);
+        }
+
+        super(renderer, positions, colors, normals, indices);
+    }
+}
+
+class PatternShape extends Shape {
+    constructor(renderer, patternType, radius = 3, segments = 32) {
+        const positions = [];
+        const colors = [];
+        const normals = [];
+        const indices = [];
+
+        const centerX = 0;
+        const centerY = 0.02;
+        const centerZ = 0;
+
+        if (patternType === 'spiral') {
+            const loops = 3;
+            const pointsPerLoop = 60;
+            const totalPoints = loops * pointsPerLoop;
+            
+            for (let i = 0; i <= totalPoints; i++) {
+                const t = i / totalPoints;
+                const angle = t * loops * 2 * Math.PI;
+                const r = radius * t;
+                const x = centerX + r * Math.cos(angle);
+                const z = centerZ + r * Math.sin(angle);
+                
+                positions.push(x, centerY, z);
+                positions.push(x, centerY + 0.01, z);
+                
+                colors.push(1.0, 0.8, 0.2, 1.0);
+                colors.push(0.9, 0.7, 0.1, 1.0);
+                
+                normals.push(0, 1, 0);
+                normals.push(0, 1, 0);
+            }
+            
+            for (let i = 0; i < totalPoints; i++) {
+                const a = i * 2;
+                const b = a + 1;
+                const c = a + 2;
+                const d = a + 3;
+                indices.push(a, b, c);
+                indices.push(b, d, c);
+            }
+        } else if (patternType === 'star') {
+            const starPoints = 6;
+            const innerRadius = radius * 0.3;
+            
+            for (let i = 0; i < starPoints; i++) {
+                const outerAngle = i * 2 * Math.PI / starPoints;
+                const innerAngle = outerAngle + Math.PI / starPoints;
+                
+                const outerX = centerX + radius * Math.cos(outerAngle);
+                const outerZ = centerZ + radius * Math.sin(outerAngle);
+                const innerX = centerX + innerRadius * Math.cos(innerAngle);
+                const innerZ = centerZ + innerRadius * Math.sin(innerAngle);
+                
+                positions.push(outerX, centerY, outerZ);
+                positions.push(innerX, centerY, innerZ);
+                positions.push(outerX, centerY + 0.01, outerZ);
+                positions.push(innerX, centerY + 0.01, innerZ);
+                
+                colors.push(0.9, 0.2, 0.5, 1.0);
+                colors.push(1.0, 0.5, 0.8, 1.0);
+                colors.push(0.8, 0.1, 0.4, 1.0);
+                colors.push(0.9, 0.4, 0.7, 1.0);
+                
+                normals.push(0, 1, 0);
+                normals.push(0, 1, 0);
+                normals.push(0, 1, 0);
+                normals.push(0, 1, 0);
+            }
+            
+            for (let i = 0; i < starPoints; i++) {
+                const next = (i + 1) % starPoints;
+                const a = i * 4;
+                const b = a + 1;
+                const c = next * 4;
+                const d = c + 1;
+                
+                indices.push(a, b, c);
+                indices.push(b, d, c);
+            }
+            
+            const centerIdx = starPoints * 4;
+            positions.push(centerX, centerY, centerZ);
+            positions.push(centerX, centerY + 0.01, centerZ);
+            colors.push(1.0, 0.3, 0.6, 1.0);
+            colors.push(0.9, 0.2, 0.5, 1.0);
+            normals.push(0, 1, 0);
+            normals.push(0, 1, 0);
+            
+            for (let i = 0; i < starPoints; i++) {
+                const a = i * 4;
+                const b = centerIdx;
+                const c = ((i + 1) % starPoints) * 4;
+                indices.push(b, a, c);
+                indices.push(b + 1, a + 1, c + 1);
+            }
+        } else if (patternType === 'rings') {
+            const ringCount = 4;
+            
+            for (let ring = 1; ring <= ringCount; ring++) {
+                const ringRadius = radius * ring / ringCount;
+                
+                for (let i = 0; i <= segments; i++) {
+                    const angle = i * 2 * Math.PI / segments;
+                    const x = centerX + ringRadius * Math.cos(angle);
+                    const z = centerZ + ringRadius * Math.sin(angle);
+                    
+                    positions.push(x, centerY, z);
+                    positions.push(x, centerY + 0.01, z);
+                    
+                    const hue = (ring / ringCount) * 0.3 + 0.6;
+                    colors.push(hue, 0.7, 0.8, 1.0);
+                    colors.push(hue - 0.1, 0.6, 0.7, 1.0);
+                    
+                    normals.push(0, 1, 0);
+                    normals.push(0, 1, 0);
+                }
+            }
+            
+            for (let ring = 0; ring < ringCount; ring++) {
+                const ringOffset = ring * (segments + 1) * 2;
+                for (let i = 0; i < segments; i++) {
+                    const a = ringOffset + i * 2;
+                    const b = a + 1;
+                    const c = a + 2;
+                    const d = a + 3;
+                    indices.push(a, b, c);
+                    indices.push(b, d, c);
+                }
+            }
+        }
+
+        super(renderer, positions, colors, normals, indices);
+    }
+}
+
 class CompositeShape extends Shape {
     constructor(renderer, shapes) {
         const positions = [];
