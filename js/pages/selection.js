@@ -4,6 +4,8 @@ class SelectionPage {
         this.selectedPokemonIds = [];
         this.maxSelection = 3;
         this.cardRenderers = {};
+        this.money = 500;
+        this.backpack = {};
         
         this.init();
     }
@@ -14,10 +16,158 @@ class SelectionPage {
         this.selectedPokemonInfo = document.getElementById('selected-pokemon-info');
         this.selectedPokemonName = document.getElementById('selected-pokemon-name');
         this.selectedPokemonStats = document.getElementById('selected-pokemon-stats');
+        this.moneyDisplay = document.getElementById('player-money');
+        this.itemsShop = document.getElementById('items-shop');
+        this.backpackItems = document.getElementById('backpack-items');
         
+        this.renderItemsShop();
+        this.renderBackpack();
         this.renderPokemonList();
         this.bindEvents();
         this.updateSelectionUI();
+        this.updateMoneyDisplay();
+    }
+
+    updateMoneyDisplay() {
+        this.moneyDisplay.textContent = this.money;
+    }
+
+    renderItemsShop() {
+        const allItems = getAllItems();
+        this.itemsShop.innerHTML = '';
+        
+        allItems.forEach(item => {
+            const card = document.createElement('div');
+            card.className = `item-card ${this.money < item.price ? 'disabled' : ''}`;
+            card.dataset.itemId = item.id;
+            
+            const maxBuyable = Math.floor(this.money / item.price);
+            
+            card.innerHTML = `
+                <div class="item-icon">${item.icon}</div>
+                <div class="item-name">${item.name}</div>
+                <div class="item-description">${item.description}</div>
+                <div class="item-price">💰 ${item.price}</div>
+                <div class="item-quantity-control">
+                    <button class="quantity-btn quantity-minus" data-item-id="${item.id}">-</button>
+                    <span class="quantity-display" data-item-id="${item.id}">1</span>
+                    <button class="quantity-btn quantity-plus" data-item-id="${item.id}">+</button>
+                </div>
+                <button class="buy-btn" data-item-id="${item.id}" ${maxBuyable <= 0 ? 'disabled' : ''}>购买</button>
+            `;
+            
+            this.itemsShop.appendChild(card);
+        });
+        
+        document.querySelectorAll('.quantity-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const itemId = e.target.dataset.itemId;
+                const item = getItemData(itemId);
+                const display = document.querySelector(`.quantity-display[data-item-id="${itemId}"]`);
+                const currentQty = parseInt(display.textContent);
+                const maxBuyable = Math.floor(this.money / item.price);
+                
+                if (e.target.classList.contains('quantity-plus') && currentQty < maxBuyable) {
+                    display.textContent = currentQty + 1;
+                } else if (e.target.classList.contains('quantity-minus') && currentQty > 1) {
+                    display.textContent = currentQty - 1;
+                }
+            });
+        });
+        
+        document.querySelectorAll('.buy-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const itemId = e.target.dataset.itemId;
+                const display = document.querySelector(`.quantity-display[data-item-id="${itemId}"]`);
+                const quantity = parseInt(display.textContent);
+                this.buyItem(itemId, quantity);
+                display.textContent = 1;
+            });
+        });
+    }
+
+    buyItem(itemId, quantity = 1) {
+        const item = getItemData(itemId);
+        const totalCost = item.price * quantity;
+        
+        if (!item || this.money < totalCost) return;
+        
+        this.money -= totalCost;
+        
+        if (!this.backpack[itemId]) {
+            this.backpack[itemId] = { ...item, quantity: 0 };
+        }
+        this.backpack[itemId].quantity += quantity;
+        
+        this.updateMoneyDisplay();
+        this.renderItemsShop();
+        this.renderBackpack();
+    }
+
+    renderBackpack() {
+        this.backpackItems.innerHTML = '';
+        
+        const items = Object.values(this.backpack);
+        
+        if (items.length === 0) {
+            const emptyMsg = document.createElement('div');
+            emptyMsg.textContent = '背包是空的，去商店买些道具吧！';
+            emptyMsg.style.textAlign = 'center';
+            emptyMsg.style.color = '#666';
+            emptyMsg.style.gridColumn = '1 / -1';
+            this.backpackItems.appendChild(emptyMsg);
+            return;
+        }
+        
+        items.forEach(item => {
+            const itemElement = document.createElement('div');
+            itemElement.className = 'backpack-item';
+            
+            itemElement.innerHTML = `
+                <div class="backpack-item-icon">${item.icon}</div>
+                <div class="backpack-item-name">${item.name}</div>
+                <div class="backpack-item-quantity-control">
+                    <button class="backpack-minus-btn" data-item-id="${item.id}">-</button>
+                    <span>×${item.quantity}</span>
+                    <button class="backpack-plus-btn" data-item-id="${item.id}">+</button>
+                </div>
+                <div class="backpack-item-refund">💰${item.price}/个</div>
+            `;
+            
+            this.backpackItems.appendChild(itemElement);
+        });
+        
+        document.querySelectorAll('.backpack-minus-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const itemId = e.target.dataset.itemId;
+                this.sellItem(itemId, 1);
+            });
+        });
+        
+        document.querySelectorAll('.backpack-plus-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const itemId = e.target.dataset.itemId;
+                this.buyItem(itemId, 1);
+            });
+        });
+    }
+
+    sellItem(itemId, quantity = 1) {
+        if (!this.backpack[itemId] || this.backpack[itemId].quantity < quantity) return;
+        
+        const item = this.backpack[itemId];
+        const refundAmount = item.price * quantity;
+        
+        this.money += refundAmount;
+        this.backpack[itemId].quantity -= quantity;
+        
+        if (this.backpack[itemId].quantity <= 0) {
+            delete this.backpack[itemId];
+        }
+        
+        this.updateMoneyDisplay();
+        this.renderItemsShop();
+        this.renderBackpack();
     }
 
     renderPokemonList() {
@@ -242,7 +392,7 @@ class SelectionPage {
         this.startBattleBtn.addEventListener('click', () => {
             if (this.selectedPokemonIds.length === this.maxSelection) {
                 const enemyPokemonIds = this.generateRandomEnemies();
-                this.game.startBattle(this.selectedPokemonIds, enemyPokemonIds);
+                this.game.startBattle(this.selectedPokemonIds, enemyPokemonIds, this.backpack);
             }
         });
     }
@@ -352,7 +502,12 @@ class SelectionPage {
         document.getElementById('result-page').classList.remove('active');
         
         this.selectedPokemonIds = [];
+        this.money = 500;
+        this.backpack = {};
         this.updateSelectionUI();
+        this.updateMoneyDisplay();
+        this.renderItemsShop();
+        this.renderBackpack();
         
         document.querySelectorAll('.pokemon-card').forEach(card => {
             card.classList.remove('selected');
@@ -361,5 +516,9 @@ class SelectionPage {
 
     hide() {
         document.getElementById('selection-page').classList.remove('active');
+    }
+
+    getPlayerBackpack() {
+        return this.backpack;
     }
 }

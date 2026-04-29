@@ -38,6 +38,267 @@ body {
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.shop-section {
+    background: linear-gradient(145deg, #fff8e1, #ffecb3);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.shop-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.shop-header h3 {
+    color: #ff9800;
+    font-size: 1.3em;
+    margin: 0;
+}
+
+.money-display {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: #fff;
+    padding: 8px 15px;
+    border-radius: 20px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.money-icon {
+    font-size: 1.2em;
+}
+
+#player-money {
+    font-weight: bold;
+    color: #4caf50;
+    font-size: 1.2em;
+}
+
+.items-shop {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.item-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.item-card:hover:not(.disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    border-color: #ff9800;
+}
+
+.item-card.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.item-icon {
+    font-size: 2em;
+    text-align: center;
+}
+
+.item-name {
+    font-weight: bold;
+    color: #333;
+    text-align: center;
+    font-size: 1em;
+}
+
+.item-description {
+    font-size: 0.8em;
+    color: #666;
+    text-align: center;
+    min-height: 36px;
+}
+
+.item-price {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 3px;
+    font-weight: bold;
+    color: #4caf50;
+}
+
+.item-quantity-control {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.quantity-btn {
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.2em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.quantity-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 3px 8px rgba(102, 126, 234, 0.4);
+}
+
+.quantity-btn:active {
+    transform: scale(0.95);
+}
+
+.quantity-display {
+    min-width: 40px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.1em;
+    color: #333;
+    background: #f0f0f0;
+    padding: 5px 10px;
+    border-radius: 8px;
+}
+
+.buy-btn {
+    width: 100%;
+    padding: 10px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: linear-gradient(135deg, #4caf50, #45a049);
+    color: white;
+}
+
+.buy-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 10px rgba(76, 175, 80, 0.4);
+}
+
+.buy-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.backpack-section {
+    background: linear-gradient(145deg, #e3f2fd, #bbdefb);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.backpack-section h3 {
+    color: #1976d2;
+    font-size: 1.3em;
+    margin-bottom: 15px;
+}
+
+.backpack-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.backpack-item {
+    background: #fff;
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    border: 2px solid #e3f2fd;
+}
+
+.backpack-item-icon {
+    font-size: 1.8em;
+}
+
+.backpack-item-name {
+    font-weight: bold;
+    color: #333;
+    font-size: 0.9em;
+}
+
+.backpack-item-quantity-control {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    margin: 5px 0;
+}
+
+.backpack-minus-btn, .backpack-plus-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 6px;
+    font-size: 1em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.backpack-minus-btn {
+    background: linear-gradient(135deg, #f44336, #e91e63);
+    color: white;
+}
+
+.backpack-minus-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 6px rgba(244, 67, 54, 0.4);
+}
+
+.backpack-plus-btn {
+    background: linear-gradient(135deg, #4caf50, #45a049);
+    color: white;
+}
+
+.backpack-plus-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 6px rgba(76, 175, 80, 0.4);
+}
+
+.backpack-item-quantity-control span {
+    min-width: 30px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 0.9em;
+    color: #333;
+    background: #e3f2fd;
+    padding: 3px 8px;
+    border-radius: 6px;
+}
+
+.backpack-item-refund {
+    font-size: 0.75em;
+    color: #4caf50;
+    font-weight: bold;
+}
+
 .pokemon-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -517,6 +778,21 @@ body {
     color: white;
     text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
     box-shadow: 0 3px 10px rgba(67, 233, 123, 0.4);
+    margin-right: 10px;
+}
+
+.backpack-btn {
+    padding: 12px 30px;
+    font-size: 1em;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: bold;
+    background: linear-gradient(135deg, #ff9800, #ff5722);
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 3px 10px rgba(255, 152, 0, 0.4);
 }
 
 .switch-btn:hover:not(:disabled) {
@@ -633,6 +909,104 @@ body {
 .cancel-switch-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(240, 147, 251, 0.4);
+}
+
+/* 背包弹窗样式 */
+.backpack-modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(145deg, #fff, #f5f5f5);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+    min-width: 400px;
+    max-width: 90vw;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.backpack-modal h3 {
+    text-align: center;
+    color: #ff9800;
+    margin-bottom: 15px;
+    font-size: 1.4em;
+}
+
+.backpack-items-modal {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.backpack-item-modal {
+    background: linear-gradient(145deg, #e3f2fd, #bbdefb);
+    border-radius: 10px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.backpack-item-modal:hover:not(.disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+    border-color: #1976d2;
+}
+
+.backpack-item-modal.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.backpack-item-modal-icon {
+    font-size: 2em;
+}
+
+.backpack-item-modal-name {
+    font-weight: bold;
+    color: #333;
+    font-size: 1em;
+}
+
+.backpack-item-modal-desc {
+    font-size: 0.8em;
+    color: #666;
+    text-align: center;
+}
+
+.backpack-item-modal-quantity {
+    background: #1976d2;
+    color: white;
+    padding: 3px 12px;
+    border-radius: 10px;
+    font-size: 0.85em;
+}
+
+.cancel-backpack-btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 1em;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: bold;
+    background: linear-gradient(135deg, #ff9800, #ff5722);
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.cancel-backpack-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(255, 152, 0, 0.5);
 }
 
 /* 结算页面样式 */

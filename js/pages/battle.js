@@ -14,6 +14,7 @@ class BattlePage {
         this.enemyShake = { x: 0, y: 0, z: 0 };
         this.isSwitchModalOpen = false;
         this.isForcedSwitch = false;
+        this.isBackpackModalOpen = false;
         this.playerActiveRenderer = null;
         this.enemyActiveRenderer = null;
         
@@ -45,10 +46,14 @@ class BattlePage {
         this.playerTeamList = document.getElementById('player-team-list');
         this.enemyTeamList = document.getElementById('enemy-team-list');
         this.switchPokemonBtn = document.getElementById('switch-pokemon-btn');
+        this.backpackBtn = document.getElementById('backpack-btn');
         this.switchModal = document.getElementById('switch-modal');
         this.switchModalTitle = document.getElementById('switch-modal-title');
         this.switchOptions = document.getElementById('switch-options');
         this.cancelSwitchBtn = document.getElementById('cancel-switch-btn');
+        this.backpackModal = document.getElementById('backpack-modal');
+        this.backpackItemsModal = document.getElementById('backpack-items-modal');
+        this.cancelBackpackBtn = document.getElementById('cancel-backpack-btn');
         
         this.bindEvents();
     }
@@ -57,7 +62,7 @@ class BattlePage {
         this.moveButtons.forEach(button => {
             button.addEventListener('click', (e) => {
                 if (this.isBattleProcessing || !this.battleSystem || !this.battleSystem.isPlayerTurn) return;
-                if (this.isSwitchModalOpen) return;
+                if (this.isSwitchModalOpen || this.isBackpackModalOpen) return;
                 
                 const moveIndex = parseInt(e.target.dataset.move);
                 this.executePlayerMove(moveIndex);
@@ -71,15 +76,25 @@ class BattlePage {
             this.openSwitchModal(false);
         });
         
+        this.backpackBtn.addEventListener('click', () => {
+            if (this.isBattleProcessing || !this.battleSystem || !this.battleSystem.isPlayerTurn) return;
+            
+            this.openBackpackModal();
+        });
+        
         this.cancelSwitchBtn.addEventListener('click', () => {
             if (this.isForcedSwitch) return;
             this.closeSwitchModal();
         });
+        
+        this.cancelBackpackBtn.addEventListener('click', () => {
+            this.closeBackpackModal();
+        });
     }
 
-    startBattle(playerPokemonIds, enemyPokemonIds) {
+    startBattle(playerPokemonIds, enemyPokemonIds, playerBackpack = {}) {
         const ai = new PokemonAI('medium');
-        this.battleSystem = new BattleSystem(playerPokemonIds, enemyPokemonIds, ai);
+        this.battleSystem = new BattleSystem(playerPokemonIds, enemyPokemonIds, ai, playerBackpack);
         
         this.updateUI();
         this.initRenderer();
@@ -361,7 +376,7 @@ class BattlePage {
             if (!pokemon.isFainted) {
                 card.style.cursor = 'pointer';
                 card.addEventListener('click', () => {
-                    if (this.isSwitchModalOpen || this.isBattleProcessing || !this.battleSystem.isPlayerTurn) return;
+                    if (this.isSwitchModalOpen || this.isBackpackModalOpen || this.isBattleProcessing || !this.battleSystem.isPlayerTurn) return;
                     if (!this.battleSystem.canPlayerSwitch()) return;
                     this.quickSwitchPokemon(index);
                 });
@@ -452,6 +467,54 @@ class BattlePage {
         this.enableMoveButtons();
     }
 
+    openBackpackModal() {
+        if (!this.battleSystem) return;
+        
+        const state = this.battleSystem.getBattleState();
+        this.backpackItemsModal.innerHTML = '';
+        
+        const items = Object.values(state.playerBackpack);
+        
+        if (items.length === 0) {
+            const emptyMsg = document.createElement('div');
+            emptyMsg.textContent = '背包是空的！';
+            emptyMsg.style.textAlign = 'center';
+            emptyMsg.style.color = '#666';
+            emptyMsg.style.gridColumn = '1 / -1';
+            emptyMsg.style.padding = '20px';
+            this.backpackItemsModal.appendChild(emptyMsg);
+        } else {
+            items.forEach(item => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'backpack-item-modal';
+                itemElement.dataset.itemId = item.id;
+                
+                itemElement.innerHTML = `
+                    <div class="backpack-item-modal-icon">${item.icon}</div>
+                    <div class="backpack-item-modal-name">${item.name}</div>
+                    <div class="backpack-item-modal-desc">${item.description}</div>
+                    <div class="backpack-item-modal-quantity">×${item.quantity}</div>
+                `;
+                
+                itemElement.addEventListener('click', () => {
+                    this.executeUseItem(item.id);
+                });
+                
+                this.backpackItemsModal.appendChild(itemElement);
+            });
+        }
+        
+        this.backpackModal.style.display = 'block';
+        this.isBackpackModalOpen = true;
+        this.disableMoveButtons();
+    }
+
+    closeBackpackModal() {
+        this.backpackModal.style.display = 'none';
+        this.isBackpackModalOpen = false;
+        this.enableMoveButtons();
+    }
+
     quickSwitchPokemon(newIndex) {
         if (!this.battleSystem || !this.battleSystem.isPlayerTurn) return;
         if (this.isBattleProcessing) return;
@@ -481,6 +544,40 @@ class BattlePage {
     executePlayerSwitch(newIndex) {
         this.closeSwitchModal();
         this.quickSwitchPokemon(newIndex);
+    }
+
+    executeUseItem(itemId) {
+        this.closeBackpackModal();
+        
+        if (!this.battleSystem || this.battleSystem.battleOver || !this.battleSystem.isPlayerTurn || this.isBattleProcessing) return;
+        
+        this.isBattleProcessing = true;
+        this.disableMoveButtons();
+        
+        const result = this.battleSystem.useItem(itemId);
+        
+        if (result.success) {
+            this.battleMessage.textContent = result.message;
+            
+            if (result.damage && result.damage > 0) {
+                this.shakeEnemy();
+            }
+            
+            this.updateUI();
+            
+            setTimeout(() => {
+                if (this.battleSystem.battleOver) {
+                    this.endBattle();
+                } else {
+                    this.battleMessage.textContent = `轮到 ${this.enemyPokemon.name} 行动！`;
+                    setTimeout(() => this.executeEnemyTurn(), 1000);
+                }
+            }, 1500);
+        } else {
+            this.battleMessage.textContent = result.message;
+            this.isBattleProcessing = false;
+            this.enableMoveButtons();
+        }
     }
 
     executePlayerMove(moveIndex) {
@@ -602,6 +699,24 @@ class BattlePage {
         
         this.renderTeamSidebar();
         this.updateSwitchButton();
+        this.updateBackpackButton();
+    }
+
+    updateBackpackButton() {
+        if (!this.battleSystem) {
+            this.backpackBtn.disabled = true;
+            return;
+        }
+        
+        const state = this.battleSystem.getBattleState();
+        const hasItems = Object.keys(state.playerBackpack).length > 0;
+        this.backpackBtn.disabled = !hasItems || !this.battleSystem.isPlayerTurn || this.isBattleProcessing;
+        
+        if (this.backpackBtn.disabled) {
+            this.backpackBtn.classList.add('disabled');
+        } else {
+            this.backpackBtn.classList.remove('disabled');
+        }
     }
 
     updateSwitchButton() {
@@ -661,6 +776,9 @@ class BattlePage {
         if (this.switchPokemonBtn) {
             this.switchPokemonBtn.disabled = true;
         }
+        if (this.backpackBtn) {
+            this.backpackBtn.disabled = true;
+        }
     }
 
     enableMoveButtons() {
@@ -673,6 +791,7 @@ class BattlePage {
             }
         });
         this.updateSwitchButton();
+        this.updateBackpackButton();
     }
 
     endBattle() {
@@ -706,9 +825,13 @@ class BattlePage {
         this.isBattleProcessing = false;
         this.isSwitchModalOpen = false;
         this.isForcedSwitch = false;
+        this.isBackpackModalOpen = false;
         this.battleSystem = null;
         if (this.switchModal) {
             this.switchModal.style.display = 'none';
+        }
+        if (this.backpackModal) {
+            this.backpackModal.style.display = 'none';
         }
     }
 }

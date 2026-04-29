@@ -1,5 +1,5 @@
 class BattleSystem {
-    constructor(playerPokemonIds, enemyPokemonIds, ai) {
+    constructor(playerPokemonIds, enemyPokemonIds, ai, playerBackpack = {}) {
         this.playerTeam = playerPokemonIds.map(id => createPokemon(id, 50));
         this.enemyTeam = enemyPokemonIds.map(id => createPokemon(id, 50));
         this.ai = ai || new PokemonAI('medium');
@@ -12,6 +12,13 @@ class BattleSystem {
         this.battleOver = false;
         this.winner = null;
         this.battleLog = [];
+        
+        this.playerBackpack = { ...playerBackpack };
+        this.playerBuffs = {
+            attackBoost: 1,
+            defenseBoost: 1,
+            evasionBoost: 0
+        };
         
         this.determineFirstTurn();
     }
@@ -34,9 +41,14 @@ class BattleSystem {
         }
     }
 
-    calculateDamage(move, attacker, defender) {
+    calculateDamage(move, attacker, defender, isPlayer = true) {
         if (!move.power || move.power === 0) {
             return { damage: 0, effectiveness: 1, critical: false, missed: false };
+        }
+        
+        const evasion = isPlayer ? this.playerBuffs.evasionBoost : 0;
+        if (Math.random() < evasion) {
+            return { damage: 0, effectiveness: 1, critical: false, missed: true, evaded: true };
         }
         
         if (Math.random() * 100 > move.accuracy) {
@@ -66,23 +78,31 @@ class BattleSystem {
         
         const randomFactor = 0.85 + Math.random() * 0.15;
         
+        let damageMultiplier = isPlayer ? this.playerBuffs.attackBoost : 1;
+        let defenseMultiplier = isPlayer ? this.playerBuffs.defenseBoost : 1;
+        
         const baseDamage = ((2 * attacker.level / 5 + 2) * move.power * (attackStat / defenseStat) / 50 + 2);
-        const damage = Math.floor(baseDamage * stab * totalEffectiveness * criticalMultiplier * randomFactor);
+        const damage = Math.floor(baseDamage * stab * totalEffectiveness * criticalMultiplier * randomFactor * damageMultiplier);
+        const finalDamage = Math.floor(damage * defenseMultiplier);
         
         return {
-            damage: Math.max(1, damage),
+            damage: Math.max(1, finalDamage),
             effectiveness: totalEffectiveness,
             critical,
             missed: false
         };
     }
 
-    executeMove(move, attacker, defender) {
-        const result = this.calculateDamage(move, attacker, defender);
+    executeMove(move, attacker, defender, isPlayer = true) {
+        const result = this.calculateDamage(move, attacker, defender, isPlayer);
         let message = `${attacker.name} 使用了 ${move.name}！`;
         
         if (result.missed) {
-            message += ' 但是没有命中...';
+            if (result.evaded) {
+                message += ' 被闪避了！';
+            } else {
+                message += ' 但是没有命中...';
+            }
         } else {
             if (result.critical) {
                 message += ' 击中要害！';
@@ -162,6 +182,11 @@ class BattleSystem {
         
         if (isPlayer) {
             this.activePlayerIndex = newIndex;
+            this.playerBuffs = {
+                attackBoost: 1,
+                defenseBoost: 1,
+                evasionBoost: 0
+            };
         } else {
             this.activeEnemyIndex = newIndex;
         }
@@ -215,6 +240,67 @@ class BattleSystem {
         return false;
     }
 
+    useItem(itemId) {
+        if (this.battleOver || !this.isPlayerTurn) {
+            return { success: false, message: '不能使用道具' };
+        }
+        
+        if (!this.playerBackpack[itemId] || this.playerBackpack[itemId].quantity <= 0) {
+            return { success: false, message: '道具不足' };
+        }
+        
+        const item = this.playerBackpack[itemId];
+        this.playerBackpack[itemId].quantity--;
+        
+        if (this.playerBackpack[itemId].quantity <= 0) {
+            delete this.playerBackpack[itemId];
+        }
+        
+        let message = `使用了 ${item.name}！`;
+        let result = { success: true, message, item };
+        
+        switch (item.type) {
+            case 'heal':
+                const healAmount = Math.min(item.value, this.playerPokemon.maxHp - this.playerPokemon.currentHp);
+                this.playerPokemon.heal(healAmount);
+                message += ` 恢复了 ${healAmount} 点HP！`;
+                result.healAmount = healAmount;
+                break;
+                
+            case 'buff_attack':
+                this.playerBuffs.attackBoost = item.value;
+                message += ` 下一次攻击伤害提升50%！`;
+                result.buffType = 'attack';
+                break;
+                
+            case 'buff_defense':
+                this.playerBuffs.defenseBoost = item.value;
+                message += ` 下一次受到的伤害降低30%！`;
+                result.buffType = 'defense';
+                break;
+                
+            case 'buff_evasion':
+                this.playerBuffs.evasionBoost = item.value;
+                message += ` 下一次闪避率提升50%！`;
+                result.buffType = 'evasion';
+                break;
+                
+            case 'damage':
+                this.enemyPokemon.takeDamage(item.value);
+                message += ` 对敌方造成了 ${item.value} 点伤害！`;
+                result.damage = item.value;
+                break;
+        }
+        
+        result.message = message;
+        this.battleLog.push(message);
+        
+        this.turn++;
+        this.isPlayerTurn = false;
+        
+        return result;
+    }
+
     playerTurn(moveIndex) {
         if (this.battleOver || !this.isPlayerTurn) {
             return null;
@@ -227,7 +313,11 @@ class BattleSystem {
         
         move.currentPp--;
         
-        const result = this.executeMove(move, this.playerPokemon, this.enemyPokemon);
+        const result = this.executeMove(move, this.playerPokemon, this.enemyPokemon, true);
+        
+        this.playerBuffs.attackBoost = 1;
+        this.playerBuffs.defenseBoost = 1;
+        this.playerBuffs.evasionBoost = 0;
         
         this.turn++;
         
@@ -297,7 +387,7 @@ class BattleSystem {
             this.enemyPokemon.moves[moveIndex].currentPp--;
         }
         
-        const result = this.executeMove(move, this.enemyPokemon, this.playerPokemon);
+        const result = this.executeMove(move, this.enemyPokemon, this.playerPokemon, false);
         
         this.turn++;
         
@@ -367,6 +457,7 @@ class BattleSystem {
                 maxHp: this.enemyPokemon.maxHp,
                 types: this.enemyPokemon.types
             },
+            playerBackpack: this.playerBackpack,
             battleLog: this.battleLog.slice(-5)
         };
     }
