@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 宝可梦对战游戏</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <!-- 选宝可梦页面 -->
+        <div id="selection-page" class="page active">
+            <h1>选择你的宝可梦</h1>
+            
+            <div id="shop-section" class="shop-section">
+                <div class="shop-header">
+                    <h3>道具商店</h3>
+                    <div class="money-display">
+                        <span class="money-icon">💰</span>
+                        <span id="player-money">500</span>
+                    </div>
+                </div>
+                <div id="items-shop" class="items-shop"></div>
+            </div>
+            
+            <div id="player-backpack" class="backpack-section">
+                <h3>我的背包</h3>
+                <div id="backpack-items" class="backpack-items"></div>
+            </div>
+            
+            <div id="pokemon-list" class="pokemon-grid"></div>
+            <div id="selected-pokemon-info" class="selected-pokemon-info" style="display: none;">
+                <h3 id="selected-pokemon-name"></h3>
+                <div id="selected-pokemon-stats" class="selected-stats"></div>
+            </div>
+            <button id="start-battle" class="btn-primary" disabled>开始战斗</button>
+        </div>
+
+        <!-- 对战页面 -->
+        <div id="battle-page" class="page">
+            <div id="battle-scene">
+                <!-- 上部：对战区域（左中右结构） -->
+                <div id="battle-top-section">
+                    <!-- 左侧：我的宝可梦信息 -->
+                    <div id="player-panel" class="side-panel">
+                        <div class="panel-header">
+                            <h3>我的宝可梦</h3>
+                        </div>
+                        <div id="player-active-pokemon" class="active-pokemon-card">
+                            <canvas id="player-active-canvas" width="120" height="120"></canvas>
+                            <div class="active-pokemon-info">
+                                <h4 id="player-active-name"></h4>
+                                <div class="hp-bar-small">
+                                    <div class="hp-bar-label-small">HP</div>
+                                    <div class="hp-bar-bg-small">
+                                        <div id="player-active-hp-bar" class="hp-bar-fill-small"></div>
+                                    </div>
+                                    <div id="player-active-hp-text" class="hp-bar-text-small">0/0</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="team-section">
+                            <h4>后备宝可梦</h4>
+                            <div id="player-team-list" class="team-list-small"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 中间：3D对战场景 -->
+                    <div id="battle-center">
+                        <canvas id="battle-canvas" width="800" height="500"></canvas>
+                    </div>
+                    
+                    <!-- 右侧：对手宝可梦信息 -->
+                    <div id="enemy-panel" class="side-panel">
+                        <div class="panel-header">
+                            <h3>对手宝可梦</h3>
+                        </div>
+                        <div id="enemy-active-pokemon" class="active-pokemon-card">
+                            <canvas id="enemy-active-canvas" width="120" height="120"></canvas>
+                            <div class="active-pokemon-info">
+                                <h4 id="enemy-active-name"></h4>
+                                <div class="hp-bar-small">
+                                    <div class="hp-bar-label-small">HP</div>
+                                    <div class="hp-bar-bg-small">
+                                        <div id="enemy-active-hp-bar" class="hp-bar-fill-small"></div>
+                                    </div>
+                                    <div id="enemy-active-hp-text" class="hp-bar-text-small">0/0</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="team-section">
+                            <h4>后备宝可梦</h4>
+                            <div id="enemy-team-list" class="team-list-small"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 中部：黑色行动条 -->
+                <div id="battle-middle">
+                    <div id="battle-message" class="battle-message"></div>
+                </div>
+                
+                <!-- 下部：技能选择 -->
+                <div id="battle-bottom">
+                    <div id="battle-menu">
+                        <!-- 切换按钮区域 -->
+                        <div id="switch-area" class="switch-area">
+                            <button id="switch-pokemon-btn" class="switch-btn">切换宝可梦</button>
+                            <button id="backpack-btn" class="backpack-btn">🎒 背包</button>
+                        </div>
+                        
+                        <!-- 技能按钮区域 -->
+                        <div id="move-buttons" class="move-grid">
+                            <button class="move-btn" data-move="0"></button>
+                            <button class="move-btn" data-move="1"></button>
+                            <button class="move-btn" data-move="2"></button>
+                            <button class="move-btn" data-move="3"></button>
+                        </div>
+                        
+                        <!-- 切换选择弹窗 -->
+                        <div id="switch-modal" class="switch-modal" style="display: none;">
+                            <h3 id="switch-modal-title">选择要切换的宝可梦</h3>
+                            <div id="switch-options" class="switch-options"></div>
+                            <button id="cancel-switch-btn" class="cancel-switch-btn" style="display: none;">取消</button>
+                        </div>
+                        
+                        <!-- 背包弹窗 -->
+                        <div id="backpack-modal" class="backpack-modal" style="display: none;">
+                            <h3 id="backpack-modal-title">🎒 背包</h3>
+                            <div id="backpack-items-modal" class="backpack-items-modal"></div>
+                            <button id="cancel-backpack-btn" class="cancel-backpack-btn">关闭</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 结算页面 -->
+        <div id="result-page" class="page">
+            <div id="result-container">
+                <h1 id="result-title"></h1>
+                <div id="result-details">
+                    <div id="result-pokemon" class="result-pokemon">
+                        <div class="result-pokemon-card">
+                            <h3>你的宝可梦</h3>
+                            <canvas id="result-player-canvas" width="150" height="150"></canvas>
+                            <div id="result-player-stats"></div>
+                        </div>
+                        <div class="result-vs">VS</div>
+                        <div class="result-pokemon-card">
+                            <h3>对手宝可梦</h3>
+                            <canvas id="result-enemy-canvas" width="150" height="150"></canvas>
+                            <div id="result-enemy-stats"></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="result-stats" class="result-stats"></div>
+                <div class="result-buttons">
+                    <button id="play-again" class="btn-primary">再来一局</button>
+                    <button id="back-to-selection" class="btn-secondary">返回选择</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script defer src="dist/bundle.js"></script>
+</body>
+</html>
