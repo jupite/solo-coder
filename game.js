@@ -177,6 +177,13 @@ const TYPE_CHART = {
   fairy: { fire: 0.5, fighting: 2, poison: 0.5, dragon: 2, dark: 2, steel: 0.5 }
 };
 
+const ITEMS = [
+  { id: 'potion', name: '药水', description: '恢复50点HP', effect: 'heal', value: 50, count: 3 },
+  { id: 'super_potion', name: '高级药水', description: '恢复100点HP', effect: 'heal', value: 100, count: 2 },
+  { id: 'revive', name: '元气药片', description: '复活一只倒下的宝可梦，恢复50%HP', effect: 'revive', value: 0.5, count: 1 },
+  { id: 'x_attack', name: '攻击增强剂', description: '攻击提升1级', effect: 'boost', stat: 'attack', value: 1, count: 2 }
+];
+
 class Pokemon {
   constructor(data) {
     this.id = data.id;
@@ -213,6 +220,11 @@ class Pokemon {
     return amount;
   }
 
+  revive(percent) {
+    this.isFainted = false;
+    this.currentHp = Math.floor(this.maxHp * percent);
+  }
+
   getEffectiveStat(stat) {
     const boost = this.statBoosts[stat] || 0;
     if (boost >= 0) {
@@ -242,6 +254,7 @@ class BattleState {
     this.isPlayerTurn = true;
     this.battleActive = false;
     this.isProcessing = false;
+    this.items = ITEMS.map(item => ({ ...item }));
   }
 
   get currentPlayerPokemon() {
@@ -363,6 +376,977 @@ class BattleEngine {
   }
 }
 
+class PokemonModelBuilder {
+  static getBasicMaterials() {
+    return {
+      white: new THREE.MeshStandardMaterial({ color: 0xffffff }),
+      black: new THREE.MeshStandardMaterial({ color: 0x000000 }),
+      red: new THREE.MeshStandardMaterial({ color: 0xff3333 }),
+      pink: new THREE.MeshStandardMaterial({ color: 0xff8080 }),
+      yellow: new THREE.MeshStandardMaterial({ color: 0xffd700 }),
+      orange: new THREE.MeshStandardMaterial({ color: 0xff6600 }),
+      blue: new THREE.MeshStandardMaterial({ color: 0x4169e1 }),
+      green: new THREE.MeshStandardMaterial({ color: 0x32cd32 }),
+      brown: new THREE.MeshStandardMaterial({ color: 0x8b4513 }),
+      cream: new THREE.MeshStandardMaterial({ color: 0xfff0d5 }),
+      darkPurple: new THREE.MeshStandardMaterial({ color: 0x660066 }),
+      lightBlue: new THREE.MeshStandardMaterial({ color: 0x87ceeb }),
+      darkGreen: new THREE.MeshStandardMaterial({ color: 0x006400 }),
+      gray: new THREE.MeshStandardMaterial({ color: 0x708090 }),
+      gold: new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.5 }),
+      steel: new THREE.MeshStandardMaterial({ color: 0x8899aa, metalness: 0.6, roughness: 0.4 })
+    };
+  }
+
+  static createEyes(group, headY, zOffset = 0.4, size = 0.2, spacing = 0.6) {
+    const eyeGeom = new THREE.SphereGeometry(size, 16, 16);
+    const pupilGeom = new THREE.SphereGeometry(size * 0.5, 8, 8);
+    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const blackMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+
+    const eye1 = new THREE.Mesh(eyeGeom, whiteMat);
+    eye1.position.set(-spacing / 2, headY, zOffset);
+    eye1.castShadow = true;
+    group.add(eye1);
+
+    const eye2 = new THREE.Mesh(eyeGeom, whiteMat);
+    eye2.position.set(spacing / 2, headY, zOffset);
+    eye2.castShadow = true;
+    group.add(eye2);
+
+    const pupil1 = new THREE.Mesh(pupilGeom, blackMat);
+    pupil1.position.set(-spacing / 2, headY - size * 0.2, zOffset + size * 0.6);
+    pupil1.castShadow = true;
+    group.add(pupil1);
+
+    const pupil2 = new THREE.Mesh(pupilGeom, blackMat);
+    pupil2.position.set(spacing / 2, headY - size * 0.2, zOffset + size * 0.6);
+    pupil2.castShadow = true;
+    group.add(pupil2);
+  }
+
+  static createPikachu(group, materials) {
+    const yellow = new THREE.MeshStandardMaterial({ color: 0xffd700 });
+    const black = materials.black;
+    const red = materials.red;
+
+    const bodyGeom = new THREE.SphereGeometry(1.2, 32, 32);
+    const body = new THREE.Mesh(bodyGeom, yellow);
+    body.position.y = 1.8;
+    body.scale.set(1.3, 0.9, 1);
+    body.castShadow = true;
+    group.add(body);
+
+    const headGeom = new THREE.SphereGeometry(1.1, 32, 32);
+    const head = new THREE.Mesh(headGeom, yellow);
+    head.position.y = 3.2;
+    head.castShadow = true;
+    group.add(head);
+
+    const earGeom = new THREE.ConeGeometry(0.4, 1.5, 8);
+    const ear1 = new THREE.Mesh(earGeom, yellow);
+    ear1.position.set(-0.5, 4.3, 0);
+    ear1.rotation.z = 0.3;
+    ear1.castShadow = true;
+    group.add(ear1);
+
+    const ear1Tip = new THREE.Mesh(earGeom, black);
+    ear1Tip.position.set(-0.5, 4.8, 0);
+    ear1Tip.rotation.z = 0.3;
+    ear1Tip.scale.set(0.6, 0.5, 0.6);
+    ear1Tip.castShadow = true;
+    group.add(ear1Tip);
+
+    const ear2 = new THREE.Mesh(earGeom, yellow);
+    ear2.position.set(0.5, 4.3, 0);
+    ear2.rotation.z = -0.3;
+    ear2.castShadow = true;
+    group.add(ear2);
+
+    const ear2Tip = new THREE.Mesh(earGeom, black);
+    ear2Tip.position.set(0.5, 4.8, 0);
+    ear2Tip.rotation.z = -0.3;
+    ear2Tip.scale.set(0.6, 0.5, 0.6);
+    ear2Tip.castShadow = true;
+    group.add(ear2Tip);
+
+    this.createEyes(group, 3.3, 0.7, 0.18, 0.5);
+
+    const cheekGeom = new THREE.SphereGeometry(0.25, 16, 16);
+    const cheek1 = new THREE.Mesh(cheekGeom, red);
+    cheek1.position.set(-0.7, 3.1, 0.6);
+    cheek1.castShadow = true;
+    group.add(cheek1);
+
+    const cheek2 = new THREE.Mesh(cheekGeom, red);
+    cheek2.position.set(0.7, 3.1, 0.6);
+    cheek2.castShadow = true;
+    group.add(cheek2);
+
+    const armGeom = new THREE.CylinderGeometry(0.2, 0.15, 0.8, 8);
+    const arm1 = new THREE.Mesh(armGeom, yellow);
+    arm1.position.set(-1.1, 1.8, 0.5);
+    arm1.rotation.z = 0.5;
+    arm1.castShadow = true;
+    group.add(arm1);
+
+    const arm2 = new THREE.Mesh(armGeom, yellow);
+    arm2.position.set(1.1, 1.8, 0.5);
+    arm2.rotation.z = -0.5;
+    arm2.castShadow = true;
+    group.add(arm2);
+
+    const legGeom = new THREE.CylinderGeometry(0.25, 0.2, 0.7, 8);
+    const leg1 = new THREE.Mesh(legGeom, yellow);
+    leg1.position.set(-0.5, 0.35, 0);
+    leg1.castShadow = true;
+    group.add(leg1);
+
+    const leg2 = new THREE.Mesh(legGeom, yellow);
+    leg2.position.set(0.5, 0.35, 0);
+    leg2.castShadow = true;
+    group.add(leg2);
+
+    const tailPoints = [
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(-0.5, 0.3, -0.3),
+      new THREE.Vector3(-1, 0.5, -0.1),
+      new THREE.Vector3(-1.3, 1, 0.2),
+      new THREE.Vector3(-0.8, 1.2, 0.4),
+      new THREE.Vector3(-0.3, 0.8, 0.1)
+    ];
+    const tailGeom = new THREE.CatmullRomCurve3(tailPoints);
+    const tailTube = new THREE.TubeGeometry(tailGeom, 16, 0.15, 8, false);
+    const tail = new THREE.Mesh(tailTube, yellow);
+    tail.position.set(0.8, 1.5, 0);
+    tail.rotation.y = 0.3;
+    tail.castShadow = true;
+    group.add(tail);
+  }
+
+  static createCharizard(group, materials) {
+    const orange = new THREE.MeshStandardMaterial({ color: 0xff6347 });
+    const cream = materials.cream;
+    const green = materials.green;
+    const red = materials.red;
+
+    const bodyGeom = new THREE.SphereGeometry(1.4, 32, 32);
+    const body = new THREE.Mesh(bodyGeom, orange);
+    body.position.y = 2.2;
+    body.scale.set(1.1, 0.9, 1.3);
+    body.castShadow = true;
+    group.add(body);
+
+    const bellyGeom = new THREE.SphereGeometry(0.8, 32, 32);
+    const belly = new THREE.Mesh(bellyGeom, cream);
+    belly.position.y = 1.9;
+    belly.position.z = 0.4;
+    belly.scale.set(0.9, 0.7, 0.8);
+    belly.castShadow = true;
+    group.add(belly);
+
+    const headGeom = new THREE.SphereGeometry(1.1, 32, 32);
+    const head = new THREE.Mesh(headGeom, orange);
+    head.position.y = 3.8;
+    head.position.z = 0.3;
+    head.castShadow = true;
+    group.add(head);
+
+    const hornGeom = new THREE.ConeGeometry(0.2, 0.8, 8);
+    const horn1 = new THREE.Mesh(hornGeom, orange);
+    horn1.position.set(-0.5, 4.7, 0.2);
+    horn1.rotation.z = 0.3;
+    horn1.castShadow = true;
+    group.add(horn1);
+
+    const horn2 = new THREE.Mesh(hornGeom, orange);
+    horn2.position.set(0.5, 4.7, 0.2);
+    horn2.rotation.z = -0.3;
+    horn2.castShadow = true;
+    group.add(horn2);
+
+    this.createEyes(group, 4, 0.9, 0.15, 0.4);
+
+    const neckGeom = new THREE.CylinderGeometry(0.5, 0.6, 0.8, 16);
+    const neck = new THREE.Mesh(neckGeom, orange);
+    neck.position.y = 3;
+    neck.position.z = 0.1;
+    neck.castShadow = true;
+    group.add(neck);
+
+    const wingGeom = new THREE.BoxGeometry(0.1, 1.5, 2.5);
+    const wing1 = new THREE.Mesh(wingGeom, green);
+    wing1.position.set(-1.5, 2.2, 0.3);
+    wing1.rotation.x = 0.3;
+    wing1.rotation.z = 0.2;
+    wing1.castShadow = true;
+    group.add(wing1);
+
+    const wing2 = new THREE.Mesh(wingGeom, green);
+    wing2.position.set(1.5, 2.2, 0.3);
+    wing2.rotation.x = 0.3;
+    wing2.rotation.z = -0.2;
+    wing2.castShadow = true;
+    group.add(wing2);
+
+    const legGeom = new THREE.CylinderGeometry(0.3, 0.35, 1.2, 8);
+    const leg1 = new THREE.Mesh(legGeom, orange);
+    leg1.position.set(-0.6, 0.6, 0);
+    leg1.castShadow = true;
+    group.add(leg1);
+
+    const leg2 = new THREE.Mesh(legGeom, orange);
+    leg2.position.set(0.6, 0.6, 0);
+    leg2.castShadow = true;
+    group.add(leg2);
+
+    const tailBaseGeom = new THREE.CylinderGeometry(0.4, 0.5, 1.5, 8);
+    const tailBase = new THREE.Mesh(tailBaseGeom, orange);
+    tailBase.position.set(0.3, 1.8, -1.2);
+    tailBase.rotation.x = 0.5;
+    tailBase.castShadow = true;
+    group.add(tailBase);
+
+    const flameGeom = new THREE.ConeGeometry(0.3, 0.8, 8);
+    const flame = new THREE.Mesh(flameGeom, red);
+    flame.position.set(0, 2.8, -1.5);
+    flame.rotation.x = -Math.PI / 2;
+    flame.castShadow = true;
+    group.add(flame);
+  }
+
+  static createBlastoise(group, materials) {
+    const blue = new THREE.MeshStandardMaterial({ color: 0x4169e1 });
+    const darkBlue = new THREE.MeshStandardMaterial({ color: 0x1e3a5f });
+    const cream = materials.cream;
+    const brown = materials.brown;
+    const steel = materials.steel;
+
+    const bodyGeom = new THREE.SphereGeometry(1.6, 32, 32);
+    const body = new THREE.Mesh(bodyGeom, darkBlue);
+    body.position.y = 2;
+    body.scale.set(1, 0.8, 1.2);
+    body.castShadow = true;
+    group.add(body);
+
+    const shellGeom = new THREE.SphereGeometry(1.7, 32, 32);
+    const shell = new THREE.Mesh(shellGeom, brown);
+    shell.position.y = 2.2;
+    shell.scale.set(1.1, 0.7, 1.3);
+    shell.castShadow = true;
+    group.add(shell);
+
+    const shellPattern1 = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 16), darkBlue);
+    shellPattern1.position.set(0, 2.5, 0.8);
+    shellPattern1.scale.set(2, 0.5, 0.8);
+    shellPattern1.castShadow = true;
+    group.add(shellPattern1);
+
+    const cannonGeom = new THREE.CylinderGeometry(0.25, 0.35, 1.2, 12);
+    const cannon1 = new THREE.Mesh(cannonGeom, steel);
+    cannon1.position.set(-0.6, 2.8, 1.2);
+    cannon1.rotation.x = -0.4;
+    cannon1.castShadow = true;
+    group.add(cannon1);
+
+    const cannon2 = new THREE.Mesh(cannonGeom, steel);
+    cannon2.position.set(0.6, 2.8, 1.2);
+    cannon2.rotation.x = -0.4;
+    cannon2.castShadow = true;
+    group.add(cannon2);
+
+    const headGeom = new THREE.SphereGeometry(0.9, 32, 32);
+    const head = new THREE.Mesh(headGeom, blue);
+    head.position.y = 2.8;
+    head.position.z = 0.8;
+    head.castShadow = true;
+    group.add(head);
+
+    this.createEyes(group, 3, 1.5, 0.12, 0.4);
+
+    const legGeom = new THREE.CylinderGeometry(0.35, 0.4, 1, 8);
+    const leg1 = new THREE.Mesh(legGeom, blue);
+    leg1.position.set(-0.7, 0.5, 0.3);
+    leg1.castShadow = true;
+    group.add(leg1);
+
+    const leg2 = new THREE.Mesh(legGeom, blue);
+    leg2.position.set(0.7, 0.5, 0.3);
+    leg2.castShadow = true;
+    group.add(leg2);
+
+    const armGeom = new THREE.CylinderGeometry(0.25, 0.3, 0.6, 8);
+    const arm1 = new THREE.Mesh(armGeom, blue);
+    arm1.position.set(-1.1, 1.6, 0.6);
+    arm1.rotation.z = 0.4;
+    arm1.castShadow = true;
+    group.add(arm1);
+
+    const arm2 = new THREE.Mesh(armGeom, blue);
+    arm2.position.set(1.1, 1.6, 0.6);
+    arm2.rotation.z = -0.4;
+    arm2.castShadow = true;
+    group.add(arm2);
+  }
+
+  static createVenusaur(group, materials) {
+    const darkGreen = materials.darkGreen;
+    const blueGreen = new THREE.MeshStandardMaterial({ color: 0x20b2aa });
+    const yellow = materials.yellow;
+
+    const bodyGeom = new THREE.SphereGeometry(1.5, 32, 32);
+    const body = new THREE.Mesh(bodyGeom, blueGreen);
+    body.position.y = 1.8;
+    body.scale.set(1.2, 0.8, 1.3);
+    body.castShadow = true;
+    group.add(body);
+
+    const plantBulbGeom = new THREE.SphereGeometry(1.2, 32, 32);
+    const plantBulb = new THREE.Mesh(plantBulbGeom, darkGreen);
+    plantBulb.position.y = 2.5;
+    plantBulb.position.z = -0.3;
+    plantBulb.scale.set(1.1, 0.9, 1.1);
+    plantBulb.castShadow = true;
+    group.add(plantBulb);
+
+    const petalGeom = new THREE.ConeGeometry(0.8, 1.5, 8);
+    const petalColors = [0xff69b4, 0xff1493, 0xff6347, 0xff4500];
+    for (let i = 0; i < 8; i++) {
+      const petal = new THREE.Mesh(
+        petalGeom,
+        new THREE.MeshStandardMaterial({ color: petalColors[i % petalColors.length] })
+      );
+      const angle = (i / 8) * Math.PI * 2;
+      petal.position.y = 3.5;
+      petal.position.z = Math.cos(angle) * 0.4 - 0.3;
+      petal.position.x = Math.sin(angle) * 0.4;
+      petal.rotation.x = Math.cos(angle) * 0.5;
+      petal.rotation.z = Math.sin(angle) * 0.5;
+      petal.castShadow = true;
+      group.add(petal);
+    }
+
+    const centerGeom = new THREE.SphereGeometry(0.4, 16, 16);
+    const center = new THREE.Mesh(centerGeom, yellow);
+    center.position.y = 3.3;
+    center.position.z = -0.3;
+    center.castShadow = true;
+    group.add(center);
+
+    const headGeom = new THREE.SphereGeometry(0.85, 32, 32);
+    const head = new THREE.Mesh(headGeom, blueGreen);
+    head.position.y = 2.6;
+    head.position.z = 0.9;
+    head.castShadow = true;
+    group.add(head);
+
+    const earGeom = new THREE.ConeGeometry(0.2, 0.6, 8);
+    const ear1 = new THREE.Mesh(earGeom, darkGreen);
+    ear1.position.set(-0.5, 3.3, 0.7);
+    ear1.rotation.z = 0.3;
+    ear1.castShadow = true;
+    group.add(ear1);
+
+    const ear2 = new THREE.Mesh(earGeom, darkGreen);
+    ear2.position.set(0.5, 3.3, 0.7);
+    ear2.rotation.z = -0.3;
+    ear2.castShadow = true;
+    group.add(ear2);
+
+    this.createEyes(group, 2.7, 1.5, 0.1, 0.35);
+
+    const legGeom = new THREE.CylinderGeometry(0.3, 0.35, 0.9, 8);
+    const leg1 = new THREE.Mesh(legGeom, blueGreen);
+    leg1.position.set(-0.7, 0.45, 0.4);
+    leg1.castShadow = true;
+    group.add(leg1);
+
+    const leg2 = new THREE.Mesh(legGeom, blueGreen);
+    leg2.position.set(0.7, 0.45, 0.4);
+    leg2.castShadow = true;
+    group.add(leg2);
+
+    const leg3 = new THREE.Mesh(legGeom, blueGreen);
+    leg3.position.set(-0.7, 0.45, -0.6);
+    leg3.castShadow = true;
+    group.add(leg3);
+
+    const leg4 = new THREE.Mesh(legGeom, blueGreen);
+    leg4.position.set(0.7, 0.45, -0.6);
+    leg4.castShadow = true;
+    group.add(leg4);
+  }
+
+  static createSnorlax(group, materials) {
+    const brown = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
+    const cream = materials.cream;
+    const black = materials.black;
+    const lightBlue = materials.lightBlue;
+
+    const bodyGeom = new THREE.SphereGeometry(2, 32, 32);
+    const body = new THREE.Mesh(bodyGeom, brown);
+    body.position.y = 2;
+    body.scale.set(1.3, 1, 1.2);
+    body.castShadow = true;
+    group.add(body);
+
+    const bellyGeom = new THREE.SphereGeometry(1.4, 32, 32);
+    const belly = new THREE.Mesh(bellyGeom, cream);
+    belly.position.y = 1.8;
+    belly.position.z = 0.3;
+    belly.scale.set(0.9, 0.8, 0.8);
+    belly.castShadow = true;
+    group.add(belly);
+
+    const headGeom = new THREE.SphereGeometry(1.3, 32, 32);
+    const head = new THREE.Mesh(headGeom, brown);
+    head.position.y = 3.8;
+    head.castShadow = true;
+    group.add(head);
+
+    const faceGeom = new THREE.SphereGeometry(0.9, 32, 32);
+    const face = new THREE.Mesh(faceGeom, cream);
+    face.position.y = 3.6;
+    face.position.z = 0.7;
+    face.scale.set(1, 0.8, 0.7);
+    face.castShadow = true;
+    group.add(face);
+
+    const eyeGeom = new THREE.SphereGeometry(0.08, 16, 16);
+    const eye1 = new THREE.Mesh(eyeGeom, black);
+    eye1.position.set(-0.4, 3.7, 1.35);
+    group.add(eye1);
+
+    const eye2 = new THREE.Mesh(eyeGeom, black);
+    eye2.position.set(0.4, 3.7, 1.35);
+    group.add(eye2);
+
+    const mouthGeom = new THREE.SphereGeometry(0.15, 16, 16);
+    const mouth = new THREE.Mesh(mouthGeom, black);
+    mouth.position.y = 3.3;
+    mouth.position.z = 1.3;
+    group.add(mouth);
+
+    const armGeom = new THREE.CylinderGeometry(0.4, 0.35, 1, 8);
+    const arm1 = new THREE.Mesh(armGeom, brown);
+    arm1.position.set(-1.4, 1.8, 0.5);
+    arm1.rotation.z = 0.3;
+    arm1.castShadow = true;
+    group.add(arm1);
+
+    const arm2 = new THREE.Mesh(armGeom, brown);
+    arm2.position.set(1.4, 1.8, 0.5);
+    arm2.rotation.z = -0.3;
+    arm2.castShadow = true;
+    group.add(arm2);
+
+    const legGeom = new THREE.CylinderGeometry(0.5, 0.55, 0.8, 8);
+    const leg1 = new THREE.Mesh(legGeom, brown);
+    leg1.position.set(-0.8, 0.4, 0);
+    leg1.castShadow = true;
+    group.add(leg1);
+
+    const leg2 = new THREE.Mesh(legGeom, brown);
+    leg2.position.set(0.8, 0.4, 0);
+    leg2.castShadow = true;
+    group.add(leg2);
+
+    const zGeom = new THREE.SphereGeometry(0.15, 16, 16);
+    const zMat = new THREE.MeshStandardMaterial({ color: 0x87ceeb });
+    const z1 = new THREE.Mesh(zGeom, zMat);
+    z1.position.set(-1.2, 4.5, 0.5);
+    group.add(z1);
+
+    const z2 = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 16), zMat);
+    z2.position.set(-1.5, 4.8, 0.2);
+    group.add(z2);
+  }
+
+  static createGengar(group, materials) {
+    const purple = new THREE.MeshStandardMaterial({ color: 0x9932cc });
+    const darkPurple = materials.darkPurple;
+    const red = materials.red;
+    const pink = materials.pink;
+    const white = materials.white;
+
+    const bodyGeom = new THREE.SphereGeometry(1.8, 32, 32);
+    const body = new THREE.Mesh(bodyGeom, purple);
+    body.position.y = 2.2;
+    body.scale.set(1.1, 0.9, 1.2);
+    body.castShadow = true;
+    group.add(body);
+
+    const headGeom = new THREE.SphereGeometry(1.5, 32, 32);
+    const head = new THREE.Mesh(headGeom, purple);
+    head.position.y = 4;
+    head.castShadow = true;
+    group.add(head);
+
+    const spikeGeom = new THREE.ConeGeometry(0.25, 0.6, 8);
+    for (let i = 0; i < 5; i++) {
+      const spike = new THREE.Mesh(spikeGeom, darkPurple);
+      const angle = (i / 5) * Math.PI * 2;
+      spike.position.y = 4.8;
+      spike.position.x = Math.cos(angle) * 0.8;
+      spike.position.z = Math.sin(angle) * 0.8;
+      spike.rotation.x = Math.cos(angle) * 0.5;
+      spike.rotation.z = Math.sin(angle) * 0.5;
+      spike.castShadow = true;
+      group.add(spike);
+    }
+
+    const eyeGeom = new THREE.SphereGeometry(0.25, 16, 16);
+    const eye1 = new THREE.Mesh(eyeGeom, red);
+    eye1.position.set(-0.45, 4.2, 0.8);
+    eye1.castShadow = true;
+    group.add(eye1);
+
+    const eye2 = new THREE.Mesh(eyeGeom, red);
+    eye2.position.set(0.45, 4.2, 0.8);
+    eye2.castShadow = true;
+    group.add(eye2);
+
+    const pupilGeom = new THREE.SphereGeometry(0.1, 8, 8);
+    const pupil1 = new THREE.Mesh(pupilGeom, white);
+    pupil1.position.set(-0.45, 4.25, 0.95);
+    group.add(pupil1);
+
+    const pupil2 = new THREE.Mesh(pupilGeom, white);
+    pupil2.position.set(0.45, 4.25, 0.95);
+    group.add(pupil2);
+
+    const mouthGeom = new THREE.SphereGeometry(0.3, 16, 16);
+    const mouth = new THREE.Mesh(mouthGeom, pink);
+    mouth.position.y = 3.5;
+    mouth.position.z = 1;
+    mouth.scale.set(1.5, 0.6, 0.8);
+    mouth.castShadow = true;
+    group.add(mouth);
+
+    const toothGeom = new THREE.ConeGeometry(0.08, 0.2, 4);
+    for (let i = 0; i < 3; i++) {
+      const tooth = new THREE.Mesh(toothGeom, white);
+      tooth.position.y = 3.55;
+      tooth.position.z = 1.1;
+      tooth.position.x = -0.3 + i * 0.3;
+      tooth.rotation.x = Math.PI;
+      group.add(tooth);
+    }
+
+    const armGeom = new THREE.CylinderGeometry(0.25, 0.35, 1.2, 8);
+    const arm1 = new THREE.Mesh(armGeom, purple);
+    arm1.position.set(-1.3, 1.8, 0.3);
+    arm1.rotation.z = 0.4;
+    arm1.castShadow = true;
+    group.add(arm1);
+
+    const arm2 = new THREE.Mesh(armGeom, purple);
+    arm2.position.set(1.3, 1.8, 0.3);
+    arm2.rotation.z = -0.4;
+    arm2.castShadow = true;
+    group.add(arm2);
+
+    const tailGeom = new THREE.ConeGeometry(0.4, 0.8, 8);
+    const tail = new THREE.Mesh(tailGeom, purple);
+    tail.position.set(0, 1.2, -1.5);
+    tail.rotation.x = 0.8;
+    tail.castShadow = true;
+    group.add(tail);
+  }
+
+  static createLucario(group, materials) {
+    const blue = new THREE.MeshStandardMaterial({ color: 0x4682b4 });
+    const darkBlue = new THREE.MeshStandardMaterial({ color: 0x2c5282 });
+    const cream = materials.cream;
+
+    const bodyGeom = new THREE.SphereGeometry(1.1, 32, 32);
+    const body = new THREE.Mesh(bodyGeom, blue);
+    body.position.y = 2.2;
+    body.scale.set(0.9, 0.9, 1.1);
+    body.castShadow = true;
+    group.add(body);
+
+    const chestGeom = new THREE.SphereGeometry(0.6, 32, 32);
+    const chest = new THREE.Mesh(chestGeom, cream);
+    chest.position.y = 2.1;
+    chest.position.z = 0.5;
+    chest.scale.set(0.8, 0.7, 0.6);
+    chest.castShadow = true;
+    group.add(chest);
+
+    const headGeom = new THREE.SphereGeometry(0.95, 32, 32);
+    const head = new THREE.Mesh(headGeom, blue);
+    head.position.y = 3.8;
+    head.castShadow = true;
+    group.add(head);
+
+    const earGeom = new THREE.ConeGeometry(0.25, 1.2, 8);
+    const ear1 = new THREE.Mesh(earGeom, darkBlue);
+    ear1.position.set(-0.4, 4.6, 0);
+    ear1.rotation.z = 0.2;
+    ear1.castShadow = true;
+    group.add(ear1);
+
+    const ear2 = new THREE.Mesh(earGeom, darkBlue);
+    ear2.position.set(0.4, 4.6, 0);
+    ear2.rotation.z = -0.2;
+    ear2.castShadow = true;
+    group.add(ear2);
+
+    this.createEyes(group, 3.9, 0.7, 0.12, 0.45);
+
+    const auraGeom = new THREE.SphereGeometry(0.15, 16, 16);
+    const auraMat = new THREE.MeshStandardMaterial({ color: 0x4169e1, emissive: 0x4169e1, emissiveIntensity: 0.5 });
+    const aura1 = new THREE.Mesh(auraGeom, auraMat);
+    aura1.position.set(-0.8, 3.6, 0.4);
+    group.add(aura1);
+
+    const aura2 = new THREE.Mesh(auraGeom, auraMat);
+    aura2.position.set(0.8, 3.6, 0.4);
+    group.add(aura2);
+
+    const armGeom = new THREE.CylinderGeometry(0.25, 0.2, 1.1, 8);
+    const arm1 = new THREE.Mesh(armGeom, blue);
+    arm1.position.set(-1, 2, 0.4);
+    arm1.rotation.z = 0.3;
+    arm1.castShadow = true;
+    group.add(arm1);
+
+    const arm2 = new THREE.Mesh(armGeom, blue);
+    arm2.position.set(1, 2, 0.4);
+    arm2.rotation.z = -0.3;
+    arm2.castShadow = true;
+    group.add(arm2);
+
+    const boneGeom = new THREE.BoxGeometry(0.15, 0.15, 0.6);
+    const boneMat = new THREE.MeshStandardMaterial({ color: 0xf5f5dc });
+    const bone1 = new THREE.Mesh(boneGeom, boneMat);
+    bone1.position.set(-1.3, 1.6, 0.6);
+    bone1.rotation.z = 0.5;
+    group.add(bone1);
+
+    const bone2 = new THREE.Mesh(boneGeom, boneMat);
+    bone2.position.set(1.3, 1.6, 0.6);
+    bone2.rotation.z = -0.5;
+    group.add(bone2);
+
+    const legGeom = new THREE.CylinderGeometry(0.28, 0.32, 1.3, 8);
+    const leg1 = new THREE.Mesh(legGeom, blue);
+    leg1.position.set(-0.5, 0.65, 0);
+    leg1.castShadow = true;
+    group.add(leg1);
+
+    const leg2 = new THREE.Mesh(legGeom, blue);
+    leg2.position.set(0.5, 0.65, 0);
+    leg2.castShadow = true;
+    group.add(leg2);
+
+    const neckGeom = new THREE.CylinderGeometry(0.2, 0.25, 0.5, 8);
+    const neck = new THREE.Mesh(neckGeom, blue);
+    neck.position.y = 3.1;
+    neck.castShadow = true;
+    group.add(neck);
+
+    const tailGeom = new THREE.CylinderGeometry(0.2, 0.3, 1, 8);
+    const tail = new THREE.Mesh(tailGeom, darkBlue);
+    tail.position.set(0, 1.8, -1.2);
+    tail.rotation.x = 0.6;
+    tail.castShadow = true;
+    group.add(tail);
+  }
+
+  static createGardevoir(group, materials) {
+    const lightPink = new THREE.MeshStandardMaterial({ color: 0xffe4e1 });
+    const green = materials.green;
+    const red = materials.red;
+    const white = materials.white;
+
+    const bodyGeom = new THREE.SphereGeometry(1, 32, 32);
+    const body = new THREE.Mesh(bodyGeom, white);
+    body.position.y = 2.2;
+    body.scale.set(0.8, 1, 0.9);
+    body.castShadow = true;
+    group.add(body);
+
+    const dressGeom = new THREE.ConeGeometry(1.5, 2.5, 16);
+    const dress = new THREE.Mesh(dressGeom, lightPink);
+    dress.position.y = 1.8;
+    dress.position.z = 0.2;
+    dress.rotation.x = Math.PI;
+    dress.castShadow = true;
+    group.add(dress);
+
+    const headGeom = new THREE.SphereGeometry(0.85, 32, 32);
+    const head = new THREE.Mesh(headGeom, white);
+    head.position.y = 3.8;
+    head.castShadow = true;
+    group.add(head);
+
+    const hornGeom = new THREE.ConeGeometry(0.2, 0.8, 8);
+    const horn1 = new THREE.Mesh(hornGeom, green);
+    horn1.position.set(-0.5, 4.5, 0.3);
+    horn1.rotation.z = 0.4;
+    horn1.castShadow = true;
+    group.add(horn1);
+
+    const horn2 = new THREE.Mesh(hornGeom, green);
+    horn2.position.set(0.5, 4.5, 0.3);
+    horn2.rotation.z = -0.4;
+    horn2.castShadow = true;
+    group.add(horn2);
+
+    this.createEyes(group, 3.9, 0.7, 0.12, 0.4);
+
+    const neckGeom = new THREE.CylinderGeometry(0.15, 0.2, 0.4, 8);
+    const neck = new THREE.Mesh(neckGeom, white);
+    neck.position.y = 3.3;
+    neck.castShadow = true;
+    group.add(neck);
+
+    const armGeom = new THREE.CylinderGeometry(0.18, 0.15, 1.2, 8);
+    const arm1 = new THREE.Mesh(armGeom, green);
+    arm1.position.set(-0.9, 2.2, 0.3);
+    arm1.rotation.z = 0.4;
+    arm1.castShadow = true;
+    group.add(arm1);
+
+    const arm2 = new THREE.Mesh(armGeom, green);
+    arm2.position.set(0.9, 2.2, 0.3);
+    arm2.rotation.z = -0.4;
+    arm2.castShadow = true;
+    group.add(arm2);
+
+    const handGeom = new THREE.SphereGeometry(0.18, 16, 16);
+    const hand1 = new THREE.Mesh(handGeom, white);
+    hand1.position.set(-1.3, 1.7, 0.4);
+    hand1.castShadow = true;
+    group.add(hand1);
+
+    const hand2 = new THREE.Mesh(handGeom, white);
+    hand2.position.set(1.3, 1.7, 0.4);
+    hand2.castShadow = true;
+    group.add(hand2);
+
+    const chestGemGeom = new THREE.SphereGeometry(0.15, 16, 16);
+    const chestGem = new THREE.Mesh(chestGemGeom, red);
+    chestGem.position.y = 2.5;
+    chestGem.position.z = 0.7;
+    group.add(chestGem);
+  }
+
+  static createGyarados(group, materials) {
+    const blue = new THREE.MeshStandardMaterial({ color: 0x00bfff });
+    const darkBlue = new THREE.MeshStandardMaterial({ color: 0x0066cc });
+    const yellow = materials.yellow;
+    const red = materials.red;
+    const white = materials.white;
+
+    const segments = 6;
+    const segmentGeom = new THREE.SphereGeometry(0.7, 16, 16);
+    for (let i = 0; i < segments; i++) {
+      const seg = new THREE.Mesh(segmentGeom, i % 2 === 0 ? blue : darkBlue);
+      seg.position.y = 1.5 + i * 0.4;
+      seg.position.z = i * 0.15;
+      seg.scale.set(0.9, 0.8, 1.1);
+      seg.castShadow = true;
+      group.add(seg);
+    }
+
+    const headGeom = new THREE.SphereGeometry(0.9, 32, 32);
+    const head = new THREE.Mesh(headGeom, blue);
+    head.position.y = 4;
+    head.position.z = 0.8;
+    head.scale.set(1, 0.9, 1.3);
+    head.castShadow = true;
+    group.add(head);
+
+    const jawGeom = new THREE.BoxGeometry(1.2, 0.3, 1.5);
+    const jaw = new THREE.Mesh(jawGeom, white);
+    jaw.position.y = 3.7;
+    jaw.position.z = 1.4;
+    jaw.castShadow = true;
+    group.add(jaw);
+
+    const eyeGeom = new THREE.SphereGeometry(0.18, 16, 16);
+    const eye1 = new THREE.Mesh(eyeGeom, red);
+    eye1.position.set(-0.4, 4.1, 1.3);
+    eye1.castShadow = true;
+    group.add(eye1);
+
+    const eye2 = new THREE.Mesh(eyeGeom, red);
+    eye2.position.set(0.4, 4.1, 1.3);
+    eye2.castShadow = true;
+    group.add(eye2);
+
+    const hornGeom = new THREE.ConeGeometry(0.25, 1, 8);
+    const horn1 = new THREE.Mesh(hornGeom, yellow);
+    horn1.position.set(-0.5, 4.7, 0.5);
+    horn1.rotation.z = 0.3;
+    horn1.castShadow = true;
+    group.add(horn1);
+
+    const horn2 = new THREE.Mesh(hornGeom, yellow);
+    horn2.position.set(0.5, 4.7, 0.5);
+    horn2.rotation.z = -0.3;
+    horn2.castShadow = true;
+    group.add(horn2);
+
+    const whiskerGeom = new THREE.CylinderGeometry(0.03, 0.03, 0.8, 4);
+    const whisker1 = new THREE.Mesh(whiskerGeom, white);
+    whisker1.position.set(-0.5, 3.9, 1.4);
+    whisker1.rotation.x = 0.5;
+    whisker1.castShadow = true;
+    group.add(whisker1);
+
+    const whisker2 = new THREE.Mesh(whiskerGeom, white);
+    whisker2.position.set(0.5, 3.9, 1.4);
+    whisker2.rotation.x = 0.5;
+    whisker2.castShadow = true;
+    group.add(whisker2);
+
+    const finGeom = new THREE.BoxGeometry(0.1, 0.6, 1);
+    const fin1 = new THREE.Mesh(finGeom, darkBlue);
+    fin1.position.set(0, 2, -0.8);
+    fin1.rotation.x = 0.3;
+    fin1.castShadow = true;
+    group.add(fin1);
+
+    const tailGeom = new THREE.BoxGeometry(0.1, 1, 1.5);
+    const tail = new THREE.Mesh(tailGeom, darkBlue);
+    tail.position.set(0, 0.8, -1.5);
+    tail.rotation.x = 0.5;
+    tail.castShadow = true;
+    group.add(tail);
+  }
+
+  static buildPokemonModel(pokemon) {
+    const group = new THREE.Group();
+    const materials = this.getBasicMaterials();
+
+    switch (pokemon.name) {
+      case '皮卡丘':
+        this.createPikachu(group, materials);
+        break;
+      case '喷火龙':
+        this.createCharizard(group, materials);
+        break;
+      case '水箭龟':
+        this.createBlastoise(group, materials);
+        break;
+      case '妙蛙花':
+        this.createVenusaur(group, materials);
+        break;
+      case '卡比兽':
+        this.createSnorlax(group, materials);
+        break;
+      case '耿鬼':
+        this.createGengar(group, materials);
+        break;
+      case '路卡利欧':
+        this.createLucario(group, materials);
+        break;
+      case '沙奈朵':
+        this.createGardevoir(group, materials);
+        break;
+      case '暴鲤龙':
+        this.createGyarados(group, materials);
+        break;
+      default:
+        this.createPikachu(group, materials);
+    }
+
+    return group;
+  }
+}
+
+class PreviewScene3D {
+  constructor() {
+    this.scene = null;
+    this.camera = null;
+    this.renderer = null;
+    this.pokemonModel = null;
+    this.animationId = null;
+    this.init();
+  }
+
+  init() {
+    const canvas = document.getElementById('preview-canvas');
+    if (!canvas) return;
+
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0x87ceeb);
+
+    this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+    this.camera.position.set(0, 2, 8);
+    this.camera.lookAt(0, 2, 0);
+
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    this.renderer.setSize(200, 200);
+    this.renderer.setPixelRatio(2);
+    this.renderer.shadowMap.enabled = true;
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    this.scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(5, 10, 5);
+    directionalLight.castShadow = true;
+    this.scene.add(directionalLight);
+
+    const fillLight = new THREE.DirectionalLight(0x87ceeb, 0.3);
+    fillLight.position.set(-5, 5, -5);
+    this.scene.add(fillLight);
+
+    this.startAnimation();
+  }
+
+  setPokemon(pokemon) {
+    if (this.pokemonModel) {
+      this.scene.remove(this.pokemonModel);
+      this.pokemonModel.traverse(obj => {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach(m => m.dispose());
+          } else {
+            obj.material.dispose();
+          }
+        }
+      });
+    }
+
+    const group = PokemonModelBuilder.buildPokemonModel(pokemon);
+    group.scale.set(0.75, 0.75, 0.75);
+    group.position.y = 0.5;
+
+    this.pokemonModel = group;
+    this.scene.add(group);
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  startAnimation() {
+    const animate = () => {
+      this.animationId = requestAnimationFrame(animate);
+      if (this.pokemonModel) {
+        this.pokemonModel.rotation.y += 0.01;
+        const time = Date.now() * 0.001;
+        this.pokemonModel.position.y = 0.5 + Math.sin(time * 2) * 0.1;
+      }
+      this.renderer.render(this.scene, this.camera);
+    };
+    animate();
+  }
+
+  dispose() {
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+    }
+    if (this.renderer) {
+      this.renderer.dispose();
+    }
+  }
+}
+
 class Scene3D {
   constructor() {
     this.scene = null;
@@ -380,7 +1364,7 @@ class Scene3D {
     this.scene.background = new THREE.Color(0x87ceeb);
     this.scene.fog = new THREE.Fog(0x87ceeb, 50, 200);
     this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    this.camera.position.set(0, 8, 25);
+    this.camera.position.set(-25, 10, 0);
     this.camera.lookAt(0, 3, 0);
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -396,7 +1380,7 @@ class Scene3D {
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     this.scene.add(ambientLight);
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
-    directionalLight.position.set(10, 20, 10);
+    directionalLight.position.set(0, 20, 10);
     directionalLight.castShadow = true;
     directionalLight.shadow.mapSize.width = 2048;
     directionalLight.shadow.mapSize.height = 2048;
@@ -475,60 +1459,15 @@ class Scene3D {
   }
 
   createPokemonModel(pokemon, isPlayer) {
-    const group = new THREE.Group();
-    const bodyColor = pokemon.color;
-    const bodyGeometry = new THREE.SphereGeometry(1.8, 32, 32);
-    const bodyMaterial = new THREE.MeshStandardMaterial({ color: bodyColor });
-    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    body.position.y = 2.5;
-    body.castShadow = true;
-    group.add(body);
-    const headGeometry = new THREE.SphereGeometry(1.2, 32, 32);
-    const head = new THREE.Mesh(headGeometry, bodyMaterial);
-    head.position.y = 4.5;
-    head.castShadow = true;
-    group.add(head);
-    const eyeGeometry = new THREE.SphereGeometry(0.2, 16, 16);
-    const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
-    const pupilMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
-    const eyeOffset = isPlayer ? 0.4 : -0.4;
-    const eye1 = new THREE.Mesh(eyeGeometry, eyeMaterial);
-    eye1.position.set(-0.35, 4.6, eyeOffset);
-    group.add(eye1);
-    const eye2 = new THREE.Mesh(eyeGeometry, eyeMaterial);
-    eye2.position.set(0.35, 4.6, eyeOffset);
-    group.add(eye2);
-    const pupil1 = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), pupilMaterial);
-    pupil1.position.set(-0.35, 4.55, eyeOffset + 0.1);
-    group.add(pupil1);
-    const pupil2 = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), pupilMaterial);
-    pupil2.position.set(0.35, 4.55, eyeOffset + 0.1);
-    group.add(pupil2);
-    const armGeometry = new THREE.SphereGeometry(0.5, 16, 16);
-    const armMaterial = new THREE.MeshStandardMaterial({ color: bodyColor });
-    const arm1 = new THREE.Mesh(armGeometry, armMaterial);
-    arm1.position.set(-1.5, 2.5, 0);
-    arm1.castShadow = true;
-    group.add(arm1);
-    const arm2 = new THREE.Mesh(armGeometry, armMaterial);
-    arm2.position.set(1.5, 2.5, 0);
-    arm2.castShadow = true;
-    group.add(arm2);
-    const legGeometry = new THREE.CylinderGeometry(0.3, 0.35, 1.2, 8);
-    const legMaterial = new THREE.MeshStandardMaterial({ color: bodyColor });
-    const leg1 = new THREE.Mesh(legGeometry, legMaterial);
-    leg1.position.set(-0.7, 0.6, 0);
-    leg1.castShadow = true;
-    group.add(leg1);
-    const leg2 = new THREE.Mesh(legGeometry, legMaterial);
-    leg2.position.set(0.7, 0.6, 0);
-    leg2.castShadow = true;
-    group.add(leg2);
+    const group = PokemonModelBuilder.buildPokemonModel(pokemon);
+
     const x = isPlayer ? -6 : 6;
     const y = 0.25;
     group.position.set(x, y, 0);
-    if (!isPlayer) {
-      group.rotation.y = Math.PI;
+    if (isPlayer) {
+      group.rotation.y = Math.PI / 2;
+    } else {
+      group.rotation.y = -Math.PI / 2;
     }
     this.scene.add(group);
     return group;
@@ -713,7 +1652,7 @@ class Scene3D {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
       model.position.y = 0.25 - progress * 2;
-      model.rotation.z = progress * Math.PI;
+      model.rotation.x = progress * Math.PI;
       model.scale.set(1 - progress * 0.3, 1 - progress * 0.3, 1 - progress * 0.3);
       if (progress < 1) {
         requestAnimationFrame(animate);
@@ -749,24 +1688,36 @@ class Game {
     this.aiController = null;
     this.battleEngine = new BattleEngine();
     this.scene3D = null;
+    this.previewScene = null;
     this.selectedPokemonIds = [];
+    this.currentPreviewId = null;
     this.init();
   }
 
   init() {
     this.createParticles();
     this.renderPokemonSelection();
+    this.initPreviewScene();
     window.startGame = () => this.startGame();
     window.selectPokemon = (id) => this.selectPokemon(id);
+    window.hoverPokemon = (id) => this.hoverPokemon(id);
     window.startBattle = () => this.startBattle();
     window.showMoves = () => this.showMoves();
     window.hideMoves = () => this.hideMoves();
     window.showSwitchPanel = () => this.showSwitchPanel();
     window.hideSwitchPanel = () => this.hideSwitchPanel();
+    window.showItems = () => this.showItems();
+    window.hideItems = () => this.hideItems();
     window.useMove = (index) => this.useMove(index);
     window.switchPokemon = (index) => this.switchPokemon(index);
-    window.useItem = () => this.useItem();
+    window.useItem = (itemId) => this.useItem(itemId);
     window.addLog = (msg) => this.addLog(msg);
+  }
+
+  initPreviewScene() {
+    setTimeout(() => {
+      this.previewScene = new PreviewScene3D();
+    }, 100);
   }
 
   createParticles() {
@@ -798,6 +1749,7 @@ class Game {
       card.className = 'pokemon-card';
       card.id = `pokemon-card-${pokemon.id}`;
       card.onclick = () => this.selectPokemon(pokemon.id);
+      card.onmouseenter = () => this.hoverPokemon(pokemon.id);
       const typesHtml = pokemon.types.map(t => 
         `<span class="pokemon-type type-${t}">${t}</span>`
       ).join('');
@@ -813,6 +1765,27 @@ class Game {
       `;
       grid.appendChild(card);
     });
+  }
+
+  hoverPokemon(id) {
+    this.currentPreviewId = id;
+    const pokemon = POKEMON_DATA.find(p => p.id === id);
+    if (pokemon && this.previewScene) {
+      this.previewScene.setPokemon(pokemon);
+      const nameEl = document.getElementById('preview-name');
+      if (nameEl) {
+        const typesHtml = pokemon.types.map(t => 
+          `<span class="pokemon-type type-${t}" style="display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.8rem; color: white; margin: 0 3px;">${t}</span>`
+        ).join('');
+        nameEl.innerHTML = `
+          ${pokemon.emoji} ${pokemon.name}<br>
+          <div style="margin-top: 8px;">${typesHtml}</div>
+          <div style="font-size: 0.9rem; color: #aaa; margin-top: 8px;">
+            HP: ${pokemon.maxHp} | ATK: ${pokemon.attack} | DEF: ${pokemon.defense} | SPD: ${pokemon.speed}
+          </div>
+        `;
+      }
+    }
   }
 
   selectPokemon(id) {
@@ -939,6 +1912,31 @@ class Game {
     document.getElementById('action-panel').style.display = 'block';
   }
 
+  showItems() {
+    if (this.battleState.isProcessing) return;
+    const itemsGrid = document.getElementById('items-grid');
+    itemsGrid.innerHTML = '';
+    this.battleState.items.forEach(item => {
+      const btn = document.createElement('button');
+      btn.className = 'item-btn';
+      btn.disabled = item.count <= 0;
+      btn.innerHTML = `
+        <div>🎒 ${item.name}</div>
+        <div style="font-size: 0.75rem; opacity: 0.7; margin-top: 3px;">${item.description}</div>
+        <div class="item-count">剩余: ${item.count}</div>
+      `;
+      btn.onclick = () => this.useItem(item.id);
+      itemsGrid.appendChild(btn);
+    });
+    document.getElementById('action-panel').style.display = 'none';
+    document.getElementById('items-panel').classList.add('active');
+  }
+
+  hideItems() {
+    document.getElementById('items-panel').classList.remove('active');
+    document.getElementById('action-panel').style.display = 'block';
+  }
+
   showSwitchPanel() {
     if (this.battleState.isProcessing) return;
     const switchGrid = document.getElementById('switch-grid');
@@ -971,21 +1969,81 @@ class Game {
     document.getElementById('action-panel').style.display = 'block';
   }
 
-  async useItem() {
+  async useItem(itemId) {
     if (this.battleState.isProcessing) return;
-    const pokemon = this.battleState.currentPlayerPokemon;
-    if (pokemon.currentHp >= pokemon.maxHp) {
-      this.addLog(`${pokemon.name} 的HP已经是满的！`);
+    const item = this.battleState.items.find(i => i.id === itemId);
+    if (!item || item.count <= 0) {
+      this.addLog('没有这个道具了！');
       return;
     }
     this.battleState.isProcessing = true;
-    const healAmount = Math.floor(pokemon.maxHp * 0.3);
-    const actualHeal = pokemon.heal(healAmount);
-    this.addLog(`使用了药水！${pokemon.name} 恢复了 ${actualHeal} HP！`);
-    this.updateUI();
-    await this.delay(1000);
-    this.battleState.isProcessing = false;
-    await this.enemyTurn();
+    this.hideItems();
+    const pokemon = this.battleState.currentPlayerPokemon;
+    let used = false;
+    if (item.effect === 'heal') {
+      if (pokemon.isFainted) {
+        this.addLog(`${pokemon.name} 已经倒下了！`);
+      } else if (pokemon.currentHp >= pokemon.maxHp) {
+        this.addLog(`${pokemon.name} 的HP已经是满的！`);
+      } else {
+        const actualHeal = pokemon.heal(item.value);
+        this.addLog(`使用了${item.name}！${pokemon.name} 恢复了 ${actualHeal} HP！`);
+        used = true;
+      }
+    } else if (item.effect === 'revive') {
+      const fainted = this.battleState.playerTeam.filter(p => p.isFainted);
+      if (fainted.length > 0) {
+        this.showRevivePanel(item);
+        return;
+      } else {
+        this.addLog('没有倒下的宝可梦！');
+      }
+    } else if (item.effect === 'boost') {
+      if (pokemon.isFainted) {
+        this.addLog(`${pokemon.name} 已经倒下了！`);
+      } else {
+        pokemon.statBoosts[item.stat] = Math.min(6, pokemon.statBoosts[item.stat] + item.value);
+        this.addLog(`使用了${item.name}！${pokemon.name} 的${item.stat === 'attack' ? '攻击' : '能力'}提升了！`);
+        used = true;
+      }
+    }
+    if (used) {
+      item.count--;
+      this.updateUI();
+      await this.delay(1000);
+      this.battleState.isProcessing = false;
+      await this.enemyTurn();
+      this.checkBattleEnd();
+    } else {
+      this.battleState.isProcessing = false;
+    }
+  }
+
+  showRevivePanel(item) {
+    const itemsGrid = document.getElementById('items-grid');
+    itemsGrid.innerHTML = '';
+    this.battleState.playerTeam.forEach((pokemon, index) => {
+      if (pokemon.isFainted) {
+        const btn = document.createElement('button');
+        btn.className = 'item-btn';
+        btn.innerHTML = `
+          <div>${pokemon.emoji} ${pokemon.name}</div>
+          <div style="font-size: 0.75rem; opacity: 0.7; margin-top: 3px;">复活并恢复50%HP</div>
+        `;
+        btn.onclick = async () => {
+          this.battleState.isProcessing = true;
+          this.hideItems();
+          pokemon.revive(item.value);
+          item.count--;
+          this.addLog(`使用了${item.name}！${pokemon.name} 复活了！`);
+          await this.delay(1000);
+          this.battleState.isProcessing = false;
+          await this.enemyTurn();
+          this.checkBattleEnd();
+        };
+        itemsGrid.appendChild(btn);
+      }
+    });
   }
 
   async useMove(moveIndex) {
@@ -1113,6 +2171,7 @@ class Game {
     await this.scene3D.playSwitchAnimation(this.scene3D.playerPokemonModel, newPokemon, true);
     this.addLog(`去吧，${newPokemon.name}！`);
     this.updateUI();
+    this.battleState.isProcessing = false;
   }
 
   checkBattleEnd() {
@@ -1134,15 +2193,26 @@ class Game {
       return true;
     }
     if (this.battleState.currentPlayerPokemon.isFainted) {
+      this.battleState.isProcessing = true;
       this.forcePlayerSwitch();
       return true;
     }
     if (this.battleState.currentEnemyPokemon.isFainted) {
-      this.battleState.isProcessing = false;
+      this.handleEnemyFainted();
       return true;
     }
     this.battleState.isProcessing = false;
     return false;
+  }
+
+  async handleEnemyFainted() {
+    this.battleState.isProcessing = true;
+    await this.delay(500);
+    const nextEnemy = this.findNextPokemon(this.battleState.enemyTeam, this.battleState.currentEnemyIndex);
+    if (nextEnemy !== -1) {
+      await this.forceSwitchEnemy(nextEnemy);
+    }
+    this.battleState.isProcessing = false;
   }
 
   async forcePlayerSwitch() {
@@ -1152,12 +2222,15 @@ class Game {
       .filter(i => i !== -1);
     if (availableIndices.length > 0) {
       this.showSwitchPanel();
-      const checkInterval = setInterval(() => {
+      const checkSwitch = async () => {
         if (!this.battleState.currentPlayerPokemon.isFainted) {
-          clearInterval(checkInterval);
-          this.battleState.isProcessing = false;
+          await this.enemyTurn();
+          this.checkBattleEnd();
+        } else {
+          setTimeout(checkSwitch, 200);
         }
-      }, 100);
+      };
+      checkSwitch();
     }
   }
 
