@@ -160,3 +160,53 @@ export function getProjectsByCategory(categoryId: string): Project[] {
 export function getCategoryById(categoryId: string): Category | undefined {
   return categories.find((category) => category.id === categoryId);
 }
+
+export interface MenuItem {
+  id: string;
+  title: string;
+  href?: string;
+  icon?: string;
+  children?: MenuItem[];
+}
+
+export interface CategoryOption {
+  id: string;
+  title: string;
+  href: string;
+}
+
+export function getCategoryOptions(): CategoryOption[] {
+  return categories.map((cat) => ({
+    id: cat.id,
+    title: cat.title,
+    href: `/category/${cat.id}`,
+  }));
+}
+
+export function getMenuItemsByCategory(categoryId: string): MenuItem[] {
+  const categoryProjects = getProjectsByCategory(categoryId);
+  
+  const groupedByTag: Record<string, Project[]> = {};
+  
+  categoryProjects.forEach((project) => {
+    const primaryTag = project.tags[0] || "其他";
+    if (!groupedByTag[primaryTag]) {
+      groupedByTag[primaryTag] = [];
+    }
+    groupedByTag[primaryTag].push(project);
+  });
+
+  const menuItems: MenuItem[] = Object.entries(groupedByTag).map(([tag, tagProjects]) => ({
+    id: `group-${tag.toLowerCase()}`,
+    title: tag,
+    icon: "Folder",
+    children: tagProjects.map((project) => ({
+      id: project.id,
+      title: project.title,
+      href: `/category/${categoryId}#${project.id}`,
+      icon: "File",
+    })),
+  }));
+
+  return menuItems;
+}
