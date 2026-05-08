@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D 宝可梦对战</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    #game-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+    #ui-layer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+    }
+    #ui-layer > * {
+      pointer-events: auto;
+    }
+    .screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .screen.active {
+      display: flex;
+    }
+    .title {
+      font-size: 3.5rem;
+      color: #ffcb05;
+      text-shadow: 4px 4px 0px #3b4cca, -2px -2px 0px #3b4cca;
+      margin-bottom: 40px;
+      text-align: center;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    .subtitle {
+      font-size: 1.2rem;
+      color: #fff;
+      margin-bottom: 30px;
+      opacity: 0.9;
+    }
+    .btn {
+      background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+      color: white;
+      border: none;
+      padding: 15px 40px;
+      font-size: 1.2rem;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    .btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    }
+    .btn:active {
+      transform: translateY(-1px);
+    }
+    .btn-blue {
+      background: linear-gradient(135deg, #4ecdc4, #44a08d);
+    }
+    .btn-green {
+      background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    }
+    .btn-orange {
+      background: linear-gradient(135deg, #fd79a8, #e84393);
+    }
+    .pokemon-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin: 30px 0;
+      max-width: 900px;
+    }
+    .pokemon-card {
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 3px solid transparent;
+    }
+    .pokemon-card:hover {
+      transform: translateY(-5px);
+      background: rgba(255,255,255,0.2);
+    }
+    .pokemon-card.selected {
+      border-color: #ffcb05;
+      background: rgba(255,203,5,0.2);
+    }
+    .pokemon-card.disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+    .pokemon-model {
+      width: 100px;
+      height: 100px;
+      margin: 0 auto 15px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+    }
+    .pokemon-name {
+      font-size: 1.3rem;
+      color: #fff;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+    .pokemon-type {
+      display: inline-block;
+      padding: 3px 12px;
+      border-radius: 15px;
+      font-size: 0.85rem;
+      color: white;
+      margin: 2px;
+    }
+    .type-fire { background: #fd7d24; }
+    .type-water { background: #4592c4; }
+    .type-grass { background: #9bcc50; }
+    .type-electric { background: #eed535; color: #333; }
+    .type-normal { background: #a4acaf; }
+    .type-psychic { background: #f366b9; }
+    .type-rock { background: #a38c21; }
+    .type-flying { background: #3dc7ef; }
+    .type-ghost { background: #7b62a3; }
+    .type-fighting { background: #d56723; }
+    .selection-info {
+      color: #fff;
+      font-size: 1.2rem;
+      margin: 20px 0;
+    }
+    .selected-pokemons {
+      display: flex;
+      gap: 15px;
+      margin-top: 20px;
+    }
+    .selected-pokemon {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      background: rgba(255,255,255,0.1);
+      border: 2px solid #ffcb05;
+    }
+    .battle-ui {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+    }
+    .hp-bar-container {
+      position: absolute;
+      background: rgba(0,0,0,0.7);
+      border-radius: 15px;
+      padding: 15px 20px;
+      min-width: 280px;
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255,255,255,0.2);
+    }
+    .hp-bar-container.enemy {
+      top: 50px;
+      left: 50px;
+    }
+    .hp-bar-container.player {
+      bottom: 200px;
+      right: 50px;
+    }
+    .pokemon-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .pokemon-info-name {
+      color: #fff;
+      font-size: 1.3rem;
+      font-weight: bold;
+    }
+    .pokemon-info-level {
+      color: #aaa;
+      font-size: 1rem;
+    }
+    .hp-bar {
+      height: 20px;
+      background: #333;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+    .hp-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #2ecc71, #27ae60);
+      transition: width 0.5s ease;
+    }
+    .hp-fill.low {
+      background: linear-gradient(90deg, #e74c3c, #c0392b);
+    }
+    .hp-fill.medium {
+      background: linear-gradient(90deg, #f39c12, #e67e22);
+    }
+    .hp-text {
+      color: #fff;
+      text-align: right;
+      margin-top: 5px;
+      font-size: 0.9rem;
+    }
+    .action-panel {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.85);
+      border-radius: 20px;
+      padding: 25px;
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255,255,255,0.3);
+    }
+    .action-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .action-btn {
+      padding: 15px 30px;
+      font-size: 1.1rem;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      color: white;
+      font-weight: bold;
+      min-width: 160px;
+    }
+    .action-btn:hover {
+      transform: scale(1.05);
+    }
+    .action-btn:active {
+      transform: scale(0.98);
+    }
+    .action-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .fight-btn { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+    .bag-btn { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+    .pokemon-btn { background: linear-gradient(135deg, #27ae60, #1e8449); }
+    .run-btn { background: linear-gradient(135deg, #3498db, #2980b9); }
+    .moves-panel {
+      display: none;
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.85);
+      border-radius: 20px;
+      padding: 25px;
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255,255,255,0.3);
+    }
+    .moves-panel.active {
+      display: block;
+    }
+    .moves-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .move-btn {
+      padding: 12px 25px;
+      font-size: 1rem;
+      border-radius: 10px;
+      border: 2px solid rgba(255,255,255,0.2);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      color: white;
+      font-weight: bold;
+      min-width: 180px;
+      background: rgba(255,255,255,0.1);
+    }
+    .move-btn:hover {
+      background: rgba(255,255,255,0.2);
+      transform: scale(1.02);
+    }
+    .move-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .back-btn {
+      background: rgba(255,255,255,0.1);
+      border: 2px solid rgba(255,255,255,0.3);
+      margin-top: 15px;
+      width: 100%;
+    }
+    .switch-panel {
+      display: none;
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.85);
+      border-radius: 20px;
+      padding: 25px;
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255,255,255,0.3);
+      max-width: 700px;
+    }
+    .switch-panel.active {
+      display: block;
+    }
+    .switch-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+    }
+    .switch-card {
+      background: rgba(255,255,255,0.1);
+      border-radius: 15px;
+      padding: 15px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 2px solid transparent;
+    }
+    .switch-card:hover {
+      background: rgba(255,255,255,0.2);
+      transform: translateY(-3px);
+    }
+    .switch-card.current {
+      border-color: #ffcb05;
+    }
+    .switch-card.fainted {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+    .switch-card .switch-name {
+      color: #fff;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    .switch-card .switch-hp {
+      height: 8px;
+      background: #333;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .switch-card .switch-hp-fill {
+      height: 100%;
+      background: #2ecc71;
+    }
+    .battle-log {
+      position: absolute;
+      top: 50px;
+      right: 50px;
+      background: rgba(0,0,0,0.7);
+      border-radius: 15px;
+      padding: 20px;
+      width: 300px;
+      max-height: 300px;
+      overflow-y: auto;
+      backdrop-filter: blur(10px);
+    }
+    .battle-log h3 {
+      color: #ffcb05;
+      margin-bottom: 15px;
+      font-size: 1.1rem;
+    }
+    .log-entry {
+      color: #fff;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+    .game-over-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .game-over-screen.active {
+      display: flex;
+    }
+    .game-over-title {
+      font-size: 4rem;
+      margin-bottom: 30px;
+      text-shadow: 3px 3px 0px rgba(0,0,0,0.5);
+    }
+    .game-over-title.win {
+      color: #ffcb05;
+    }
+    .game-over-title.lose {
+      color: #e74c3c;
+    }
+    .particles {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+    .particle {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: rgba(255,203,5,0.5);
+      border-radius: 50%;
+      animation: float 15s infinite;
+    }
+    @keyframes float {
+      0%, 100% {
+        transform: translateY(100vh) rotate(0deg);
+        opacity: 0;
+      }
+      10% {
+        opacity: 1;
+      }
+      90% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-100vh) rotate(720deg);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="particles" id="particles"></div>
+  <canvas id="game-canvas"></canvas>
+  <div id="ui-layer">
+    <div id="start-screen" class="screen active">
+      <h1 class="title">⚡ 3D 宝可梦对战 ⚡</h1>
+      <p class="subtitle">选择三只宝可梦，开启你的对战之旅！</p>
+      <button class="btn" onclick="startGame()">开始游戏</button>
+    </div>
+    <div id="selection-screen" class="screen">
+      <h1 class="title" style="font-size: 2.5rem; margin-bottom: 10px;">选择你的宝可梦</h1>
+      <p class="subtitle">已选择 <span id="selected-count">0</span>/3 只</p>
+      <div class="pokemon-grid" id="pokemon-grid"></div>
+      <div class="selected-pokemons" id="selected-pokemons"></div>
+      <button class="btn btn-blue" id="start-battle-btn" onclick="startBattle()" disabled>开始对战</button>
+    </div>
+    <div id="battle-screen" class="screen">
+      <div class="battle-ui">
+        <div class="hp-bar-container enemy">
+          <div class="pokemon-info">
+            <span class="pokemon-info-name" id="enemy-name">???</span>
+            <span class="pokemon-info-level">Lv.50</span>
+          </div>
+          <div class="hp-bar">
+            <div class="hp-fill" id="enemy-hp-fill" style="width: 100%"></div>
+          </div>
+          <div class="hp-text" id="enemy-hp-text">HP: 100/100</div>
+        </div>
+        <div class="hp-bar-container player">
+          <div class="pokemon-info">
+            <span class="pokemon-info-name" id="player-name">???</span>
+            <span class="pokemon-info-level">Lv.50</span>
+          </div>
+          <div class="hp-bar">
+            <div class="hp-fill" id="player-hp-fill" style="width: 100%"></div>
+          </div>
+          <div class="hp-text" id="player-hp-text">HP: 100/100</div>
+        </div>
+        <div class="battle-log">
+          <h3>📜 战斗日志</h3>
+          <div id="log-content"></div>
+        </div>
+        <div class="action-panel" id="action-panel">
+          <div class="action-grid">
+            <button class="action-btn fight-btn" onclick="showMoves()">战斗</button>
+            <button class="action-btn bag-btn" onclick="useItem()">道具</button>
+            <button class="action-btn pokemon-btn" onclick="showSwitchPanel()">宝可梦</button>
+            <button class="action-btn run-btn" onclick="addLog('无法逃跑！这是一场硬仗！')">逃跑</button>
+          </div>
+        </div>
+        <div class="moves-panel" id="moves-panel">
+          <div class="moves-grid" id="moves-grid"></div>
+          <button class="action-btn back-btn" onclick="hideMoves()">返回</button>
+        </div>
+        <div class="switch-panel" id="switch-panel">
+          <h3 style="color: #fff; margin-bottom: 15px; text-align: center;">选择要派出的宝可梦</h3>
+          <div class="switch-grid" id="switch-grid"></div>
+          <button class="action-btn back-btn" onclick="hideSwitchPanel()">返回</button>
+        </div>
+      </div>
+      <div class="game-over-screen" id="game-over-screen">
+        <h1 class="game-over-title" id="game-over-title">胜利！</h1>
+        <button class="btn" onclick="location.reload()">再来一局</button>
+      </div>
+    </div>
+  </div>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+      }
+    }
+  </script>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
