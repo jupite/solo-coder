@@ -4,19 +4,11 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  ChevronDown,
   type LucideIcon,
   Folder,
   FolderOpen,
-  File,
+  File,  
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -29,6 +21,7 @@ import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
+  SidebarHeader,
   SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
@@ -41,7 +34,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
-import { cn } from "@/lib/utils"
+import { CategoryDropdown } from "@/components/layout/category-dropdown"
 import type { MenuItem, CategoryOption } from "@/types/menu"
 
 interface DetailLayoutProps {
@@ -90,14 +83,30 @@ function getInitialHash(): string {
 }
 
 function NavSidebar({
+  categoryOptions,
   menuItems,
   activeMenuId,
+  currentCategoryId,
+  currentCategoryOption,
 }: {
+  categoryOptions: CategoryOption[]
   menuItems: MenuItem[]
   activeMenuId: string
+  currentCategoryId: string
+  currentCategoryOption: CategoryOption | undefined
 }) {
   return (
     <Sidebar collapsible="icon" side="left">
+      <SidebarHeader className="border-b">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <CategoryDropdown
+              currentCategoryId={currentCategoryId}
+              currentCategoryTitle={currentCategoryOption?.title}
+            />
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
@@ -234,41 +243,18 @@ export function DetailLayout({
 
   return (
     <SidebarProvider>
-      <NavSidebar menuItems={menuItems} activeMenuId={activeMenuId} />
+      <NavSidebar
+        categoryOptions={categoryOptions}
+        menuItems={menuItems}
+        activeMenuId={activeMenuId}
+        currentCategoryId={currentCategoryId}
+        currentCategoryOption={currentCategoryOption}
+      />
       <SidebarInset>
         <header className="flex h-14 shrink-0 items-center gap-2 border-b">
           <div className="flex items-center gap-2 px-3">
             <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 h-4"
-            />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="gap-2 px-3">
-                  <span className="text-base font-medium">
-                    {currentCategoryOption?.title || "选择分类"}
-                  </span>
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="start"
-                className="w-48 z-50 bg-popover border border-border"
-              >
-                {categoryOptions.map((option) => (
-                  <DropdownMenuItem key={option.id} asChild>
-                    <Link href={option.href} className="cursor-pointer">
-                      {option.title}
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Separator
-              orientation="vertical"
-              className="mr-2 h-4"
-            />
+            <Separator orientation="vertical" className="mr-2 h-4" />
             <Breadcrumb>
               <BreadcrumbList>
                 {breadcrumbItems.map((item, index) => {
