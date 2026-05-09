@@ -14,9 +14,10 @@ function App() {
   const playerPaddleRef = useRef(null)
   const aiPaddleRef = useRef(null)
   const animationIdRef = useRef(null)
-  const ballVelocityRef = useRef({ x: 0, z: 0 })
+  const ballVelocityRef = useRef({ x: 0, y: 0, z: 0 })
   const playerPaddlePositionRef = useRef(0)
   const scoreRef = useRef({ player: 0, ai: 0 })
+  const lastHitByRef = useRef(null)
 
   const TABLE_WIDTH = 6
   const TABLE_LENGTH = 12
@@ -24,8 +25,12 @@ function App() {
   const PADDLE_HEIGHT = 0.3
   const PADDLE_DEPTH = 0.2
   const BALL_RADIUS = 0.15
-  const INITIAL_BALL_SPEED = 0.15
-  const MAX_BALL_SPEED = 0.3
+  const NET_HEIGHT = 0.1525
+  const GRAVITY = 0.003
+  const BOUNCE_FACTOR = 0.85
+  const HORIZONTAL_DAMPING = 0.999
+  const PLAYER_AREA_Z = -TABLE_LENGTH / 2
+  const AI_AREA_Z = TABLE_LENGTH / 2
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -76,14 +81,29 @@ function App() {
     centerLine.position.set(0, 0.05, 0)
     scene.add(centerLine)
 
-    const netGeometry = new THREE.BoxGeometry(TABLE_WIDTH, 1, 0.05)
+    const netPostGeometry = new THREE.CylinderGeometry(0.03, 0.03, NET_HEIGHT, 8)
+    const netPostMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 })
+    const leftNetPost = new THREE.Mesh(netPostGeometry, netPostMaterial)
+    leftNetPost.position.set(-TABLE_WIDTH / 2, NET_HEIGHT / 2, 0)
+    leftNetPost.castShadow = true
+    scene.add(leftNetPost)
+
+    const rightNetPost = new THREE.Mesh(netPostGeometry, netPostMaterial)
+    rightNetPost.position.set(TABLE_WIDTH / 2, NET_HEIGHT / 2, 0)
+    rightNetPost.castShadow = true
+    scene.add(rightNetPost)
+
+    const netGeometry = new THREE.PlaneGeometry(TABLE_WIDTH, NET_HEIGHT)
     const netMaterial = new THREE.MeshStandardMaterial({ 
       color: 0x333333,
+      side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.8
+      opacity: 0.7
     })
     const net = new THREE.Mesh(netGeometry, netMaterial)
-    net.position.set(0, 0.5, 0)
+    net.rotation.x = -Math.PI / 2
+    net.rotation.y = Math.PI / 2
+    net.position.set(0, NET_HEIGHT / 2, 0)
     scene.add(net)
 
     const paddleGeometry = new THREE.BoxGeometry(PADDLE_WIDTH, PADDLE_HEIGHT, PADDLE_DEPTH)
@@ -127,6 +147,105 @@ function App() {
 
     window.addEventListener('resize', handleResize)
 
+    const checkPaddleCollision = (paddle, isPlayer) => {
+      if (!ballRef.current) return false
+      
+      const ballPos = ballRef.current.position
+      const paddlePos = paddle.position
+      
+      const dx = Math.abs(ballPos.x - paddlePos.x)
+      const dz = Math.abs(ballPos.z - paddlePos.z)
+      const dy = ballPos.y - paddlePos.y
+      
+      if (dx < PADDLE_WIDTH / 2 + BALL_RADIUS && 
+          dz < PADDLE_DEPTH / 2 + BALL_RADIUS &&
+          dy > 0 && dy < PADDLE_HEIGHT + BALL_RADIUS) {
+        
+        const hitX = ballPos.x - paddlePos.x
+        const hitY = ballPos.y - paddlePos.y
+        const normX = hitX / (PADDLE_WIDTH / 2)
+        const normY = hitY / PADDLE_HEIGHT
+        
+        const baseSpeed = 0.2
+        const verticalBoost = 0.15
+        
+        ballVelocityRef.current.x = normX * baseSpeed * 0.8
+        ballVelocityRef.current.y = Math.max(normY * verticalBoost + 0.1, 0.12)
+        ballVelocityRef.current.z = isPlayer ? baseSpeed : -baseSpeed
+        
+        ballRef.current.position.z = paddlePos.z + (isPlayer ? PADDLE_DEPTH / 2 + BALL_RADIUS + 0.01 : -PADDLE_DEPTH / 2 - BALL_RADIUS - 0.01)
+        
+        lastHitByRef.current = isPlayer ? 'player' : 'ai'
+        
+        return true
+      }
+      
+      return false
+    }
+
+    const checkNetCollision = () => {
+      if (!ballRef.current) return false
+      
+      const ballPos = ballRef.current.position
+      const vel = ballVelocityRef.current
+      
+      if (Math.abs(ballPos.z) < BALL_RADIUS + 0.025 && 
+          Math.abs(ballPos.x) < TABLE_WIDTH / 2 &&
+          ballPos.y < NET_HEIGHT + BALL_RADIUS) {
+        
+        if (vel.z > 0) {
+          ballRef.current.position.z = -BALL_RADIUS - 0.025
+        } else {
+          ballRef.current.position.z = BALL_RADIUS + 0.025
+        }
+        
+        vel.z = -vel.z * 0.5
+        vel.x *= 0.8
+        vel.y *= 0.5
+        
+        return true
+      }
+      
+      return false
+    }
+
+    const checkTableBounce = () => {
+      if (!ballRef.current) return
+      
+      const ballPos = ballRef.current.position
+      const vel = ballVelocityRef.current
+      
+      if (vel.y < 0 && ballPos.y <= BALL_RADIUS) {
+        if (Math.abs(ballPos.x) < TABLE_WIDTH / 2 && Math.abs(ballPos.z) < TABLE_LENGTH / 2) {
+          ballPos.y = BALL_RADIUS
+          vel.y = -vel.y * BOUNCE_FACTOR
+          vel.x *= HORIZONTAL_DAMPING
+          vel.z *= HORIZONTAL_DAMPING
+        }
+      }
+    }
+
+    const checkOutOfBounds = () => {
+      if (!ballRef.current) return false
+      
+      const ballPos = ballRef.current.position
+      
+      if (ballPos.y < -1 || 
+          Math.abs(ballPos.x) > TABLE_WIDTH / 2 + 2 || 
+          Math.abs(ballPos.z) > TABLE_LENGTH / 2 + 2) {
+        return true
+      }
+      
+      return false
+    }
+
+    const getLastSide = () => {
+      if (!ballRef.current) return null
+      if (ballRef.current.position.z < 0) return 'player'
+      if (ballRef.current.position.z > 0) return 'ai'
+      return null
+    }
+
     const animate = () => {
       animationIdRef.current = requestAnimationFrame(animate)
 
@@ -141,62 +260,59 @@ function App() {
       }
 
       if (gameStarted && ballRef.current && aiPaddleRef.current) {
-        ballRef.current.position.x += ballVelocityRef.current.x
-        ballRef.current.position.z += ballVelocityRef.current.z
-
-        if (ballRef.current.position.x > TABLE_WIDTH / 2 - BALL_RADIUS) {
-          ballRef.current.position.x = TABLE_WIDTH / 2 - BALL_RADIUS
-          ballVelocityRef.current.x = -ballVelocityRef.current.x
+        const vel = ballVelocityRef.current
+        const ballPos = ballRef.current.position
+        
+        vel.y -= GRAVITY
+        ballPos.x += vel.x
+        ballPos.y += vel.y
+        ballPos.z += vel.z
+        
+        if (ballPos.x > TABLE_WIDTH / 2 - BALL_RADIUS) {
+          ballPos.x = TABLE_WIDTH / 2 - BALL_RADIUS
+          vel.x = -vel.x * 0.8
         }
-        if (ballRef.current.position.x < -TABLE_WIDTH / 2 + BALL_RADIUS) {
-          ballRef.current.position.x = -TABLE_WIDTH / 2 + BALL_RADIUS
-          ballVelocityRef.current.x = -ballVelocityRef.current.x
+        if (ballPos.x < -TABLE_WIDTH / 2 + BALL_RADIUS) {
+          ballPos.x = -TABLE_WIDTH / 2 + BALL_RADIUS
+          vel.x = -vel.x * 0.8
         }
-
-        if (ballRef.current.position.z > TABLE_LENGTH / 2 - 1 - PADDLE_DEPTH / 2 - BALL_RADIUS) {
-          if (
-            Math.abs(ballRef.current.position.x - aiPaddleRef.current.position.x) < PADDLE_WIDTH / 2 + BALL_RADIUS &&
-            ballVelocityRef.current.z > 0
-          ) {
-            ballRef.current.position.z = TABLE_LENGTH / 2 - 1 - PADDLE_DEPTH / 2 - BALL_RADIUS
-            ballVelocityRef.current.z = -Math.abs(ballVelocityRef.current.z)
-            const hitPoint = ballRef.current.position.x - aiPaddleRef.current.position.x
-            ballVelocityRef.current.x += hitPoint * 0.02
-            ballVelocityRef.current.x *= 0.9
+        
+        checkTableBounce()
+        checkNetCollision()
+        
+        if (playerPaddleRef.current && vel.z < 0) {
+          checkPaddleCollision(playerPaddleRef.current, true)
+        }
+        if (aiPaddleRef.current && vel.z > 0) {
+          checkPaddleCollision(aiPaddleRef.current, false)
+        }
+        
+        if (checkOutOfBounds()) {
+          const lastSide = getLastSide()
+          if (lastSide === 'player') {
+            scoreRef.current.ai += 1
+            setAiScore(scoreRef.current.ai)
+          } else {
+            scoreRef.current.player += 1
+            setPlayerScore(scoreRef.current.player)
           }
-        }
-
-        if (ballRef.current.position.z < -TABLE_LENGTH / 2 + 1 + PADDLE_DEPTH / 2 + BALL_RADIUS) {
-          if (
-            Math.abs(ballRef.current.position.x - playerPaddleRef.current.position.x) < PADDLE_WIDTH / 2 + BALL_RADIUS &&
-            ballVelocityRef.current.z < 0
-          ) {
-            ballRef.current.position.z = -TABLE_LENGTH / 2 + 1 + PADDLE_DEPTH / 2 + BALL_RADIUS
-            ballVelocityRef.current.z = Math.abs(ballVelocityRef.current.z)
-            const hitPoint = ballRef.current.position.x - playerPaddleRef.current.position.x
-            ballVelocityRef.current.x += hitPoint * 0.02
-            ballVelocityRef.current.x *= 0.9
-          }
-        }
-
-        if (ballRef.current.position.z > TABLE_LENGTH / 2 + 1) {
-          scoreRef.current.player += 1
-          setPlayerScore(scoreRef.current.player)
           resetBall()
         }
-        if (ballRef.current.position.z < -TABLE_LENGTH / 2 - 1) {
-          scoreRef.current.ai += 1
-          setAiScore(scoreRef.current.ai)
-          resetBall()
-        }
-
+        
         if (aiPaddleRef.current) {
-          const targetX = ballRef.current.position.x
+          const currentZ = aiPaddleRef.current.position.z
+          let targetX = ballPos.x
+          
+          if (ballPos.z < 0 || Math.abs(vel.z) < 0.05) {
+            targetX = 0
+          }
+          
           aiPaddleRef.current.position.x = THREE.MathUtils.lerp(
             aiPaddleRef.current.position.x,
             targetX,
-            0.05
+            0.03
           )
+          
           aiPaddleRef.current.position.x = Math.max(
             -TABLE_WIDTH / 2 + PADDLE_WIDTH / 2,
             Math.min(TABLE_WIDTH / 2 - PADDLE_WIDTH / 2, aiPaddleRef.current.position.x)
@@ -209,13 +325,15 @@ function App() {
 
     const resetBall = () => {
       if (!ballRef.current) return
-      ballRef.current.position.set(0, 0.2, 0)
+      ballRef.current.position.set(0, 0.5, 0)
       const direction = Math.random() > 0.5 ? 1 : -1
-      const angle = (Math.random() - 0.5) * Math.PI / 3
+      const angle = (Math.random() - 0.5) * Math.PI / 4
       ballVelocityRef.current = {
-        x: Math.sin(angle) * INITIAL_BALL_SPEED,
-        z: direction * Math.cos(angle) * INITIAL_BALL_SPEED
+        x: Math.sin(angle) * 0.1,
+        y: 0.15,
+        z: direction * 0.12
       }
+      lastHitByRef.current = null
     }
 
     animate()
@@ -239,12 +357,13 @@ function App() {
     setAiScore(0)
     setGameStarted(true)
     if (ballRef.current) {
-      ballRef.current.position.set(0, 0.2, 0)
+      ballRef.current.position.set(0, 0.5, 0)
       const direction = Math.random() > 0.5 ? 1 : -1
-      const angle = (Math.random() - 0.5) * Math.PI / 3
+      const angle = (Math.random() - 0.5) * Math.PI / 4
       ballVelocityRef.current = {
-        x: Math.sin(angle) * INITIAL_BALL_SPEED,
-        z: direction * Math.cos(angle) * INITIAL_BALL_SPEED
+        x: Math.sin(angle) * 0.1,
+        y: 0.15,
+        z: direction * 0.12
       }
     }
   }
@@ -267,6 +386,7 @@ function App() {
         <div className="start-screen">
           <h1>乒乓球对打游戏</h1>
           <p>使用鼠标左右移动控制球拍</p>
+          <p>球会在球台上弹跳，用球拍击球</p>
           <button onClick={startGame} className="start-button">
             开始游戏
           </button>
