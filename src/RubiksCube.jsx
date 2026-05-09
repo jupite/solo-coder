@@ -7,15 +7,182 @@ const RubiksCube = () => {
   const cameraRef = useRef(null)
   const rendererRef = useRef(null)
   const cubeRef = useRef(null)
-  const cubiesRef = useRef([])
   const isDraggingRef = useRef(false)
   const previousMousePositionRef = useRef({ x: 0, y: 0 })
   const targetRotationRef = useRef({ x: 0, y: 0 })
-  const hoveredCubieRef = useRef(null)
   const isAnimatingRef = useRef(false)
-  const currentLayerGroupRef = useRef(null)
   const raycasterRef = useRef(new THREE.Raycaster())
   const mouseRef = useRef(new THREE.Vector2())
+  const cubiesRef = useRef([])
+  const meshToCubieMapRef = useRef(new Map())
+  const startMousePosRef = useRef({ x: 0, y: 0 })
+
+  const CUBIE_SIZE = 0.95
+  const GAP = 0.05
+  const TOTAL_SIZE = CUBIE_SIZE + GAP
+  const RADIUS = 0.08
+
+  const COLORS = {
+    right: 0xff0000,
+    left: 0xffa500,
+    top: 0xffffff,
+    bottom: 0xffff00,
+    front: 0x00ff00,
+    back: 0x0000ff
+  }
+
+  const createRoundedBoxGeometry = (size, r) => {
+    const shape = new THREE.Shape()
+    const eps = 0.0001
+    shape.moveTo(-size / 2 + r, -size / 2)
+    shape.lineTo(size / 2 - r, -size / 2 + eps)
+    shape.quadraticCurveTo(size / 2, -size / 2, size / 2, -size / 2 + r)
+    shape.lineTo(size / 2 - eps, size / 2 - r)
+    shape.quadraticCurveTo(size / 2, size / 2, size / 2 - r, size / 2)
+    shape.lineTo(-size / 2 + r, size / 2 - eps)
+    shape.quadraticCurveTo(-size / 2, size / 2, -size / 2, size / 2 - r)
+    shape.lineTo(-size / 2 + eps, -size / 2 + r)
+    shape.quadraticCurveTo(-size / 2, -size / 2, -size / 2 + r, -size / 2)
+
+    const extrudeSettings = {
+      depth: size,
+      bevelEnabled: false,
+      curveSegments: 12
+    }
+
+    const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings)
+    geometry.center()
+    geometry.rotateX(Math.PI / 2)
+    return geometry
+  }
+
+  const createCubies = (parent) => {
+    for (let x = -1; x <= 1; x++) {
+      for (let y = -1; y <= 1; y++) {
+        for (let z = -1; z <= 1; z++) {
+          if (x === 0 && y === 0 && z === 0) continue
+
+          const cubie = new THREE.Group()
+          cubie.position.set(x * TOTAL_SIZE, y * TOTAL_SIZE, z * TOTAL_SIZE)
+          cubie.userData = {
+            gridX: x,
+            gridY: y,
+            gridZ: z
+          }
+
+          const blackMaterial = new THREE.MeshStandardMaterial({
+            color: 0x1a1a1a,
+            roughness: 0.3,
+            metalness: 0.1
+          })
+
+          const baseGeometry = createRoundedBoxGeometry(CUBIE_SIZE, RADIUS)
+          const baseCube = new THREE.Mesh(baseGeometry, blackMaterial)
+          cubie.add(baseCube)
+          meshToCubieMapRef.current.set(baseCube, cubie)
+
+          const faceSize = CUBIE_SIZE * 0.9
+          const faceOffset = CUBIE_SIZE / 2 + 0.001
+
+          const createFace = (color, position, rotation) => {
+            const faceGeometry = new THREE.PlaneGeometry(faceSize, faceSize)
+            const faceMaterial = new THREE.MeshStandardMaterial({
+              color: color,
+              roughness: 0.4,
+              metalness: 0.05,
+              side: THREE.DoubleSide
+            })
+            const face = new THREE.Mesh(faceGeometry, faceMaterial)
+            face.position.copy(position)
+            face.rotation.copy(rotation)
+            cubie.add(face)
+            meshToCubieMapRef.current.set(face, cubie)
+          }
+
+          if (x === 1) {
+            createFace(COLORS.right, new THREE.Vector3(faceOffset, 0, 0), new THREE.Euler(0, Math.PI / 2, 0))
+          }
+          if (x === -1) {
+            createFace(COLORS.left, new THREE.Vector3(-faceOffset, 0, 0), new THREE.Euler(0, -Math.PI / 2, 0))
+          }
+          if (y === 1) {
+            createFace(COLORS.top, new THREE.Vector3(0, faceOffset, 0), new THREE.Euler(-Math.PI / 2, 0, 0))
+          }
+          if (y === -1) {
+            createFace(COLORS.bottom, new THREE.Vector3(0, -faceOffset, 0), new THREE.Euler(Math.PI / 2, 0, 0))
+          }
+          if (z === 1) {
+            createFace(COLORS.front, new THREE.Vector3(0, 0, faceOffset), new THREE.Euler(0, 0, 0))
+          }
+          if (z === -1) {
+            createFace(COLORS.back, new THREE.Vector3(0, 0, -faceOffset), new THREE.Euler(0, Math.PI, 0))
+          }
+
+          parent.add(cubie)
+          cubiesRef.current.push(cubie)
+        }
+      }
+    }
+  }
+
+  const getCubiesInLayer = (axis, layerIndex) => {
+    const cubies = []
+    cubiesRef.current.forEach((cubie) => {
+      let coord = null
+      if (axis === 'x') coord = cubie.userData.gridX
+      else if (axis === 'y') coord = cubie.userData.gridY
+      else coord = cubie.userData.gridZ
+
+      if (coord === layerIndex) {
+        cubies.push(cubie)
+      }
+    })
+    return cubies
+  }
+
+  const updateGridAfterRotation = (axis, layerIndex, isClockwise) => {
+    const cubies = getCubiesInLayer(axis, layerIndex)
+    
+    cubies.forEach((cubie) => {
+      const x = cubie.userData.gridX
+      const y = cubie.userData.gridY
+      const z = cubie.userData.gridZ
+
+      let newX = x
+      let newY = y
+      let newZ = z
+
+      if (axis === 'x') {
+        if (isClockwise) {
+          newY = z
+          newZ = -y
+        } else {
+          newY = -z
+          newZ = y
+        }
+      } else if (axis === 'y') {
+        if (isClockwise) {
+          newX = -z
+          newZ = x
+        } else {
+          newX = z
+          newZ = -x
+        }
+      } else {
+        if (isClockwise) {
+          newX = y
+          newY = -x
+        } else {
+          newX = -y
+          newY = x
+        }
+      }
+
+      cubie.userData.gridX = newX
+      cubie.userData.gridY = newY
+      cubie.userData.gridZ = newZ
+    })
+  }
 
   useEffect(() => {
     const container = containerRef.current
@@ -71,21 +238,12 @@ const RubiksCube = () => {
       mouseRef.current.y =
         -((event.clientY - rect.top) / rect.height) * 2 + 1
 
-      raycasterRef.current.setFromCamera(mouseRef.current, camera)
-      const intersects = raycasterRef.current.intersectObjects(
-        cubiesRef.current,
-        true
-      )
-
-      if (intersects.length > 0 && !isAnimatingRef.current) {
-        hoveredCubieRef.current = intersects[0].object
-        isDraggingRef.current = true
-      } else {
-        isDraggingRef.current = true
-        hoveredCubieRef.current = null
-      }
-
+      isDraggingRef.current = true
       previousMousePositionRef.current = {
+        x: event.clientX,
+        y: event.clientY
+      }
+      startMousePosRef.current = {
         x: event.clientX,
         y: event.clientY
       }
@@ -99,39 +257,97 @@ const RubiksCube = () => {
         y: event.clientY - previousMousePositionRef.current.y
       }
 
-      if (hoveredCubieRef.current && cubiesRef.current.length > 0) {
-        const absolute = new THREE.Vector3()
-        hoveredCubieRef.current.getWorldPosition(absolute)
+      const totalDeltaMove = {
+        x: event.clientX - startMousePosRef.current.x,
+        y: event.clientY - startMousePosRef.current.y
+      }
 
-        let axis = null
-        let isPositive = false
-        const threshold = 1
+      if (Math.abs(totalDeltaMove.x) < 5 && Math.abs(totalDeltaMove.y) < 5) {
+        previousMousePositionRef.current = {
+          x: event.clientX,
+          y: event.clientY
+        }
+        return
+      }
 
-        if (Math.abs(deltaMove.x) > Math.abs(deltaMove.y)) {
-          if (Math.abs(absolute.y) > threshold) {
-            axis = 'y'
-            isPositive = absolute.y > 0
-          } else if (Math.abs(absolute.z) > threshold) {
-            axis = 'z'
-            isPositive = absolute.z > 0
-          } else {
-            axis = 'x'
-            isPositive = absolute.x > 0
+      const rect = renderer.domElement.getBoundingClientRect()
+      mouseRef.current.x =
+        ((event.clientX - rect.left) / rect.width) * 2 - 1
+      mouseRef.current.y =
+        -((event.clientY - rect.top) / rect.height) * 2 + 1
+
+      raycasterRef.current.setFromCamera(mouseRef.current, camera)
+
+      const allMeshes = []
+      cubiesRef.current.forEach((cubie) => {
+        cubie.children.forEach((child) => {
+          if (child.isMesh) {
+            allMeshes.push(child)
           }
-        } else {
-          if (Math.abs(absolute.x) > threshold) {
-            axis = 'x'
-            isPositive = absolute.x > 0
-          } else if (Math.abs(absolute.z) > threshold) {
-            axis = 'z'
-            isPositive = absolute.z > 0
+        })
+      })
+
+      const intersects = raycasterRef.current.intersectObjects(allMeshes)
+
+      if (intersects.length > 0 && !isAnimatingRef.current) {
+        const mesh = intersects[0].object
+        const cubie = meshToCubieMapRef.current.get(mesh)
+        
+        if (cubie) {
+          const gridX = cubie.userData.gridX
+          const gridY = cubie.userData.gridY
+          const gridZ = cubie.userData.gridZ
+
+          let axis = null
+          let layerIndex = null
+          let direction = 0
+
+          const isHorizontal = Math.abs(totalDeltaMove.x) > Math.abs(totalDeltaMove.y)
+
+          if (isHorizontal) {
+            const possibleAxes = []
+            
+            if (gridY === 1 || gridY === -1) possibleAxes.push({ axis: 'y', index: gridY, dir: totalDeltaMove.x > 0 ? 1 : -1 })
+            if (gridZ === 1 || gridZ === -1) possibleAxes.push({ axis: 'z', index: gridZ, dir: totalDeltaMove.x > 0 ? -1 : 1 })
+            if (gridX === 1 || gridX === -1) possibleAxes.push({ axis: 'x', index: gridX, dir: totalDeltaMove.x > 0 ? -1 : 1 })
+
+            if (possibleAxes.length === 1) {
+              axis = possibleAxes[0].axis
+              layerIndex = possibleAxes[0].index
+              direction = possibleAxes[0].dir
+            } else if (possibleAxes.length > 1) {
+              const preferred = possibleAxes.find(a => a.axis === 'y') || 
+                              possibleAxes.find(a => a.axis === 'z') || 
+                              possibleAxes[0]
+              axis = preferred.axis
+              layerIndex = preferred.index
+              direction = preferred.dir
+            }
           } else {
-            axis = 'y'
-            isPositive = absolute.y > 0
+            const possibleAxes = []
+            
+            if (gridX === 1 || gridX === -1) possibleAxes.push({ axis: 'x', index: gridX, dir: totalDeltaMove.y > 0 ? 1 : -1 })
+            if (gridZ === 1 || gridZ === -1) possibleAxes.push({ axis: 'z', index: gridZ, dir: totalDeltaMove.y > 0 ? 1 : -1 })
+            if (gridY === 1 || gridY === -1) possibleAxes.push({ axis: 'y', index: gridY, dir: totalDeltaMove.y > 0 ? -1 : 1 })
+
+            if (possibleAxes.length === 1) {
+              axis = possibleAxes[0].axis
+              layerIndex = possibleAxes[0].index
+              direction = possibleAxes[0].dir
+            } else if (possibleAxes.length > 1) {
+              const preferred = possibleAxes.find(a => a.axis === 'x') || 
+                              possibleAxes.find(a => a.axis === 'z') || 
+                              possibleAxes[0]
+              axis = preferred.axis
+              layerIndex = preferred.index
+              direction = preferred.dir
+            }
+          }
+
+          if (axis && layerIndex !== null) {
+            rotateLayer(axis, layerIndex, direction)
           }
         }
-
-        rotateLayer(axis, isPositive, deltaMove.x > 0 || deltaMove.y > 0)
       } else {
         targetRotationRef.current.y += deltaMove.x * 0.01
         targetRotationRef.current.x += deltaMove.y * 0.01
@@ -145,54 +361,46 @@ const RubiksCube = () => {
 
     const handleMouseUp = () => {
       isDraggingRef.current = false
-      hoveredCubieRef.current = null
     }
 
-    const attachToParent = (child, oldParent, newParent) => {
-      oldParent.remove(child)
-      newParent.add(child)
-    }
-
-    const rotateLayer = (axis, isPositive, clockwise) => {
+    const rotateLayer = (axis, layerIndex, direction) => {
       if (isAnimatingRef.current) return
+
+      const cubies = getCubiesInLayer(axis, layerIndex)
+      if (cubies.length === 0) return
+
+      const isClockwise = direction > 0
+
+      const savedRotation = {
+        x: cubeRef.current.rotation.x,
+        y: cubeRef.current.rotation.y,
+        z: cubeRef.current.rotation.z
+      }
+
+      cubeRef.current.rotation.set(0, 0, 0)
+      cubeRef.current.updateMatrixWorld(true)
 
       const layerGroup = new THREE.Group()
       cubeRef.current.add(layerGroup)
-      currentLayerGroupRef.current = layerGroup
 
-      const layerCubies = cubiesRef.current.filter((cubie) => {
-        const pos = new THREE.Vector3()
-        cubie.getWorldPosition(pos)
-        const epsilon = 0.1
-
-        if (axis === 'x') {
-          return isPositive ? pos.x > 1 - epsilon : pos.x < -1 + epsilon
-        } else if (axis === 'y') {
-          return isPositive ? pos.y > 1 - epsilon : pos.y < -1 + epsilon
-        } else {
-          return isPositive ? pos.z > 1 - epsilon : pos.z < -1 + epsilon
-        }
-      })
-
-      layerCubies.forEach((cubie) => {
+      cubies.forEach((cubie) => {
         const worldPos = new THREE.Vector3()
         const worldQuat = new THREE.Quaternion()
         cubie.getWorldPosition(worldPos)
         cubie.getWorldQuaternion(worldQuat)
 
-        attachToParent(cubie, cubeRef.current, layerGroup)
+        cubeRef.current.remove(cubie)
+        layerGroup.add(cubie)
 
         const localPos = layerGroup.worldToLocal(worldPos.clone())
         cubie.position.copy(localPos)
         cubie.quaternion.copy(worldQuat)
-        layerGroup.worldToLocal(cubie.quaternion)
       })
 
       isAnimatingRef.current = true
-      const totalRotation = (clockwise ? 1 : -1) * Math.PI / 2
+      const totalRotation = isClockwise ? -Math.PI / 2 : Math.PI / 2
       const duration = 300
       const startTime = Date.now()
-      const startRotation = { x: layerGroup.rotation.x, y: layerGroup.rotation.y, z: layerGroup.rotation.z }
 
       const animate = () => {
         const elapsed = Date.now() - startTime
@@ -200,38 +408,40 @@ const RubiksCube = () => {
         const eased = 1 - Math.pow(1 - progress, 3)
 
         if (axis === 'x') {
-          layerGroup.rotation.x = startRotation.x + totalRotation * eased
+          layerGroup.rotation.x = totalRotation * eased
         } else if (axis === 'y') {
-          layerGroup.rotation.y = startRotation.y + totalRotation * eased
+          layerGroup.rotation.y = totalRotation * eased
         } else {
-          layerGroup.rotation.z = startRotation.z + totalRotation * eased
+          layerGroup.rotation.z = totalRotation * eased
         }
 
         if (progress < 1) {
           requestAnimationFrame(animate)
         } else {
-          layerCubies.forEach((cubie) => {
+          updateGridAfterRotation(axis, layerIndex, isClockwise)
+
+          cubies.forEach((cubie) => {
             const worldPos = new THREE.Vector3()
             const worldQuat = new THREE.Quaternion()
             cubie.getWorldPosition(worldPos)
             cubie.getWorldQuaternion(worldQuat)
 
-            attachToParent(cubie, layerGroup, cubeRef.current)
+            layerGroup.remove(cubie)
+            cubeRef.current.add(cubie)
 
-            const localPos = cubeRef.current.worldToLocal(worldPos.clone())
-            cubie.position.copy(localPos)
+            cubie.position.set(
+              cubie.userData.gridX * TOTAL_SIZE,
+              cubie.userData.gridY * TOTAL_SIZE,
+              cubie.userData.gridZ * TOTAL_SIZE
+            )
             cubie.quaternion.copy(worldQuat)
-            cubeRef.current.worldToLocal(cubie.quaternion)
-
-            cubie.position.round()
-            cubie.rotation.x = Math.round(cubie.rotation.x / (Math.PI / 2)) * (Math.PI / 2)
-            cubie.rotation.y = Math.round(cubie.rotation.y / (Math.PI / 2)) * (Math.PI / 2)
-            cubie.rotation.z = Math.round(cubie.rotation.z / (Math.PI / 2)) * (Math.PI / 2)
           })
 
           cubeRef.current.remove(layerGroup)
+          cubeRef.current.rotation.copy(savedRotation)
+          cubeRef.current.updateMatrixWorld(true)
+
           isAnimatingRef.current = false
-          currentLayerGroupRef.current = null
         }
       }
 
@@ -265,108 +475,6 @@ const RubiksCube = () => {
       container.removeChild(renderer.domElement)
     }
   }, [])
-
-  const createCubies = (parent) => {
-    const cubySize = 0.95
-    const gap = 0.05
-    const totalSize = cubySize + gap
-    const radius = 0.08
-
-    const colors = {
-      right: 0xff0000,
-      left: 0xffa500,
-      top: 0xffffff,
-      bottom: 0xffff00,
-      front: 0x00ff00,
-      back: 0x0000ff
-    }
-
-    const createRoundedBoxGeometry = (size, r) => {
-      const shape = new THREE.Shape()
-      const eps = 0.0001
-      shape.moveTo(-size / 2 + r, -size / 2)
-      shape.lineTo(size / 2 - r, -size / 2 + eps)
-      shape.quadraticCurveTo(size / 2, -size / 2, size / 2, -size / 2 + r)
-      shape.lineTo(size / 2 - eps, size / 2 - r)
-      shape.quadraticCurveTo(size / 2, size / 2, size / 2 - r, size / 2)
-      shape.lineTo(-size / 2 + r, size / 2 - eps)
-      shape.quadraticCurveTo(-size / 2, size / 2, -size / 2, size / 2 - r)
-      shape.lineTo(-size / 2 + eps, -size / 2 + r)
-      shape.quadraticCurveTo(-size / 2, -size / 2, -size / 2 + r, -size / 2)
-
-      const extrudeSettings = {
-        depth: size,
-        bevelEnabled: false,
-        curveSegments: 12
-      }
-
-      const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings)
-      geometry.center()
-      geometry.rotateX(Math.PI / 2)
-      return geometry
-    }
-
-    for (let x = -1; x <= 1; x++) {
-      for (let y = -1; y <= 1; y++) {
-        for (let z = -1; z <= 1; z++) {
-          if (x === 0 && y === 0 && z === 0) continue
-
-          const cubie = new THREE.Group()
-          cubie.position.set(x * totalSize, y * totalSize, z * totalSize)
-          cubie.userData = { originalPosition: { x, y, z } }
-
-          const blackMaterial = new THREE.MeshStandardMaterial({
-            color: 0x1a1a1a,
-            roughness: 0.3,
-            metalness: 0.1
-          })
-
-          const baseGeometry = createRoundedBoxGeometry(cubySize, radius)
-          const baseCube = new THREE.Mesh(baseGeometry, blackMaterial)
-          cubie.add(baseCube)
-
-          const faceSize = cubySize * 0.9
-          const faceOffset = cubySize / 2 + 0.001
-
-          const createFace = (color, position, rotation) => {
-            const faceGeometry = new THREE.PlaneGeometry(faceSize, faceSize)
-            const faceMaterial = new THREE.MeshStandardMaterial({
-              color: color,
-              roughness: 0.4,
-              metalness: 0.05,
-              side: THREE.DoubleSide
-            })
-            const face = new THREE.Mesh(faceGeometry, faceMaterial)
-            face.position.copy(position)
-            face.rotation.copy(rotation)
-            cubie.add(face)
-          }
-
-          if (x === 1) {
-            createFace(colors.right, new THREE.Vector3(faceOffset, 0, 0), new THREE.Euler(0, Math.PI / 2, 0))
-          }
-          if (x === -1) {
-            createFace(colors.left, new THREE.Vector3(-faceOffset, 0, 0), new THREE.Euler(0, -Math.PI / 2, 0))
-          }
-          if (y === 1) {
-            createFace(colors.top, new THREE.Vector3(0, faceOffset, 0), new THREE.Euler(-Math.PI / 2, 0, 0))
-          }
-          if (y === -1) {
-            createFace(colors.bottom, new THREE.Vector3(0, -faceOffset, 0), new THREE.Euler(Math.PI / 2, 0, 0))
-          }
-          if (z === 1) {
-            createFace(colors.front, new THREE.Vector3(0, 0, faceOffset), new THREE.Euler(0, 0, 0))
-          }
-          if (z === -1) {
-            createFace(colors.back, new THREE.Vector3(0, 0, -faceOffset), new THREE.Euler(0, Math.PI, 0))
-          }
-
-          parent.add(cubie)
-          cubiesRef.current.push(cubie)
-        }
-      }
-    }
-  }
 
   return (
     <div
