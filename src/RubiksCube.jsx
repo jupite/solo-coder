@@ -128,10 +128,9 @@ const RubiksCube = () => {
   const getCubiesInLayer = (axis, layerIndex) => {
     const cubies = []
     cubiesRef.current.forEach((cubie) => {
-      let coord = null
-      if (axis === 'x') coord = cubie.userData.gridX
-      else if (axis === 'y') coord = cubie.userData.gridY
-      else coord = cubie.userData.gridZ
+      const coord = axis === 'x' ? cubie.userData.gridX :
+                   axis === 'y' ? cubie.userData.gridY :
+                   cubie.userData.gridZ
 
       if (coord === layerIndex) {
         cubies.push(cubie)
@@ -307,15 +306,11 @@ const RubiksCube = () => {
           if (isHorizontal) {
             const possibleAxes = []
             
-            if (gridY === 1 || gridY === -1) possibleAxes.push({ axis: 'y', index: gridY, dir: totalDeltaMove.x > 0 ? 1 : -1 })
-            if (gridZ === 1 || gridZ === -1) possibleAxes.push({ axis: 'z', index: gridZ, dir: totalDeltaMove.x > 0 ? -1 : 1 })
-            if (gridX === 1 || gridX === -1) possibleAxes.push({ axis: 'x', index: gridX, dir: totalDeltaMove.x > 0 ? -1 : 1 })
+            possibleAxes.push({ axis: 'y', index: gridY, dir: totalDeltaMove.x > 0 ? 1 : -1 })
+            possibleAxes.push({ axis: 'z', index: gridZ, dir: totalDeltaMove.x > 0 ? -1 : 1 })
+            possibleAxes.push({ axis: 'x', index: gridX, dir: totalDeltaMove.x > 0 ? -1 : 1 })
 
-            if (possibleAxes.length === 1) {
-              axis = possibleAxes[0].axis
-              layerIndex = possibleAxes[0].index
-              direction = possibleAxes[0].dir
-            } else if (possibleAxes.length > 1) {
+            if (possibleAxes.length > 0) {
               const preferred = possibleAxes.find(a => a.axis === 'y') || 
                               possibleAxes.find(a => a.axis === 'z') || 
                               possibleAxes[0]
@@ -326,15 +321,11 @@ const RubiksCube = () => {
           } else {
             const possibleAxes = []
             
-            if (gridX === 1 || gridX === -1) possibleAxes.push({ axis: 'x', index: gridX, dir: totalDeltaMove.y > 0 ? 1 : -1 })
-            if (gridZ === 1 || gridZ === -1) possibleAxes.push({ axis: 'z', index: gridZ, dir: totalDeltaMove.y > 0 ? 1 : -1 })
-            if (gridY === 1 || gridY === -1) possibleAxes.push({ axis: 'y', index: gridY, dir: totalDeltaMove.y > 0 ? -1 : 1 })
+            possibleAxes.push({ axis: 'x', index: gridX, dir: totalDeltaMove.y > 0 ? 1 : -1 })
+            possibleAxes.push({ axis: 'z', index: gridZ, dir: totalDeltaMove.y > 0 ? 1 : -1 })
+            possibleAxes.push({ axis: 'y', index: gridY, dir: totalDeltaMove.y > 0 ? -1 : 1 })
 
-            if (possibleAxes.length === 1) {
-              axis = possibleAxes[0].axis
-              layerIndex = possibleAxes[0].index
-              direction = possibleAxes[0].dir
-            } else if (possibleAxes.length > 1) {
+            if (possibleAxes.length > 0) {
               const preferred = possibleAxes.find(a => a.axis === 'x') || 
                               possibleAxes.find(a => a.axis === 'z') || 
                               possibleAxes[0]
@@ -439,6 +430,8 @@ const RubiksCube = () => {
 
           cubeRef.current.remove(layerGroup)
           cubeRef.current.rotation.copy(savedRotation)
+          targetRotationRef.current.x = savedRotation.x
+          targetRotationRef.current.y = savedRotation.y
           cubeRef.current.updateMatrixWorld(true)
 
           isAnimatingRef.current = false
