@@ -2,15 +2,13 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import {
-  Home,
   ChevronDown,
-  ChevronRight,
+  type LucideIcon,
   Folder,
   FolderOpen,
   File,
-  type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -28,18 +26,27 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarRail,
+} from "@/components/ui/sidebar"
+import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import type { MenuItem, CategoryOption } from "@/types/menu"
 
 interface DetailLayoutProps {
   categoryOptions: CategoryOption[]
   menuItems: MenuItem[]
-  currentCategoryId: string
-  currentCategoryTitle: string
   children: React.ReactNode
 }
 
@@ -47,7 +54,6 @@ const iconMap: Record<string, LucideIcon> = {
   Folder,
   FolderOpen,
   File,
-  Home,
 }
 
 function getIcon(iconName?: string): LucideIcon {
@@ -78,95 +84,91 @@ function findBreadcrumbPath(
   return null
 }
 
-function MenuItemComponent({
-  item,
-  activeId,
-  depth = 0,
-  onItemClick,
-}: {
-  item: MenuItem
-  activeId: string
-  depth?: number
-  onItemClick?: (item: MenuItem) => void
-}) {
-  const router = useRouter()
-  const hasChildren = item.children && item.children.length > 0
-  const [isOpen, setIsOpen] = React.useState(false)
-  const IconComponent = getIcon(item.icon)
-
-  const isActive = item.id === activeId
-
-  const handleClick = () => {
-    if (item.href) {
-      router.push(item.href)
-      onItemClick?.(item)
-    } else if (hasChildren) {
-      setIsOpen(!isOpen)
-    }
-  }
-
-  if (hasChildren) {
-    return (
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <CollapsibleTrigger asChild>
-          <button
-            className={cn(
-              "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left transition-colors hover:bg-accent hover:text-accent-foreground",
-              isActive && "bg-accent text-accent-foreground"
-            )}
-            style={{ paddingLeft: `${depth * 12 + 8}px` }}
-          >
-            {isOpen ? (
-              <ChevronRight className="h-4 w-4 rotate-90 transition-transform" />
-            ) : (
-              <ChevronRight className="h-4 w-4 transition-transform" />
-            )}
-            {React.createElement(IconComponent, { className: "h-4 w-4" })}
-            <span className="flex-1 truncate">{item.title}</span>
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="mt-1">
-            {item.children!.map((child) => (
-              <MenuItemComponent
-                key={child.id}
-                item={child}
-                activeId={activeId}
-                depth={depth + 1}
-                onItemClick={onItemClick}
-              />
-            ))}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-    )
-  }
-
-  return (
-    <button
-      onClick={handleClick}
-      className={cn(
-        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left transition-colors hover:bg-accent hover:text-accent-foreground",
-        isActive && "bg-accent text-accent-foreground"
-      )}
-      style={{ paddingLeft: `${depth * 12 + 32}px` }}
-    >
-      {React.createElement(IconComponent, { className: "h-4 w-4" })}
-      <span className="flex-1 truncate">{item.title}</span>
-    </button>
-  )
-}
-
 function getInitialHash(): string {
   if (typeof window === "undefined") return ""
   return window.location.hash.replace("#", "")
 }
 
+function NavSidebar({
+  menuItems,
+  activeMenuId,
+}: {
+  menuItems: MenuItem[]
+  activeMenuId: string
+}) {
+  return (
+    <Sidebar collapsible="icon" side="left">
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarMenu>
+            {menuItems.map((item) => {
+              const IconComponent = getIcon(item.icon)
+              const hasChildren = item.children && item.children.length > 0
+
+              return (
+                <SidebarMenuItem key={item.id}>
+                  {hasChildren ? (
+                    <>
+                      <SidebarMenuButton>
+                        <IconComponent className="size-4" />
+                        <span className="font-medium">{item.title}</span>
+                      </SidebarMenuButton>
+                      <SidebarMenuSub>
+                        {item.children!.map((child) => {
+                          const ChildIcon = getIcon(child.icon)
+                          const isActive = child.id === activeMenuId
+                          return (
+                            <SidebarMenuSubItem key={child.id}>
+                              <SidebarMenuSubButton asChild isActive={isActive}>
+                                {child.href ? (
+                                  <Link href={child.href}>
+                                    <ChildIcon className="size-4" />
+                                    <span>{child.title}</span>
+                                  </Link>
+                                ) : (
+                                  <span>
+                                    <ChildIcon className="size-4" />
+                                    <span>{child.title}</span>
+                                  </span>
+                                )}
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          )
+                        })}
+                      </SidebarMenuSub>
+                    </>
+                  ) : (
+                    <SidebarMenuButton
+                      asChild
+                      isActive={item.id === activeMenuId}
+                    >
+                      {item.href ? (
+                        <Link href={item.href}>
+                          <IconComponent className="size-4" />
+                          <span>{item.title}</span>
+                        </Link>
+                      ) : (
+                        <span>
+                          <IconComponent className="size-4" />
+                          <span>{item.title}</span>
+                        </span>
+                      )}
+                    </SidebarMenuButton>
+                  )}
+                </SidebarMenuItem>
+              )
+            })}
+          </SidebarMenu>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarRail />
+    </Sidebar>
+  )
+}
+
 export function DetailLayout({
   categoryOptions,
   menuItems,
-  currentCategoryId,
-  currentCategoryTitle,
   children,
 }: DetailLayoutProps) {
   const pathname = usePathname()
@@ -187,12 +189,32 @@ export function DetailLayout({
     return segments[segments.length - 1] || ""
   }, [pathname, currentHash])
 
+  const currentCategoryId = React.useMemo(() => {
+    const segments = pathname.split("/").filter(Boolean)
+    const categoryIndex = segments.indexOf("category")
+    if (categoryIndex !== -1 && segments[categoryIndex + 1]) {
+      return segments[categoryIndex + 1]
+    }
+    return ""
+  }, [pathname])
+
+  const currentCategoryOption = React.useMemo(() => {
+    return categoryOptions.find((option) => option.id === currentCategoryId)
+  }, [categoryOptions, currentCategoryId])
+
   const breadcrumbItems = React.useMemo(() => {
     const targetId = activeMenuId
     const items: Array<{ id: string; title: string; href?: string }> = [
       { id: "home", title: "首页", href: "/" },
-      { id: currentCategoryId, title: currentCategoryTitle, href: `/category/${currentCategoryId}` },
     ]
+
+    if (currentCategoryOption) {
+      items.push({
+        id: currentCategoryOption.id,
+        title: currentCategoryOption.title,
+        href: currentCategoryOption.href,
+      })
+    }
 
     if (targetId && targetId !== currentCategoryId) {
       const menuPath = findBreadcrumbPath(menuItems, targetId)
@@ -208,80 +230,76 @@ export function DetailLayout({
     }
 
     return items
-  }, [activeMenuId, currentCategoryId, currentCategoryTitle, menuItems])
+  }, [activeMenuId, currentCategoryId, currentCategoryOption, menuItems])
 
   return (
-    <div className="flex h-screen flex-col bg-background">
-      <header className="flex h-14 items-center gap-4 border-b border-border px-4">
-        <Link href="/">
-          <Button variant="ghost" size="icon" className="h-9 w-9">
-            <Home className="h-5 w-5" />
-            <span className="sr-only">返回首页</span>
-          </Button>
-        </Link>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="gap-2 px-3">
-              <span className="text-base font-medium">{currentCategoryTitle}</span>
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-48 z-50 bg-popover border border-border">
-            {categoryOptions.map((option) => (
-              <DropdownMenuItem key={option.id} asChild>
-                <Link href={option.href} className="cursor-pointer">
-                  {option.title}
-                </Link>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="flex items-center">
-          <Breadcrumb>
-            <BreadcrumbList>
-              {breadcrumbItems.map((item, index) => {
-                const isLast = index === breadcrumbItems.length - 1
-                return (
-                  <React.Fragment key={item.id}>
-                    {index > 0 && <BreadcrumbSeparator />}
-                    <BreadcrumbItem>
-                      {isLast ? (
-                        <BreadcrumbPage>{item.title}</BreadcrumbPage>
-                      ) : item.href ? (
-                        <BreadcrumbLink asChild>
-                          <Link href={item.href}>{item.title}</Link>
-                        </BreadcrumbLink>
-                      ) : (
-                        <span className="text-muted-foreground">{item.title}</span>
-                      )}
-                    </BreadcrumbItem>
-                  </React.Fragment>
-                )
-              })}
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
-
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="w-64 border-r border-border overflow-y-auto p-2 bg-muted/20">
-          <nav className="space-y-1">
-            {menuItems.map((item) => (
-              <MenuItemComponent
-                key={item.id}
-                item={item}
-                activeId={activeMenuId}
-              />
-            ))}
-          </nav>
-        </aside>
-
+    <SidebarProvider>
+      <NavSidebar menuItems={menuItems} activeMenuId={activeMenuId} />
+      <SidebarInset>
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b">
+          <div className="flex items-center gap-2 px-3">
+            <SidebarTrigger className="-ml-1" />
+            <Separator
+              orientation="vertical"
+              className="mr-2 h-4"
+            />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="gap-2 px-3">
+                  <span className="text-base font-medium">
+                    {currentCategoryOption?.title || "选择分类"}
+                  </span>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="w-48 z-50 bg-popover border border-border"
+              >
+                {categoryOptions.map((option) => (
+                  <DropdownMenuItem key={option.id} asChild>
+                    <Link href={option.href} className="cursor-pointer">
+                      {option.title}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Separator
+              orientation="vertical"
+              className="mr-2 h-4"
+            />
+            <Breadcrumb>
+              <BreadcrumbList>
+                {breadcrumbItems.map((item, index) => {
+                  const isLast = index === breadcrumbItems.length - 1
+                  return (
+                    <React.Fragment key={item.id}>
+                      {index > 0 && <BreadcrumbSeparator />}
+                      <BreadcrumbItem>
+                        {isLast ? (
+                          <BreadcrumbPage>{item.title}</BreadcrumbPage>
+                        ) : item.href ? (
+                          <BreadcrumbLink asChild>
+                            <Link href={item.href}>{item.title}</Link>
+                          </BreadcrumbLink>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            {item.title}
+                          </span>
+                        )}
+                      </BreadcrumbItem>
+                    </React.Fragment>
+                  )
+                })}
+              </BreadcrumbList>
+            </Breadcrumb>
+          </div>
+        </header>
         <main className="flex-1 overflow-y-auto">
           <div className="p-6">{children}</div>
         </main>
-      </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

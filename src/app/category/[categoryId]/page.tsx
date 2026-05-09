@@ -28,8 +28,6 @@ export default async function CategoryPage({ params }: PageProps) {
     <DetailLayout
       categoryOptions={categoryOptions}
       menuItems={menuItems}
-      currentCategoryId={category.id}
-      currentCategoryTitle={category.title}
     >
       <div className="mb-8">
         <h1 className="mb-4 text-3xl font-bold tracking-tight">
