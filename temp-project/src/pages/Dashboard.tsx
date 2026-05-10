@@ -160,9 +160,9 @@ export default function Dashboard() {
               </span>
             </div>
           </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weeklyStats}>
+          <div className="h-64 w-full min-w-0">
+            <ResponsiveContainer width="100%" height={256}>
+              <BarChart data={weeklyStats} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" />
                 <XAxis
                   dataKey="day"
@@ -209,9 +209,9 @@ export default function Dashboard() {
               </span>
             </div>
           </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={monthlyStats}>
+          <div className="h-64 w-full min-w-0">
+            <ResponsiveContainer width="100%" height={256}>
+              <LineChart data={monthlyStats} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" />
                 <XAxis
                   dataKey="month"
