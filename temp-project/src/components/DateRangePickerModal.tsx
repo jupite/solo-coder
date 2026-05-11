@@ -1,16 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  X,
   ChevronLeft,
   ChevronRight,
-  Calendar as CalendarIcon,
-  Check,
   AlertCircle,
 } from 'lucide-react';
 import Card from './Card';
 import {
   getMonthName,
-  getWeekdayName,
   formatDate,
   parseDate,
   getDaysInMonth,
@@ -19,7 +15,6 @@ import {
   isDateInRange,
   isToday,
   getDaysDifference,
-  addDays,
   getQuickRanges,
   getDateRangeFromQuick,
 } from '../utils/dateUtils';
@@ -28,7 +23,7 @@ import { getDatesWithData } from '../services/bikeApi';
 interface DateRangePickerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onApply: (startDate: Date, endDate: Date) => void;
+  onApply: (startDate: Date, endDate: Date, selectionType: 'quick' | 'custom') => void;
   initialStart?: Date;
   initialEnd?: Date;
   bikeId?: string;
@@ -48,7 +43,6 @@ export default function DateRangePickerModal({
   
   const [startDate, setStartDate] = useState<Date | null>(initialStart || null);
   const [endDate, setEndDate] = useState<Date | null>(initialEnd || null);
-  const [tempStartDate, setTempStartDate] = useState<Date | null>(null);
   const [selecting, setSelecting] = useState<'start' | 'end' | null>(null);
   
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -57,6 +51,8 @@ export default function DateRangePickerModal({
   const [datesWithData, setDatesWithData] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [startInput, setStartInput] = useState<string>('');
+  const [endInput, setEndInput] = useState<string>('');
 
   const quickRanges = getQuickRanges();
 
@@ -64,12 +60,19 @@ export default function DateRangePickerModal({
     if (isOpen) {
       setStartDate(initialStart || null);
       setEndDate(initialEnd || null);
-      setTempStartDate(null);
+      setStartInput(initialStart ? formatDate(initialStart) : '');
+      setEndInput(initialEnd ? formatDate(initialEnd) : '');
       setSelecting(null);
       setError(null);
       loadDatesWithData(currentYear, currentMonth);
     }
-  }, [isOpen, initialStart, initialEnd, currentYear, currentMonth]);
+  }, [isOpen, initialStart, initialEnd]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadDatesWithData(currentYear, currentMonth);
+    }
+  }, [currentYear, currentMonth, isOpen]);
 
   const loadDatesWithData = useCallback(async (year: number, month: number) => {
     setIsLoading(true);
@@ -87,10 +90,8 @@ export default function DateRangePickerModal({
     if (currentMonth === 0) {
       setCurrentMonth(11);
       setCurrentYear(currentYear - 1);
-      loadDatesWithData(currentYear - 1, 11);
     } else {
       setCurrentMonth(currentMonth - 1);
-      loadDatesWithData(currentYear, currentMonth - 1);
     }
   };
 
@@ -98,10 +99,8 @@ export default function DateRangePickerModal({
     if (currentMonth === 11) {
       setCurrentMonth(0);
       setCurrentYear(currentYear + 1);
-      loadDatesWithData(currentYear + 1, 0);
     } else {
       setCurrentMonth(currentMonth + 1);
-      loadDatesWithData(currentYear, currentMonth + 1);
     }
   };
 
@@ -109,9 +108,33 @@ export default function DateRangePickerModal({
     const { start, end } = getDateRangeFromQuick(days);
     setStartDate(start);
     setEndDate(end);
-    setTempStartDate(null);
+    setStartInput(formatDate(start));
+    setEndInput(formatDate(end));
     setSelecting(null);
     setError(null);
+    
+    onApply(start, end, 'quick');
+    onClose();
+  };
+
+  const validateAndApplyRange = (start: Date, end: Date) => {
+    if (end > today) {
+      setError('不能选择未来日期');
+      return false;
+    }
+    
+    if (end < start) {
+      setError('结束日期不能早于开始日期');
+      return false;
+    }
+    
+    const daysDiff = getDaysDifference(start, end);
+    if (daysDiff > MAX_DATE_RANGE_DAYS) {
+      setError(`时间范围不能超过 ${MAX_DATE_RANGE_DAYS} 天（约3个月）`);
+      return false;
+    }
+    
+    return true;
   };
 
   const handleDateClick = (date: Date) => {
@@ -123,36 +146,65 @@ export default function DateRangePickerModal({
     if (!startDate || (startDate && endDate)) {
       setStartDate(date);
       setEndDate(null);
-      setTempStartDate(date);
+      setStartInput(formatDate(date));
+      setEndInput('');
       setSelecting('end');
       setError(null);
     } else if (startDate && !endDate) {
+      let newStart = startDate;
+      let newEnd = date;
+      
       if (date < startDate) {
-        setStartDate(date);
-        setEndDate(startDate);
-      } else {
-        const daysDiff = getDaysDifference(startDate, date);
-        if (daysDiff > MAX_DATE_RANGE_DAYS) {
-          setError(`时间范围不能超过 ${MAX_DATE_RANGE_DAYS} 天（约3个月）`);
-          return;
-        }
-        setEndDate(date);
+        newStart = date;
+        newEnd = startDate;
       }
-      setTempStartDate(null);
-      setSelecting(null);
-      setError(null);
+      
+      if (validateAndApplyRange(newStart, newEnd)) {
+        setStartDate(newStart);
+        setEndDate(newEnd);
+        setStartInput(formatDate(newStart));
+        setEndInput(formatDate(newEnd));
+        setSelecting(null);
+        setError(null);
+        
+        onApply(newStart, newEnd, 'custom');
+        onClose();
+      }
     }
   };
 
-  const handleApply = () => {
-    if (startDate && endDate) {
-      const daysDiff = getDaysDifference(startDate, endDate);
-      if (daysDiff > MAX_DATE_RANGE_DAYS) {
-        setError(`时间范围不能超过 ${MAX_DATE_RANGE_DAYS} 天（约3个月）`);
-        return;
+  const handleStartInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setStartInput(value);
+    setError(null);
+    
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const date = parseDate(value);
+      if (!isNaN(date.getTime())) {
+        setStartDate(date);
+        setEndDate(null);
+        setSelecting('end');
+        
+        if (endDate && validateAndApplyRange(date, endDate)) {
+          onApply(date, endDate, 'custom');
+          onClose();
+        }
       }
-      onApply(startDate, endDate);
-      onClose();
+    }
+  };
+
+  const handleEndInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setEndInput(value);
+    setError(null);
+    
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value) && startDate) {
+      const date = parseDate(value);
+      if (!isNaN(date.getTime()) && validateAndApplyRange(startDate, date)) {
+        setEndDate(date);
+        onApply(startDate, date, 'custom');
+        onClose();
+      }
     }
   };
 
@@ -182,15 +234,11 @@ export default function DateRangePickerModal({
       if (startDate && endDate) {
         return isDateInRange(date, startDate, endDate);
       }
-      if (tempStartDate && selecting === 'end') {
-        return date >= tempStartDate;
-      }
       return false;
     };
 
     return (
       <div className="mt-4">
-        {/* Weekday headers */}
         <div className="grid grid-cols-7 gap-1 mb-2">
           {['日', '一', '二', '三', '四', '五', '六'].map((day) => (
             <div
@@ -202,7 +250,6 @@ export default function DateRangePickerModal({
           ))}
         </div>
 
-        {/* Calendar days */}
         {weeks.map((week, weekIndex) => (
           <div key={weekIndex} className="grid grid-cols-7 gap-1">
             {week.map((date, dayIndex) => {
@@ -216,34 +263,30 @@ export default function DateRangePickerModal({
               const isCurrentDay = isToday(date);
               const hasData = isDateWithData(date);
               const isFuture = date > today;
+              const isSelectingEnd = selecting === 'end' && startDate && date >= startDate;
 
               return (
                 <button
                   key={dayIndex}
                   onClick={() => !isFuture && handleDateClick(date)}
                   disabled={isFuture}
-                  className={`h-10 w-10 mx-auto flex items-center justify-center rounded-lg text-sm transition-all relative ${
+                  className={`h-10 w-10 mx-auto flex items-center justify-center rounded-lg text-sm transition-all ${
                     isFuture
                       ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
                       : isSelectedStart || isSelectedEnd
-                      ? 'bg-primary-500 text-white font-semibold hover:bg-primary-600'
+                      ? 'bg-primary-500 text-white font-bold hover:bg-primary-600'
+                      : isSelectingEnd
+                      ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 font-semibold hover:bg-primary-100 dark:hover:bg-primary-900/30'
                       : isInRange
-                      ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                      ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 font-medium'
+                      : hasData
+                      ? 'text-primary-600 dark:text-primary-400 font-bold hover:bg-primary-50 dark:hover:bg-primary-900/20'
                       : isCurrentDay
                       ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold hover:bg-gray-200 dark:hover:bg-gray-600'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
                   {date.getDate()}
-                  {hasData && !isFuture && (
-                    <span
-                      className={`absolute bottom-1 w-1.5 h-1.5 rounded-full ${
-                        isSelectedStart || isSelectedEnd
-                          ? 'bg-white'
-                          : 'bg-secondary-500'
-                      }`}
-                    />
-                  )}
                 </button>
               );
             })}
@@ -257,40 +300,13 @@ export default function DateRangePickerModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      {/* Modal */}
-      <Card className="relative w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
-              <CalendarIcon className="w-5 h-5 text-primary-600 dark:text-primary-400" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                选择时间范围
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                选择要查看数据的时间段
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
-
-        {/* Body */}
+      <Card className="relative w-full max-w-3xl mx-4 overflow-hidden">
         <div className="flex h-[500px]">
-          {/* Left sidebar - Quick selects */}
           <div className="w-48 border-r border-gray-200 dark:border-gray-700 p-4 overflow-y-auto">
             <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
               快捷选择
@@ -312,32 +328,9 @@ export default function DateRangePickerModal({
                 </button>
               ))}
             </div>
-
-            {/* Legend */}
-            <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-                图例
-              </h3>
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full bg-secondary-500" />
-                  <span className="text-gray-600 dark:text-gray-400">有数据</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full bg-primary-500" />
-                  <span className="text-gray-600 dark:text-gray-400">已选择</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full bg-gray-300 dark:bg-gray-600" />
-                  <span className="text-gray-600 dark:text-gray-400">今天</span>
-                </div>
-              </div>
-            </div>
           </div>
 
-          {/* Right side - Calendar */}
           <div className="flex-1 p-6 flex flex-col">
-            {/* Date range input */}
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
@@ -345,9 +338,10 @@ export default function DateRangePickerModal({
                 </label>
                 <input
                   type="text"
-                  readOnly
-                  value={startDate ? formatDate(startDate) : '选择开始日期'}
-                  className="w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-700 border-0 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                  placeholder="YYYY-MM-DD"
+                  value={startInput}
+                  onChange={handleStartInputChange}
+                  className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent focus:outline-none"
                 />
               </div>
               <div className="text-gray-400 pt-5">—</div>
@@ -357,14 +351,14 @@ export default function DateRangePickerModal({
                 </label>
                 <input
                   type="text"
-                  readOnly
-                  value={endDate ? formatDate(endDate) : '选择结束日期'}
-                  className="w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-700 border-0 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                  placeholder="YYYY-MM-DD"
+                  value={endInput}
+                  onChange={handleEndInputChange}
+                  className="w-full px-4 py-2.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent focus:outline-none"
                 />
               </div>
             </div>
 
-            {/* Calendar Navigation */}
             <div className="flex items-center justify-between mt-6">
               <div className="text-lg font-semibold text-gray-900 dark:text-white">
                 {currentYear}年 {getMonthName(currentMonth)}
@@ -380,7 +374,6 @@ export default function DateRangePickerModal({
                   onClick={() => {
                     setCurrentYear(today.getFullYear());
                     setCurrentMonth(today.getMonth());
-                    loadDatesWithData(today.getFullYear(), today.getMonth());
                   }}
                   className="px-3 py-1.5 text-sm text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg transition-colors"
                 >
@@ -400,7 +393,6 @@ export default function DateRangePickerModal({
               </div>
             </div>
 
-            {/* Calendar */}
             <div className="flex-1 overflow-y-auto">
               {isLoading ? (
                 <div className="flex items-center justify-center h-64">
@@ -411,49 +403,12 @@ export default function DateRangePickerModal({
               )}
             </div>
 
-            {/* Error message */}
             {error && (
               <div className="flex items-center gap-2 mt-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-red-600 dark:text-red-400">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 <span className="text-sm">{error}</span>
               </div>
             )}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {startDate && endDate ? (
-              <span>
-                已选择: {formatDate(startDate)} — {formatDate(endDate)}
-                <span className="ml-2">
-                  ({getDaysDifference(startDate, endDate) + 1} 天)
-                </span>
-              </span>
-            ) : (
-              <span>请选择时间范围</span>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-medium transition-colors"
-            >
-              取消
-            </button>
-            <button
-              onClick={handleApply}
-              disabled={!startDate || !endDate}
-              className={`px-6 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 ${
-                startDate && endDate
-                  ? 'bg-primary-500 hover:bg-primary-600 text-white'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              <Check className="w-4 h-4" />
-              应用
-            </button>
           </div>
         </div>
       </Card>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Calendar, ChevronDown } from 'lucide-react';
 import DateRangePickerModal from './DateRangePickerModal';
-import { formatDate, addDays, getDateRangeFromQuick } from '../utils/dateUtils';
+import { formatDate, getDateRangeFromQuick } from '../utils/dateUtils';
 
 interface DateRangeSelectorProps {
   startDate: Date;
@@ -17,31 +17,28 @@ export default function DateRangeSelector({
   bikeId = 'bike-001',
 }: DateRangeSelectorProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [displayMode, setDisplayMode] = useState<'quick' | 'custom' | null>(null);
 
-  const getDefaultRange = () => {
-    const today = new Date();
-    return getDateRangeFromQuick(7, today);
-  };
+  const today = new Date();
+  const defaultRange = getDateRangeFromQuick(7, today);
 
-  const formatDisplayDate = () => {
+  const getQuickLabel = () => {
     const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     
-    if (daysDiff === 1) {
-      return formatDate(startDate);
-    }
-    
-    return `${formatDate(startDate)} — ${formatDate(endDate)}`;
-  };
-
-  const getRangeLabel = () => {
-    const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    
-    if (daysDiff === 1) return '今天';
+    if (daysDiff === 1) return '最近一天';
     if (daysDiff === 7) return '最近一周';
     if (daysDiff === 14) return '最近两周';
-    if (daysDiff === 30) return '最近一月';
-    return '自定义';
+    if (daysDiff === 30) return '最近一个月';
+    return null;
   };
+
+  const handleApply = (start: Date, end: Date, selectionType: 'quick' | 'custom') => {
+    setDisplayMode(selectionType);
+    onDateRangeChange(start, end);
+  };
+
+  const quickLabel = getQuickLabel();
+  const displayAsQuick = displayMode === 'quick' || (!displayMode && quickLabel);
 
   return (
     <>
@@ -52,10 +49,11 @@ export default function DateRangeSelector({
         <Calendar className="w-4 h-4 text-primary-500" />
         <div className="text-left">
           <div className="text-sm font-medium text-gray-900 dark:text-white">
-            {formatDisplayDate()}
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            {getRangeLabel()}
+            {displayAsQuick && quickLabel ? (
+              quickLabel
+            ) : (
+              `${formatDate(startDate)} — ${formatDate(endDate)}`
+            )}
           </div>
         </div>
         <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-primary-500 transition-colors" />
@@ -64,7 +62,7 @@ export default function DateRangeSelector({
       <DateRangePickerModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onApply={onDateRangeChange}
+        onApply={handleApply}
         initialStart={startDate}
         initialEnd={endDate}
         bikeId={bikeId}
