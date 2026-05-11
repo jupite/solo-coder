@@ -12,6 +12,7 @@ function App() {
   const [power, setPower] = useState(0)
   const [combo, setCombo] = useState(0)
   const [showCombo, setShowCombo] = useState(false)
+  const [gameKey, setGameKey] = useState(0)
   
   const gameState = useRef({
     score: 0,
@@ -31,13 +32,6 @@ function App() {
     renderer: null,
     animationId: null,
     isInitialized: false
-  })
-  
-  const functionsRef = useRef({
-    checkLanding: null,
-    addPlatform: null,
-    createPlatformWithEdges: null,
-    updateHighScore: null
   })
 
   const updateHighScore = useCallback((newScore) => {
@@ -61,9 +55,7 @@ function App() {
     group.add(platform)
     
     const edges = new THREE.EdgesGeometry(platformGeo)
-    const lineMat = new THREE.LineBasicMaterial({ 
-      color: 0x000000
-    })
+    const lineMat = new THREE.LineBasicMaterial({ color: 0x000000 })
     const edgeLines = new THREE.LineSegments(edges, lineMat)
     group.add(edgeLines)
     
@@ -113,77 +105,6 @@ function App() {
     const platform = createPlatformWithEdges(width, depth, color, newPosition, state.scene)
     state.platforms.push(platform)
   }, [createPlatformWithEdges])
-
-  const checkLanding = useCallback((state) => {
-    const currentPlatform = state.platforms[state.currentPlatformIndex]
-    const nextPlatform = state.platforms[state.currentPlatformIndex + 1]
-    
-    if (!nextPlatform) {
-      return
-    }
-    
-    const px = state.player.position.x
-    const pz = state.player.position.z
-    
-    const np = nextPlatform.position
-    const nGeo = nextPlatform.userData
-    const halfW = nGeo.width / 2
-    const halfD = nGeo.depth / 2
-    
-    const onNextPlatform = px >= np.x - halfW && px <= np.x + halfW &&
-                           pz >= np.z - halfD && pz <= np.z + halfD
-    
-    if (onNextPlatform) {
-      const distFromCenter = Math.sqrt(
-        Math.pow(px - np.x, 2) + Math.pow(pz - np.z, 2)
-      )
-      
-      const maxDist = Math.sqrt(halfW * halfW + halfD * halfD)
-      const centerRatio = 1 - (distFromCenter / maxDist)
-      
-      let points = 1
-      
-      if (centerRatio > 0.8) {
-        points = 5
-        state.combo++
-        if (state.combo >= 2) {
-          points += state.combo * 2
-          setShowCombo(true)
-          setTimeout(() => setShowCombo(false), 800)
-        }
-      } else {
-        points = 1 + Math.floor(centerRatio * 2)
-        state.combo = 0
-      }
-      
-      state.score += points
-      state.currentPlatformIndex++
-      setScore(state.score)
-      setCombo(state.combo)
-      
-      updateHighScore(state.score)
-      
-      while (state.platforms.length > state.currentPlatformIndex + 4) {
-        const oldPlatform = state.platforms.shift()
-        state.scene.remove(oldPlatform)
-        state.currentPlatformIndex--
-      }
-      
-      addPlatform(state)
-      
-      state.isJumping = false
-    } else {
-      setGameOver(true)
-      updateHighScore(state.score)
-    }
-  }, [addPlatform, updateHighScore])
-
-  useEffect(() => {
-    functionsRef.current.checkLanding = checkLanding
-    functionsRef.current.addPlatform = addPlatform
-    functionsRef.current.createPlatformWithEdges = createPlatformWithEdges
-    functionsRef.current.updateHighScore = updateHighScore
-  }, [checkLanding, addPlatform, createPlatformWithEdges, updateHighScore])
 
   const jump = useCallback((jumpPower, state) => {
     if (state.isJumping) return
@@ -317,6 +238,71 @@ function App() {
 
   useEffect(() => {
     const state = gameState.current
+    
+    const checkLanding = () => {
+      const currentPlatform = state.platforms[state.currentPlatformIndex]
+      const nextPlatform = state.platforms[state.currentPlatformIndex + 1]
+      
+      if (!nextPlatform) {
+        return
+      }
+      
+      const px = state.player.position.x
+      const pz = state.player.position.z
+      
+      const np = nextPlatform.position
+      const nGeo = nextPlatform.userData
+      const halfW = nGeo.width / 2
+      const halfD = nGeo.depth / 2
+      
+      const onNextPlatform = px >= np.x - halfW && px <= np.x + halfW && pz >= np.z - halfD && pz <= np.z + halfD
+      
+      if (onNextPlatform) {
+        state.player.position.x = px
+        state.player.position.z = pz
+        state.player.position.y = 0.5
+        
+        const distFromCenter = Math.sqrt(Math.pow(px - np.x, 2) + Math.pow(pz - np.z, 2))
+        const maxDist = Math.sqrt(halfW * halfW + halfD * halfD)
+        const centerRatio = 1 - (distFromCenter / maxDist)
+        
+        let points = 1
+        
+        if (centerRatio > 0.8) {
+          points = 5
+          state.combo++
+          if (state.combo >= 2) {
+            points += state.combo * 2
+            setShowCombo(true)
+            setTimeout(() => setShowCombo(false), 800)
+          }
+        } else {
+          points = 1 + Math.floor(centerRatio * 2)
+          state.combo = 0
+        }
+        
+        state.score += points
+        state.currentPlatformIndex++
+        setScore(state.score)
+        setCombo(state.combo)
+        
+        updateHighScore(state.score)
+        
+        while (state.platforms.length > state.currentPlatformIndex + 4) {
+          const oldPlatform = state.platforms.shift()
+          state.scene.remove(oldPlatform)
+          state.currentPlatformIndex--
+        }
+        
+        addPlatform(state)
+        
+        state.isJumping = false
+      } else {
+        setGameOver(true)
+        updateHighScore(state.score)
+      }
+    }
+    
     let animationRunning = true
     
     const animate = () => {
@@ -362,9 +348,7 @@ function App() {
           state.player.rotation.x = 0
           state.player.rotation.z = 0
           
-          if (functionsRef.current.checkLanding) {
-            functionsRef.current.checkLanding(state)
-          }
+          checkLanding()
         }
       }
       
@@ -402,7 +386,7 @@ function App() {
         cancelAnimationFrame(state.animationId)
       }
     }
-  }, [])
+  }, [gameKey, initGame, addPlatform, updateHighScore])
 
   const handleMouseDown = useCallback(() => {
     const state = gameState.current
@@ -420,30 +404,12 @@ function App() {
   }, [jump, gameOver])
 
   const handleRestart = useCallback(() => {
-    const state = gameState.current
-    if (state.animationId) {
-      cancelAnimationFrame(state.animationId)
-    }
-    
-    setGameOver(false)
-    setScore(0)
-    setCombo(0)
-    setPower(0)
-    
-    setTimeout(() => {
-      initGame(state)
-    }, 100)
-  }, [initGame])
+    setGameKey(prev => prev + 1)
+  }, [])
 
   return (
     <div className="game-container">
-      <canvas
-        ref={canvasRef}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onTouchStart={handleMouseDown}
-        onTouchEnd={handleMouseUp}
-      />
+      <canvas ref={canvasRef} onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} onTouchStart={handleMouseDown} onTouchEnd={handleMouseUp} />
       
       <div className="ui-overlay">
         <div className="score-panel">
@@ -456,34 +422,25 @@ function App() {
             <span className="value">{highScore}</span>
           </div>
           {combo >= 2 && showCombo && (
-            <div className="combo-badge animate-combo">
-              {combo}连击!
-            </div>
+            <div className="combo-badge animate-combo">{combo}连击!</div>
           )}
         </div>
         
         <div className="power-bar-container">
           <div className="power-bar">
-            <div 
-              className="power-fill"
-              style={{ width: `${power}%` }}
-            />
+            <div className="power-fill" style={{ width: `${power}%` }} />
           </div>
           <div className="power-label">蓄力</div>
         </div>
         
-        <div className="instructions">
-          按住鼠标蓄力，松开跳跃
-        </div>
+        <div className="instructions">按住鼠标蓄力，松开跳跃</div>
         
         {gameOver && (
           <div className="game-over-modal">
             <h2>游戏结束</h2>
             <div className="final-score">得分: {score}</div>
             <div className="high-score">最高分: {highScore}</div>
-            <button className="restart-btn" onClick={handleRestart}>
-              重新开始
-            </button>
+            <button className="restart-btn" onClick={handleRestart}>重新开始</button>
           </div>
         )}
       </div>
