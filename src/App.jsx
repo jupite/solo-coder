@@ -5,6 +5,7 @@ function App() {
   const [gameOver, setGameOver] = useState(false)
   const [score, setScore] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [gameKey, setGameKey] = useState(0)
 
   const handleGameOver = (finalScore) => {
     setScore(finalScore)
@@ -15,11 +16,13 @@ function App() {
     setGameOver(false)
     setScore(0)
     setIsPlaying(true)
+    setGameKey(prev => prev + 1)
   }
 
   const handleRestart = () => {
     setGameOver(false)
     setScore(0)
+    setGameKey(prev => prev + 1)
   }
 
   return (
@@ -34,7 +37,7 @@ function App() {
               <li>点击鼠标放置积木</li>
               <li>只能在安全区外放置</li>
               <li>积木会受到重力影响</li>
-              <li>如果积木倒塌，游戏结束</li>
+              <li>如果积木倒塌或掉落平台外，游戏结束</li>
             </ul>
           </div>
           <button className="start-btn" onClick={handleStartGame}>
@@ -43,7 +46,7 @@ function App() {
         </div>
       )}
       
-      {isPlaying && <Game onGameOver={handleGameOver} />}
+      {(isPlaying || gameOver) && <Game key={gameKey} onGameOver={handleGameOver} />}
       
       {gameOver && (
         <div className="game-over-overlay">

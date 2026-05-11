@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
 
@@ -10,6 +10,17 @@ const BLOCK_SHAPES = [
   { type: 'small', size: { x: 0.6, y: 0.4, z: 0.6 }, color: '#DEB887' },
 ]
 
+const MAX_BLOCK_SIZE = { 
+  width: Math.max(...BLOCK_SHAPES.map(s => s.size.x)), 
+  depth: Math.max(...BLOCK_SHAPES.map(s => s.size.z)) 
+}
+const PLATFORM_SIZE = { 
+  width: MAX_BLOCK_SIZE.width * 2.5, 
+  height: 0.5, 
+  depth: MAX_BLOCK_SIZE.depth * 2.5 
+}
+const PLATFORM_POSITION = { x: 0, y: 0.25, z: 0 }
+
 function Game({ onGameOver }) {
   const containerRef = useRef(null)
   const sceneRef = useRef(null)
@@ -20,12 +31,26 @@ function Game({ onGameOver }) {
   const currentBlockRef = useRef(null)
   const scoreRef = useRef(0)
   const gameOverRef = useRef(false)
-  const mouseRef = useRef({ x: 0, y: 0 })
-  const safeZoneRef = useRef({ x: 0, z: 0, width: 3, depth: 3 })
+  const mouseRef = useRef({ x: 0, z: 0 })
+  const platformRef = useRef(null)
   
   const [score, setScore] = useState(0)
 
+  const cleanupScene = useCallback(() => {
+    if (rendererRef.current && containerRef.current) {
+      rendererRef.current.dispose()
+      containerRef.current.removeChild(rendererRef.current.domElement)
+      rendererRef.current = null
+    }
+    blocksRef.current = []
+    currentBlockRef.current = null
+    scoreRef.current = 0
+    gameOverRef.current = false
+  }, [])
+
   useEffect(() => {
+    cleanupScene()
+
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0x1a1a2e)
     sceneRef.current = scene
@@ -36,8 +61,8 @@ function Game({ onGameOver }) {
       0.1,
       1000
     )
-    camera.position.set(10, 12, 15)
-    camera.lookAt(0, 5, 0)
+    camera.position.set(8, 10, 12)
+    camera.lookAt(0, 3, 0)
     cameraRef.current = camera
 
     const renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -67,19 +92,18 @@ function Game({ onGameOver }) {
     const physicsWorld = new CANNON.World()
     physicsWorld.gravity.set(0, -9.82, 0)
     physicsWorld.broadphase = new CANNON.NaiveBroadphase()
-    physicsWorld.solver.iterations = 10
+    physicsWorld.solver.iterations = 20
+    physicsWorld.solver.tolerance = 0.001
     physicsWorldRef.current = physicsWorld
 
     createGround(scene, physicsWorld)
-    createSafeZone(scene)
-    createInitialBlocks(scene, physicsWorld)
-    spawnNewBlock(scene, physicsWorld)
+    createPlatform(scene, physicsWorld)
 
     const handleMouseMove = (event) => {
       const rect = containerRef.current.getBoundingClientRect()
       const mouse = new THREE.Vector2(
         ((event.clientX - rect.left) / rect.width) * 2 - 1,
-        -((event.clientY - rect.top) / rect.height) * 2 + 0.5
+        -((event.clientY - rect.top) / rect.height) * 2 + 0.3
       )
       
       const raycaster = new THREE.Raycaster()
@@ -91,6 +115,16 @@ function Game({ onGameOver }) {
       
       if (intersectPoint) {
         mouseRef.current = { x: intersectPoint.x, z: intersectPoint.z }
+        
+        if (currentBlockRef.current && !gameOverRef.current) {
+          const block = currentBlockRef.current
+          const targetY = getTargetHeight() + 1.5
+          block.mesh.position.x = mouseRef.current.x
+          block.mesh.position.z = mouseRef.current.z
+          block.mesh.position.y = targetY
+          block.body.position.copy(block.mesh.position)
+          block.body.quaternion.set(0, 0, 0, 1)
+        }
       }
     }
 
@@ -98,25 +132,16 @@ function Game({ onGameOver }) {
       if (gameOverRef.current || !currentBlockRef.current) return
       
       const block = currentBlockRef.current
-      const pos = block.mesh.position
-      
-      const safeZone = safeZoneRef.current
-      const isInSafeZone = 
-        Math.abs(pos.x - safeZone.x) < safeZone.width / 2 &&
-        Math.abs(pos.z - safeZone.z) < safeZone.depth / 2
-      
-      if (isInSafeZone) {
-        return
-      }
       
       block.body.type = CANNON.Body.DYNAMIC
       block.body.allowSleep = true
+      block.body.wakeUp()
       block.placed = true
       blocksRef.current.push(block)
       scoreRef.current++
       setScore(scoreRef.current)
       
-      spawnNewBlock(scene, physicsWorld)
+      spawnNewBlock(scene, physicsWorld, camera)
     }
 
     window.addEventListener('mousemove', handleMouseMove)
@@ -129,18 +154,11 @@ function Game({ onGameOver }) {
       renderer.setSize(window.innerWidth, window.innerHeight)
     }
 
+    spawnNewBlock(scene, physicsWorld, camera)
+
     let animationId
     const animate = () => {
       animationId = requestAnimationFrame(animate)
-      
-      if (!gameOverRef.current && currentBlockRef.current) {
-        const block = currentBlockRef.current
-        const targetY = getTargetHeight() + 1
-        block.mesh.position.x = mouseRef.current.x
-        block.mesh.position.z = mouseRef.current.z
-        block.mesh.position.y = targetY
-        block.body.position.copy(block.mesh.position)
-      }
       
       physicsWorld.step(1 / 60)
       
@@ -149,15 +167,22 @@ function Game({ onGameOver }) {
           block.mesh.position.copy(block.body.position)
           block.mesh.quaternion.copy(block.body.quaternion)
           
-          if (block.body.position.y < -5) {
+          if (block.body.position.y < -10) {
             gameOverRef.current = true
             onGameOver(scoreRef.current)
           }
           
-          const angle = Math.abs(block.body.quaternion.x) + 
-                       Math.abs(block.body.quaternion.y) + 
-                       Math.abs(block.body.quaternion.z)
-          if (angle > 0.5 && block.placed && block.body.position.y < 10) {
+          const isOutsidePlatform = 
+            Math.abs(block.body.position.x) > PLATFORM_SIZE.width / 2 + 1 ||
+            Math.abs(block.body.position.z) > PLATFORM_SIZE.depth / 2 + 1
+          if (isOutsidePlatform && block.body.position.y < PLATFORM_SIZE.height + 10) {
+            gameOverRef.current = true
+            onGameOver(scoreRef.current)
+          }
+          
+          const quaternion = block.body.quaternion
+          const angle = Math.acos(quaternion.w) * 2
+          if (angle > Math.PI / 3 && block.body.position.y > PLATFORM_SIZE.height + 1) {
             gameOverRef.current = true
             onGameOver(scoreRef.current)
           }
@@ -173,13 +198,12 @@ function Game({ onGameOver }) {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('click', handleClick)
       window.removeEventListener('resize', handleResize)
-      renderer.dispose()
-      containerRef.current.removeChild(renderer.domElement)
+      cleanupScene()
     }
-  }, [onGameOver])
+  }, [onGameOver, cleanupScene])
 
   const getTargetHeight = () => {
-    if (blocksRef.current.length === 0) return 2
+    if (blocksRef.current.length === 0) return PLATFORM_POSITION.y + PLATFORM_SIZE.height
     const topBlock = blocksRef.current.reduce((highest, block) => {
       const height = block.body.position.y + block.size.y / 2
       return height > highest ? height : highest
@@ -230,7 +254,7 @@ function Game({ onGameOver }) {
   const createGround = (scene, physicsWorld) => {
     const geometry = new THREE.PlaneGeometry(30, 30)
     const material = new THREE.MeshStandardMaterial({
-      color: 0x2d5a27,
+      color: 0x1a1a2e,
       roughness: 0.8,
     })
     const ground = new THREE.Mesh(geometry, material)
@@ -246,41 +270,45 @@ function Game({ onGameOver }) {
     physicsWorld.addBody(groundBody)
   }
 
-  const createSafeZone = (scene) => {
-    const safeZone = safeZoneRef.current
-    const geometry = new THREE.BoxGeometry(safeZone.width, 0.1, safeZone.depth)
-    const material = new THREE.MeshBasicMaterial({
-      color: 0xff4444,
-      transparent: true,
-      opacity: 0.3,
-    })
-    const zone = new THREE.Mesh(geometry, material)
-    zone.position.y = 0.05
-    scene.add(zone)
-
-    const edges = new THREE.EdgesGeometry(geometry)
-    const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff4444, linewidth: 2 })
-    const wireframe = new THREE.LineSegments(edges, lineMaterial)
-    wireframe.position.copy(zone.position)
-    scene.add(wireframe)
-  }
-
-  const createInitialBlocks = (scene, physicsWorld) => {
-    const positions = [
-      { x: -4, z: 0 },
-      { x: 4, z: 0 },
-      { x: 0, z: -4 },
-      { x: 0, z: 4 },
-    ]
+  const createPlatform = (scene, physicsWorld) => {
+    const geometry = new THREE.BoxGeometry(PLATFORM_SIZE.width, PLATFORM_SIZE.height, PLATFORM_SIZE.depth)
     
-    positions.forEach(pos => {
-      const shapeType = BLOCK_SHAPES[Math.floor(Math.random() * BLOCK_SHAPES.length)]
-      createBlock(scene, physicsWorld, pos.x, 2, pos.z, shapeType, true)
+    const texture = createWoodTexture()
+    const material = new THREE.MeshStandardMaterial({
+      map: texture,
+      roughness: 0.7,
+      metalness: 0.1,
     })
+    
+    const platform = new THREE.Mesh(geometry, material)
+    platform.position.set(PLATFORM_POSITION.x, PLATFORM_POSITION.y, PLATFORM_POSITION.z)
+    platform.castShadow = true
+    platform.receiveShadow = true
+    scene.add(platform)
+    platformRef.current = platform
+
+    const platformBody = new CANNON.Body({
+      mass: 0,
+      shape: new CANNON.Box(new CANNON.Vec3(
+        PLATFORM_SIZE.width / 2, 
+        PLATFORM_SIZE.height / 2, 
+        PLATFORM_SIZE.depth / 2
+      )),
+      position: new CANNON.Vec3(PLATFORM_POSITION.x, PLATFORM_POSITION.y, PLATFORM_POSITION.z),
+    })
+    platformBody.type = CANNON.Body.STATIC
+    platformBody.friction = 0.9
+    physicsWorld.addBody(platformBody)
+
+    const edgeGeometry = new THREE.EdgesGeometry(geometry)
+    const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xffaa00, linewidth: 3 })
+    const edges = new THREE.LineSegments(edgeGeometry, edgeMaterial)
+    edges.position.copy(platform.position)
+    scene.add(edges)
   }
 
-  const createBlock = (scene, physicsWorld, x, y, z, shapeType, isStatic = false) => {
-    const { size, color } = shapeType
+  const createBlock = (scene, physicsWorld, x, y, z, shapeType) => {
+    const { size } = shapeType
     const geometry = new THREE.BoxGeometry(size.x, size.y, size.z)
     
     const texture = createWoodTexture()
@@ -297,25 +325,24 @@ function Game({ onGameOver }) {
     scene.add(mesh)
 
     const body = new CANNON.Body({
-      mass: isStatic ? 0 : size.x * size.y * size.z * 5,
+      mass: size.x * size.y * size.z * 8,
       shape: new CANNON.Box(new CANNON.Vec3(size.x / 2, size.y / 2, size.z / 2)),
       position: new CANNON.Vec3(x, y, z),
     })
     body.friction = 0.8
-    body.restitution = 0.2
-    if (isStatic) {
-      body.type = CANNON.Body.STATIC
-    }
+    body.restitution = 0.1
+    body.angularDamping = 0.5
+    body.linearDamping = 0.1
     physicsWorld.addBody(body)
 
-    return { mesh, body, size, placed: isStatic }
+    return { mesh, body, size, placed: false }
   }
 
   const spawnNewBlock = (scene, physicsWorld) => {
     const shapeType = BLOCK_SHAPES[Math.floor(Math.random() * BLOCK_SHAPES.length)]
-    const targetY = getTargetHeight() + 1 + shapeType.size.y / 2
+    const targetY = getTargetHeight() + 1.5 + shapeType.size.y / 2
     
-    const block = createBlock(scene, physicsWorld, 0, targetY, 0, shapeType)
+    const block = createBlock(scene, physicsWorld, mouseRef.current.x, targetY, mouseRef.current.z, shapeType)
     block.body.type = CANNON.Body.KINEMATIC
     currentBlockRef.current = block
   }
@@ -325,7 +352,7 @@ function Game({ onGameOver }) {
       <div className="score-display">
         <span>得分: {score}</span>
       </div>
-      <div className="hint-text">点击放置积木（安全区外）</div>
+      <div className="hint-text">移动鼠标到目标位置，点击左键放置积木</div>
       <div ref={containerRef} className="canvas-container" />
       
       <style jsx>{`
