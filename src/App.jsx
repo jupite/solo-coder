@@ -5,21 +5,28 @@ import './App.css';
 const GRID_SIZE = 4;
 const CELL_SIZE = 2;
 const GAME_DURATION = 30;
-const MOLE_STAY_TIME = 1000;
+const ANIMAL_STAY_TIME = 1000;
 const INITIAL_SPAWN_INTERVAL = 1000;
 const MIN_SPAWN_INTERVAL = 300;
 const SPAWN_INTERVAL_DECREASE = 50;
-const SCORE_PER_HIT = 10;
-const SCORE_PER_MISS = -5;
+const SCORE_NORMAL_MOLE = 10;
+const SCORE_RED_MOLE = 30;
+const SCORE_RABBIT = -30;
+const SCORE_MISS = -5;
+
+const ANIMAL_TYPE = {
+  NORMAL_MOLE: 'normal',
+  RED_MOLE: 'red',
+  RABBIT: 'rabbit'
+};
 
 function App() {
   const containerRef = useRef(null);
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
   const rendererRef = useRef(null);
-  const moleCellsRef = useRef([]);
+  const cellsRef = useRef([]);
   const animationFrameRef = useRef(null);
-  const gameIntervalRef = useRef(null);
   const spawnTimeoutRef = useRef(null);
   const countdownIntervalRef = useRef(null);
   const raycasterRef = useRef(new THREE.Raycaster());
@@ -37,8 +44,8 @@ function App() {
   const scoreRef = useRef(0);
   const timeLeftRef = useRef(GAME_DURATION);
   const gameStateRef = useRef('idle');
-  const activeMoleIndexRef = useRef(null);
-  const moleTimeoutRef = useRef(null);
+  const activeCellsRef = useRef(new Map());
+  const cellTimeoutsRef = useRef(new Map());
 
   const initThree = useCallback(() => {
     const container = containerRef.current;
@@ -115,9 +122,20 @@ function App() {
         hole.position.y = 0.001;
         cellGroup.add(hole);
 
-        const mole = createMole();
-        mole.position.y = -1.5;
-        cellGroup.add(mole);
+        const normalMole = createNormalMole();
+        normalMole.position.y = -1.5;
+        normalMole.visible = false;
+        cellGroup.add(normalMole);
+
+        const redMole = createRedMole();
+        redMole.position.y = -1.5;
+        redMole.visible = false;
+        cellGroup.add(redMole);
+
+        const rabbit = createRabbit();
+        rabbit.position.y = -1.5;
+        rabbit.visible = false;
+        cellGroup.add(rabbit);
 
         const hoverRingGeometry = new THREE.RingGeometry(CELL_SIZE * 0.42, CELL_SIZE * 0.48, 32);
         const hoverRingMaterial = new THREE.MeshBasicMaterial({ 
@@ -130,11 +148,14 @@ function App() {
         hoverRing.position.y = 0.002;
         cellGroup.add(hoverRing);
 
-        cellGroup.userData.mole = mole;
+        cellGroup.userData.normalMole = normalMole;
+        cellGroup.userData.redMole = redMole;
+        cellGroup.userData.rabbit = rabbit;
         cellGroup.userData.hoverRing = hoverRing;
         cellGroup.userData.ground = ground;
         cellGroup.userData.groundMaterial = groundMaterial;
         cellGroup.userData.originalColor = groundMaterial.color.clone();
+        cellGroup.userData.currentAnimal = null;
 
         gridGroup.add(cellGroup);
         cells.push(cellGroup);
@@ -142,12 +163,12 @@ function App() {
     }
 
     scene.add(gridGroup);
-    moleCellsRef.current = cells;
+    cellsRef.current = cells;
   };
 
-  const createMole = () => {
-    const moleGroup = new THREE.Group();
-    moleGroup.userData.isMole = true;
+  const createNormalMole = () => {
+    const group = new THREE.Group();
+    group.userData.animalType = ANIMAL_TYPE.NORMAL_MOLE;
 
     const bodyGeometry = new THREE.SphereGeometry(0.6, 32, 32);
     const bodyMaterial = new THREE.MeshStandardMaterial({ 
@@ -157,8 +178,8 @@ function App() {
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.position.y = 0.3;
     body.castShadow = true;
-    body.userData.isMolePart = true;
-    moleGroup.add(body);
+    body.userData.isAnimalPart = true;
+    group.add(body);
 
     const headGeometry = new THREE.SphereGeometry(0.45, 32, 32);
     const headMaterial = new THREE.MeshStandardMaterial({ 
@@ -168,27 +189,27 @@ function App() {
     const head = new THREE.Mesh(headGeometry, headMaterial);
     head.position.y = 0.75;
     head.castShadow = true;
-    head.userData.isMolePart = true;
-    moleGroup.add(head);
+    head.userData.isAnimalPart = true;
+    group.add(head);
 
     const eyeGeometry = new THREE.SphereGeometry(0.08, 16, 16);
     const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
     const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
     leftEye.position.set(-0.15, 0.85, 0.35);
-    leftEye.userData.isMolePart = true;
-    moleGroup.add(leftEye);
+    leftEye.userData.isAnimalPart = true;
+    group.add(leftEye);
 
     const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
     rightEye.position.set(0.15, 0.85, 0.35);
-    rightEye.userData.isMolePart = true;
-    moleGroup.add(rightEye);
+    rightEye.userData.isAnimalPart = true;
+    group.add(rightEye);
 
     const noseGeometry = new THREE.SphereGeometry(0.1, 16, 16);
     const noseMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
     const nose = new THREE.Mesh(noseGeometry, noseMaterial);
     nose.position.set(0, 0.65, 0.4);
-    nose.userData.isMolePart = true;
-    moleGroup.add(nose);
+    nose.userData.isAnimalPart = true;
+    group.add(nose);
 
     const earGeometry = new THREE.SphereGeometry(0.12, 16, 16);
     const earMaterial = new THREE.MeshStandardMaterial({ 
@@ -197,15 +218,174 @@ function App() {
     });
     const leftEar = new THREE.Mesh(earGeometry, earMaterial);
     leftEar.position.set(-0.35, 1.0, 0);
-    leftEar.userData.isMolePart = true;
-    moleGroup.add(leftEar);
+    leftEar.userData.isAnimalPart = true;
+    group.add(leftEar);
 
     const rightEar = new THREE.Mesh(earGeometry, earMaterial);
     rightEar.position.set(0.35, 1.0, 0);
-    rightEar.userData.isMolePart = true;
-    moleGroup.add(rightEar);
+    rightEar.userData.isAnimalPart = true;
+    group.add(rightEar);
 
-    return moleGroup;
+    return group;
+  };
+
+  const createRedMole = () => {
+    const group = new THREE.Group();
+    group.userData.animalType = ANIMAL_TYPE.RED_MOLE;
+
+    const bodyGeometry = new THREE.SphereGeometry(0.6, 32, 32);
+    const bodyMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xFF4444,
+      roughness: 0.6,
+      emissive: 0x220000
+    });
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    body.position.y = 0.3;
+    body.castShadow = true;
+    body.userData.isAnimalPart = true;
+    group.add(body);
+
+    const headGeometry = new THREE.SphereGeometry(0.45, 32, 32);
+    const headMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xFF6666,
+      roughness: 0.6,
+      emissive: 0x330000
+    });
+    const head = new THREE.Mesh(headGeometry, headMaterial);
+    head.position.y = 0.75;
+    head.castShadow = true;
+    head.userData.isAnimalPart = true;
+    group.add(head);
+
+    const eyeGeometry = new THREE.SphereGeometry(0.08, 16, 16);
+    const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFF00 });
+    const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+    leftEye.position.set(-0.15, 0.85, 0.35);
+    leftEye.userData.isAnimalPart = true;
+    group.add(leftEye);
+
+    const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+    rightEye.position.set(0.15, 0.85, 0.35);
+    rightEye.userData.isAnimalPart = true;
+    group.add(rightEye);
+
+    const noseGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+    const noseMaterial = new THREE.MeshStandardMaterial({ color: 0x880000 });
+    const nose = new THREE.Mesh(noseGeometry, noseMaterial);
+    nose.position.set(0, 0.65, 0.4);
+    nose.userData.isAnimalPart = true;
+    group.add(nose);
+
+    const earGeometry = new THREE.SphereGeometry(0.12, 16, 16);
+    const earMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xFF4444,
+      roughness: 0.6
+    });
+    const leftEar = new THREE.Mesh(earGeometry, earMaterial);
+    leftEar.position.set(-0.35, 1.0, 0);
+    leftEar.userData.isAnimalPart = true;
+    group.add(leftEar);
+
+    const rightEar = new THREE.Mesh(earGeometry, earMaterial);
+    rightEar.position.set(0.35, 1.0, 0);
+    rightEar.userData.isAnimalPart = true;
+    group.add(rightEar);
+
+    return group;
+  };
+
+  const createRabbit = () => {
+    const group = new THREE.Group();
+    group.userData.animalType = ANIMAL_TYPE.RABBIT;
+
+    const bodyGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+    const bodyMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xFFFFFF,
+      roughness: 0.5
+    });
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    body.position.y = 0.25;
+    body.castShadow = true;
+    body.userData.isAnimalPart = true;
+    group.add(body);
+
+    const headGeometry = new THREE.SphereGeometry(0.4, 32, 32);
+    const headMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xFFFFFF,
+      roughness: 0.5
+    });
+    const head = new THREE.Mesh(headGeometry, headMaterial);
+    head.position.y = 0.7;
+    head.castShadow = true;
+    head.userData.isAnimalPart = true;
+    group.add(head);
+
+    const earGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.5, 16);
+    const earMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xFFFFFF,
+      roughness: 0.5
+    });
+    const innerEarMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xFFCCCC,
+      roughness: 0.5
+    });
+
+    const leftEar = new THREE.Mesh(earGeometry, earMaterial);
+    leftEar.position.set(-0.15, 1.1, 0);
+    leftEar.rotation.z = 0.2;
+    leftEar.userData.isAnimalPart = true;
+    group.add(leftEar);
+
+    const leftInnerEar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.04, 0.04, 0.4, 16),
+      innerEarMaterial
+    );
+    leftInnerEar.position.set(-0.15, 1.1, 0);
+    leftInnerEar.rotation.z = 0.2;
+    leftInnerEar.userData.isAnimalPart = true;
+    group.add(leftInnerEar);
+
+    const rightEar = new THREE.Mesh(earGeometry, earMaterial);
+    rightEar.position.set(0.15, 1.1, 0);
+    rightEar.rotation.z = -0.2;
+    rightEar.userData.isAnimalPart = true;
+    group.add(rightEar);
+
+    const rightInnerEar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.04, 0.04, 0.4, 16),
+      innerEarMaterial
+    );
+    rightInnerEar.position.set(0.15, 1.1, 0);
+    rightInnerEar.rotation.z = -0.2;
+    rightInnerEar.userData.isAnimalPart = true;
+    group.add(rightInnerEar);
+
+    const eyeGeometry = new THREE.SphereGeometry(0.06, 16, 16);
+    const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0xFF0000 });
+    const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+    leftEye.position.set(-0.12, 0.75, 0.32);
+    leftEye.userData.isAnimalPart = true;
+    group.add(leftEye);
+
+    const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+    rightEye.position.set(0.12, 0.75, 0.32);
+    rightEye.userData.isAnimalPart = true;
+    group.add(rightEye);
+
+    const noseGeometry = new THREE.SphereGeometry(0.05, 16, 16);
+    const noseMaterial = new THREE.MeshStandardMaterial({ color: 0xFFCCCC });
+    const nose = new THREE.Mesh(noseGeometry, noseMaterial);
+    nose.position.set(0, 0.55, 0.35);
+    nose.userData.isAnimalPart = true;
+    group.add(nose);
+
+    const tailGeometry = new THREE.SphereGeometry(0.12, 16, 16);
+    const tail = new THREE.Mesh(tailGeometry, bodyMaterial);
+    tail.position.set(0, 0.3, -0.45);
+    tail.userData.isAnimalPart = true;
+    group.add(tail);
+
+    return group;
   };
 
   const animate = () => {
@@ -242,8 +422,47 @@ function App() {
       }
     }, 1000);
 
-    spawnMole();
+    spawnAnimals();
   }, []);
+
+  const hideAnimal = (cellIndex) => {
+    const cell = cellsRef.current[cellIndex];
+    if (!cell) return;
+
+    cell.userData.normalMole.visible = false;
+    cell.userData.normalMole.position.y = -1.5;
+    cell.userData.redMole.visible = false;
+    cell.userData.redMole.position.y = -1.5;
+    cell.userData.rabbit.visible = false;
+    cell.userData.rabbit.position.y = -1.5;
+    cell.userData.currentAnimal = null;
+    
+    activeCellsRef.current.delete(cellIndex);
+  };
+
+  const showAnimal = (cellIndex, animalType) => {
+    const cell = cellsRef.current[cellIndex];
+    if (!cell) return;
+
+    hideAnimal(cellIndex);
+
+    let animal;
+    switch (animalType) {
+      case ANIMAL_TYPE.RED_MOLE:
+        animal = cell.userData.redMole;
+        break;
+      case ANIMAL_TYPE.RABBIT:
+        animal = cell.userData.rabbit;
+        break;
+      default:
+        animal = cell.userData.normalMole;
+    }
+
+    animal.visible = true;
+    animal.position.y = 0;
+    cell.userData.currentAnimal = animalType;
+    activeCellsRef.current.set(cellIndex, animalType);
+  };
 
   const resetGame = () => {
     if (countdownIntervalRef.current) {
@@ -254,19 +473,17 @@ function App() {
       clearTimeout(spawnTimeoutRef.current);
       spawnTimeoutRef.current = null;
     }
-    if (moleTimeoutRef.current) {
-      clearTimeout(moleTimeoutRef.current);
-      moleTimeoutRef.current = null;
-    }
+    
+    cellTimeoutsRef.current.forEach((timeout) => {
+      clearTimeout(timeout);
+    });
+    cellTimeoutsRef.current.clear();
 
-    moleCellsRef.current.forEach(cell => {
-      const mole = cell.userData.mole;
-      if (mole) {
-        mole.position.y = -1.5;
-      }
+    cellsRef.current.forEach((_, index) => {
+      hideAnimal(index);
     });
 
-    activeMoleIndexRef.current = null;
+    activeCellsRef.current.clear();
   };
 
   const endGame = () => {
@@ -281,88 +498,74 @@ function App() {
     }
   };
 
-  const spawnMole = useCallback(() => {
+  const getRandomAnimalTypes = (count) => {
+    const types = [];
+    let hasRedMole = false;
+    let hasRabbit = false;
+
+    for (let i = 0; i < count; i++) {
+      const rand = Math.random();
+      
+      if (!hasRedMole && rand < 0.1) {
+        types.push(ANIMAL_TYPE.RED_MOLE);
+        hasRedMole = true;
+      } else if (!hasRabbit && rand < 0.2) {
+        types.push(ANIMAL_TYPE.RABBIT);
+        hasRabbit = true;
+      } else {
+        types.push(ANIMAL_TYPE.NORMAL_MOLE);
+      }
+    }
+
+    return types;
+  };
+
+  const spawnAnimals = useCallback(() => {
     if (gameStateRef.current !== 'playing') return;
 
-    if (activeMoleIndexRef.current !== null) {
-      const cell = moleCellsRef.current[activeMoleIndexRef.current];
-      if (cell && cell.userData.mole) {
-        cell.userData.mole.position.y = -1.5;
+    activeCellsRef.current.forEach((_, cellIndex) => {
+      hideAnimal(cellIndex);
+      const timeout = cellTimeoutsRef.current.get(cellIndex);
+      if (timeout) {
+        clearTimeout(timeout);
+        cellTimeoutsRef.current.delete(cellIndex);
       }
+    });
+
+    const animalCount = Math.floor(Math.random() * 3) + 3;
+    const availableCells = [];
+    for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+      availableCells.push(i);
     }
 
-    let newIndex;
-    do {
-      newIndex = Math.floor(Math.random() * GRID_SIZE * GRID_SIZE);
-    } while (newIndex === activeMoleIndexRef.current && GRID_SIZE * GRID_SIZE > 1);
+    const animalTypes = getRandomAnimalTypes(animalCount);
 
-    activeMoleIndexRef.current = newIndex;
-    
-    const cell = moleCellsRef.current[newIndex];
-    if (cell && cell.userData.mole) {
-      cell.userData.mole.position.y = 0;
+    for (let i = 0; i < animalCount; i++) {
+      if (availableCells.length === 0) break;
+      
+      const randomIndex = Math.floor(Math.random() * availableCells.length);
+      const cellIndex = availableCells.splice(randomIndex, 1)[0];
+      const animalType = animalTypes[i];
+
+      showAnimal(cellIndex, animalType);
+
+      const timeout = setTimeout(() => {
+        hideAnimal(cellIndex);
+        cellTimeoutsRef.current.delete(cellIndex);
+      }, ANIMAL_STAY_TIME);
+      
+      cellTimeoutsRef.current.set(cellIndex, timeout);
     }
-
-    moleTimeoutRef.current = setTimeout(() => {
-      if (activeMoleIndexRef.current === newIndex) {
-        const moleCell = moleCellsRef.current[newIndex];
-        if (moleCell && moleCell.userData.mole) {
-          moleCell.userData.mole.position.y = -1.5;
-        }
-        activeMoleIndexRef.current = null;
-      }
-    }, MOLE_STAY_TIME);
 
     const decreaseAmount = Math.floor(scoreRef.current / 50) * SPAWN_INTERVAL_DECREASE;
     const nextInterval = Math.max(MIN_SPAWN_INTERVAL, INITIAL_SPAWN_INTERVAL - decreaseAmount);
 
     spawnTimeoutRef.current = setTimeout(() => {
       if (gameStateRef.current === 'playing') {
-        spawnMole();
+        spawnAnimals();
       }
     }, nextInterval);
   }, []);
-
-  const showMole = (index) => {
-    const cell = moleCellsRef.current[index];
-    if (!cell) return;
-
-    const mole = cell.userData.mole;
-    if (mole) {
-      animateMole(mole, 0, 300);
-    }
-  };
-
-  const hideMole = (index) => {
-    const cell = moleCellsRef.current[index];
-    if (!cell) return;
-
-    const mole = cell.userData.mole;
-    if (mole) {
-      animateMole(mole, -1.5, 200);
-    }
-  };
-
-  const animateMole = (mole, targetY, duration) => {
-    const startY = mole.position.y;
-    const startTime = Date.now();
-
-    const animate = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const easeProgress = progress < 0.5
-        ? 4 * progress * progress * progress
-        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-
-      mole.position.y = startY + (targetY - startY) * easeProgress;
-
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      }
-    };
-
-    animate();
-  };
 
   const handleMouseMove = useCallback((event) => {
     const container = containerRef.current;
@@ -374,7 +577,7 @@ function App() {
 
     raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
     
-    const cellMeshes = moleCellsRef.current.flatMap(cell => [
+    const cellMeshes = cellsRef.current.flatMap(cell => [
       cell.userData.ground,
       cell.userData.hoverRing
     ]);
@@ -382,7 +585,7 @@ function App() {
     const intersects = raycasterRef.current.intersectObjects(cellMeshes, true);
 
     if (hoveredCellRef.current !== null) {
-      const prevCell = moleCellsRef.current[hoveredCellRef.current];
+      const prevCell = cellsRef.current[hoveredCellRef.current];
       if (prevCell) {
         prevCell.userData.hoverRing.material.opacity = 0;
         prevCell.userData.groundMaterial.color.copy(prevCell.userData.originalColor);
@@ -429,27 +632,44 @@ function App() {
     raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
     
     const allMeshes = [];
-    moleCellsRef.current.forEach(cell => {
+    cellsRef.current.forEach(cell => {
       allMeshes.push(cell.userData.ground);
       allMeshes.push(cell.userData.hoverRing);
-      cell.userData.mole.traverse((obj) => {
-        if (obj.isMesh) {
-          allMeshes.push(obj);
-        }
-      });
+      
+      if (cell.userData.normalMole.visible) {
+        cell.userData.normalMole.traverse((obj) => {
+          if (obj.isMesh) {
+            allMeshes.push(obj);
+          }
+        });
+      }
+      if (cell.userData.redMole.visible) {
+        cell.userData.redMole.traverse((obj) => {
+          if (obj.isMesh) {
+            allMeshes.push(obj);
+          }
+        });
+      }
+      if (cell.userData.rabbit.visible) {
+        cell.userData.rabbit.traverse((obj) => {
+          if (obj.isMesh) {
+            allMeshes.push(obj);
+          }
+        });
+      }
     });
     
     const intersects = raycasterRef.current.intersectObjects(allMeshes, false);
 
     if (intersects.length > 0) {
       let clickedCellIndex = null;
-      let hitMolePart = false;
+      let hitAnimalPart = false;
 
       for (const intersect of intersects) {
         const obj = intersect.object;
         
-        if (obj.userData && obj.userData.isMolePart) {
-          hitMolePart = true;
+        if (obj.userData && obj.userData.isAnimalPart) {
+          hitAnimalPart = true;
           let parent = obj.parent;
           while (parent) {
             if (parent.userData && typeof parent.userData.index === 'number') {
@@ -476,24 +696,35 @@ function App() {
       }
 
       if (clickedCellIndex !== null) {
-        const isMoleActive = activeMoleIndexRef.current === clickedCellIndex;
+        const isCellActive = activeCellsRef.current.has(clickedCellIndex);
+        const animalType = activeCellsRef.current.get(clickedCellIndex);
 
-        if (isMoleActive && hitMolePart) {
-          scoreRef.current += SCORE_PER_HIT;
+        if (isCellActive && hitAnimalPart) {
+          let scoreChange = 0;
+          
+          switch (animalType) {
+            case ANIMAL_TYPE.RED_MOLE:
+              scoreChange = SCORE_RED_MOLE;
+              break;
+            case ANIMAL_TYPE.RABBIT:
+              scoreChange = SCORE_RABBIT;
+              break;
+            default:
+              scoreChange = SCORE_NORMAL_MOLE;
+          }
+
+          scoreRef.current += scoreChange;
           setScore(scoreRef.current);
           
-          if (moleTimeoutRef.current) {
-            clearTimeout(moleTimeoutRef.current);
-            moleTimeoutRef.current = null;
+          const timeout = cellTimeoutsRef.current.get(clickedCellIndex);
+          if (timeout) {
+            clearTimeout(timeout);
+            cellTimeoutsRef.current.delete(clickedCellIndex);
           }
           
-          const cell = moleCellsRef.current[clickedCellIndex];
-          if (cell && cell.userData.mole) {
-            cell.userData.mole.position.y = -1.5;
-          }
-          activeMoleIndexRef.current = null;
-        } else if (!isMoleActive) {
-          scoreRef.current += SCORE_PER_MISS;
+          hideAnimal(clickedCellIndex);
+        } else if (!isCellActive) {
+          scoreRef.current += SCORE_MISS;
           setScore(scoreRef.current);
         }
       }
@@ -552,10 +783,12 @@ function App() {
             <div className="overlay-content">
               <h1>🎮 打地鼠游戏</h1>
               <div className="rules">
-                <p>📌 点击冒出的地鼠得 10 分</p>
-                <p>❌ 误点空白格子扣 5 分</p>
+                <p>🐹 普通地鼠：+10分</p>
+                <p>🔴 红色地鼠：+30分（10%概率）</p>
+                <p>🐰 兔子：-30分（10%概率，不要点！）</p>
+                <p>❌ 误点空格：-5分</p>
                 <p>⏱️ 游戏时间 30 秒</p>
-                <p>📈 分数越高，地鼠出现越快！</p>
+                <p>📈 分数越高，动物出现越快！</p>
               </div>
               <button className="start-btn" onClick={startGame}>
                 开始游戏
