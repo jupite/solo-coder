@@ -1,0 +1,260 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  min-height: 100vh;
+  color: #f1f1f1;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.game-container {
+  max-width: 700px;
+  width: 100%;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.game-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.game-header h1 {
+  margin: 0 0 8px 0;
+  font-size: 2.5rem;
+  color: #e07a5f;
+  text-shadow: 0 2px 10px rgba(224, 122, 95, 0.3);
+}
+
+.game-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 400;
+  color: #81b29a;
+}
+
+.game-main {
+  position: relative;
+  width: 500px;
+  height: 500px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  border: 3px solid #3d405b;
+}
+
+.game-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.win-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.win-content {
+  text-align: center;
+  padding: 40px;
+  background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+  border-radius: 16px;
+  border: 2px solid #ffd93d;
+  box-shadow: 0 0 30px rgba(255, 217, 61, 0.3);
+}
+
+.win-content h2 {
+  margin: 0 0 12px 0;
+  font-size: 2rem;
+  color: #ffd93d;
+}
+
+.win-content p {
+  margin: 0 0 24px 0;
+  color: #e0e0e0;
+  font-size: 1.1rem;
+}
+
+.controls-panel {
+  margin-top: 24px;
+  text-align: center;
+  width: 100%;
+}
+
+.instructions {
+  margin: 0 0 16px 0;
+  font-size: 1rem;
+  color: #a0aec0;
+  line-height: 1.6;
+}
+
+.buttons-row {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.game-btn {
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.game-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.game-btn:active {
+  transform: translateY(0);
+}
+
+.reset-btn {
+  background: linear-gradient(135deg, #4a4e69 0%, #22223b 100%);
+  color: #f2e9e4;
+  border: 2px solid #4a4e69;
+}
+
+.reset-btn:hover {
+  background: linear-gradient(135deg, #5a5f7a 0%, #2d2d4b 100%);
+}
+
+.level-btn {
+  background: linear-gradient(135deg, #3d405b 0%, #2a2d42 100%);
+  color: #f2e9e4;
+  border: 2px solid #3d405b;
+}
+
+.level-btn:hover {
+  background: linear-gradient(135deg, #4d506b 0%, #3a3d52 100%);
+}
+
+.next-btn {
+  background: linear-gradient(135deg, #81b29a 0%, #5e8b76 100%);
+  color: #1a1a2e;
+  border: 2px solid #81b29a;
+  font-size: 1.1rem;
+  padding: 14px 28px;
+}
+
+.next-btn:hover {
+  background: linear-gradient(135deg, #91c2aa 0%, #6e9b86 100%);
+}
+
+.legend {
+  margin-top: 28px;
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 16px 24px;
+  background: rgba(61, 64, 91, 0.5);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #a0aec0;
+}
+
+.legend-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.legend-color.wall {
+  background: #22223b;
+  border: 1px solid #3d405b;
+}
+
+.legend-color.floor {
+  background: #4a4e69;
+}
+
+.legend-color.target {
+  background: #f2e9e4;
+}
+
+.legend-color.player {
+  background: #e07a5f;
+  border-radius: 50%;
+}
+
+.legend-color.box {
+  background: #81b29a;
+}
+
+@media (max-width: 600px) {
+  .game-main {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+  }
+
+  .game-header h1 {
+    font-size: 1.8rem;
+  }
+
+  .game-header h2 {
+    font-size: 1rem;
+  }
+
+  .win-content {
+    padding: 24px;
+    margin: 16px;
+  }
+
+  .win-content h2 {
+    font-size: 1.5rem;
+  }
+
+  .buttons-row {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .game-btn {
+    width: 200px;
+  }
+}
