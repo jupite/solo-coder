@@ -285,7 +285,10 @@ function App() {
     if (gameStateRef.current !== 'playing') return;
 
     if (activeMoleIndexRef.current !== null) {
-      hideMole(activeMoleIndexRef.current);
+      const cell = moleCellsRef.current[activeMoleIndexRef.current];
+      if (cell && cell.userData.mole) {
+        cell.userData.mole.position.y = -1.5;
+      }
     }
 
     let newIndex;
@@ -294,11 +297,20 @@ function App() {
     } while (newIndex === activeMoleIndexRef.current && GRID_SIZE * GRID_SIZE > 1);
 
     activeMoleIndexRef.current = newIndex;
-    showMole(newIndex);
+    
+    const cell = moleCellsRef.current[newIndex];
+    if (cell && cell.userData.mole) {
+      cell.userData.mole.position.y = 0;
+    }
 
     moleTimeoutRef.current = setTimeout(() => {
-      hideMole(newIndex);
-      activeMoleIndexRef.current = null;
+      if (activeMoleIndexRef.current === newIndex) {
+        const moleCell = moleCellsRef.current[newIndex];
+        if (moleCell && moleCell.userData.mole) {
+          moleCell.userData.mole.position.y = -1.5;
+        }
+        activeMoleIndexRef.current = null;
+      }
     }, MOLE_STAY_TIME);
 
     const decreaseAmount = Math.floor(scoreRef.current / 50) * SPAWN_INTERVAL_DECREASE;
@@ -465,11 +477,8 @@ function App() {
 
       if (clickedCellIndex !== null) {
         const isMoleActive = activeMoleIndexRef.current === clickedCellIndex;
-        const cell = moleCellsRef.current[clickedCellIndex];
-        const mole = cell.userData.mole;
-        const isMoleVisible = mole && mole.position.y > -0.5;
 
-        if (isMoleActive && isMoleVisible && hitMolePart) {
+        if (isMoleActive && hitMolePart) {
           scoreRef.current += SCORE_PER_HIT;
           setScore(scoreRef.current);
           
@@ -478,9 +487,12 @@ function App() {
             moleTimeoutRef.current = null;
           }
           
-          mole.position.y = -1.5;
+          const cell = moleCellsRef.current[clickedCellIndex];
+          if (cell && cell.userData.mole) {
+            cell.userData.mole.position.y = -1.5;
+          }
           activeMoleIndexRef.current = null;
-        } else if (!isMoleActive || !isMoleVisible) {
+        } else if (!isMoleActive) {
           scoreRef.current += SCORE_PER_MISS;
           setScore(scoreRef.current);
         }
