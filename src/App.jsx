@@ -139,6 +139,7 @@ function App() {
       ufoGroup.position.set(startX, startY, startZ)
 
       ufoGroup.userData = {
+        isUFO: true,
         speed: baseSpeedRef.current * (0.8 + Math.random() * 0.4),
         baseY: startY,
         phase: Math.random() * Math.PI * 2,
@@ -184,34 +185,38 @@ function App() {
       raycasterRef.current.setFromCamera(mouseRef.current, camera)
       const intersects = raycasterRef.current.intersectObjects(scene.children, true)
 
+      let hitUFO = null
       for (const intersect of intersects) {
-        let object = intersect.object
-        while (object.parent && !object.userData.active) {
-          object = object.parent
+        let obj = intersect.object
+        while (obj) {
+          if (obj.userData.isUFO && obj.userData.active) {
+            hitUFO = obj
+            break
+          }
+          obj = obj.parent
         }
+        if (hitUFO) break
+      }
 
-        if (object && object.userData.active && object.userData.speed) {
-          const explosion = createExplosion(object.position)
-          explosionsRef.current.push(explosion)
-          scene.add(explosion)
+      if (hitUFO) {
+        const explosion = createExplosion(hitUFO.position)
+        explosionsRef.current.push(explosion)
+        scene.add(explosion)
 
-          object.visible = false
-          object.userData.active = false
+        hitUFO.visible = false
+        hitUFO.userData.active = false
 
-          const currentScore = scoreRef.current + 10
-          setScore(currentScore)
+        const currentScore = scoreRef.current + 10
+        setScore(currentScore)
 
-          setTimeout(() => {
-            object.position.x = -12 - Math.random() * 10
-            object.position.y = (Math.random() - 0.5) * 8
-            object.userData.baseY = object.position.y
-            object.userData.phase = Math.random() * Math.PI * 2
-            object.visible = true
-            object.userData.active = true
-          }, 500)
-
-          break
-        }
+        setTimeout(() => {
+          hitUFO.position.x = -12 - Math.random() * 10
+          hitUFO.position.y = (Math.random() - 0.5) * 8
+          hitUFO.userData.baseY = hitUFO.position.y
+          hitUFO.userData.phase = Math.random() * Math.PI * 2
+          hitUFO.visible = true
+          hitUFO.userData.active = true
+        }, 500)
       }
     }
 
@@ -235,42 +240,46 @@ function App() {
     }
     window.addEventListener('resize', handleResize)
 
-    const clock = new THREE.Clock()
+    let lastTime = performance.now()
 
     function animate() {
       animationRef.current = requestAnimationFrame(animate)
-      const delta = clock.getDelta()
+      const currentTime = performance.now()
+      const delta = Math.min((currentTime - lastTime) / 1000, 0.1)
+      lastTime = currentTime
 
-      const speedMultiplier = 1 + Math.floor(scoreRef.current / 100) * 0.5
+      if (gameStartedRef.current && !gameOverRef.current) {
+        const speedMultiplier = 1 + Math.floor(scoreRef.current / 100) * 0.5
 
-      for (const ufo of ufosRef.current) {
-        if (ufo.visible && ufo.userData.active) {
-          ufo.position.x += ufo.userData.speed * speedMultiplier * delta * 60
+        for (const ufo of ufosRef.current) {
+          if (ufo.visible && ufo.userData.active) {
+            ufo.position.x += ufo.userData.speed * speedMultiplier * delta * 60
 
-          ufo.userData.phase += delta * 2
-          ufo.position.y = ufo.userData.baseY + Math.sin(ufo.userData.phase) * 0.8
+            ufo.userData.phase += delta * 2
+            ufo.position.y = ufo.userData.baseY + Math.sin(ufo.userData.phase) * 0.8
 
-          ufo.rotation.y += delta * 0.5
+            ufo.rotation.y += delta * 0.5
 
-          if (ufo.position.x > 15) {
-            ufo.position.x = -12 - Math.random() * 5
-            ufo.position.y = (Math.random() - 0.5) * 8
-            ufo.userData.baseY = ufo.position.y
-            ufo.userData.phase = Math.random() * Math.PI * 2
+            if (ufo.position.x > 15) {
+              ufo.position.x = -12 - Math.random() * 5
+              ufo.position.y = (Math.random() - 0.5) * 8
+              ufo.userData.baseY = ufo.position.y
+              ufo.userData.phase = Math.random() * Math.PI * 2
+            }
           }
         }
-      }
 
-      for (let i = explosionsRef.current.length - 1; i >= 0; i--) {
-        const explosion = explosionsRef.current[i]
-        explosion.userData.currentRadius += explosion.userData.speed
-        explosion.userData.opacity -= 0.03
-        explosion.scale.setScalar(explosion.userData.currentRadius / 0.1)
-        explosion.material.opacity = Math.max(0, explosion.userData.opacity)
+        for (let i = explosionsRef.current.length - 1; i >= 0; i--) {
+          const explosion = explosionsRef.current[i]
+          explosion.userData.currentRadius += explosion.userData.speed * delta * 60
+          explosion.userData.opacity -= 0.03 * delta * 60
+          explosion.scale.setScalar(explosion.userData.currentRadius / 0.1)
+          explosion.material.opacity = Math.max(0, explosion.userData.opacity)
 
-        if (explosion.userData.opacity <= 0) {
-          scene.remove(explosion)
-          explosionsRef.current.splice(i, 1)
+          if (explosion.userData.opacity <= 0) {
+            scene.remove(explosion)
+            explosionsRef.current.splice(i, 1)
+          }
         }
       }
 
