@@ -147,6 +147,7 @@ function App() {
 
   const createMole = () => {
     const moleGroup = new THREE.Group();
+    moleGroup.userData.isMole = true;
 
     const bodyGeometry = new THREE.SphereGeometry(0.6, 32, 32);
     const bodyMaterial = new THREE.MeshStandardMaterial({ 
@@ -156,6 +157,7 @@ function App() {
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.position.y = 0.3;
     body.castShadow = true;
+    body.userData.isMolePart = true;
     moleGroup.add(body);
 
     const headGeometry = new THREE.SphereGeometry(0.45, 32, 32);
@@ -166,22 +168,26 @@ function App() {
     const head = new THREE.Mesh(headGeometry, headMaterial);
     head.position.y = 0.75;
     head.castShadow = true;
+    head.userData.isMolePart = true;
     moleGroup.add(head);
 
     const eyeGeometry = new THREE.SphereGeometry(0.08, 16, 16);
     const eyeMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
     const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
     leftEye.position.set(-0.15, 0.85, 0.35);
+    leftEye.userData.isMolePart = true;
     moleGroup.add(leftEye);
 
     const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
     rightEye.position.set(0.15, 0.85, 0.35);
+    rightEye.userData.isMolePart = true;
     moleGroup.add(rightEye);
 
     const noseGeometry = new THREE.SphereGeometry(0.1, 16, 16);
     const noseMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
     const nose = new THREE.Mesh(noseGeometry, noseMaterial);
     nose.position.set(0, 0.65, 0.4);
+    nose.userData.isMolePart = true;
     moleGroup.add(nose);
 
     const earGeometry = new THREE.SphereGeometry(0.12, 16, 16);
@@ -191,10 +197,12 @@ function App() {
     });
     const leftEar = new THREE.Mesh(earGeometry, earMaterial);
     leftEar.position.set(-0.35, 1.0, 0);
+    leftEar.userData.isMolePart = true;
     moleGroup.add(leftEar);
 
     const rightEar = new THREE.Mesh(earGeometry, earMaterial);
     rightEar.position.set(0.35, 1.0, 0);
+    rightEar.userData.isMolePart = true;
     moleGroup.add(rightEar);
 
     return moleGroup;
@@ -408,47 +416,60 @@ function App() {
 
     raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
     
-    const cellMeshes = moleCellsRef.current.flatMap(cell => [
-      cell.userData.ground,
-      cell.userData.mole,
-      cell.userData.hoverRing
-    ]);
+    const allMeshes = [];
+    moleCellsRef.current.forEach(cell => {
+      allMeshes.push(cell.userData.ground);
+      allMeshes.push(cell.userData.hoverRing);
+      cell.userData.mole.traverse((obj) => {
+        if (obj.isMesh) {
+          allMeshes.push(obj);
+        }
+      });
+    });
     
-    const intersects = raycasterRef.current.intersectObjects(cellMeshes, true);
+    const intersects = raycasterRef.current.intersectObjects(allMeshes, false);
 
     if (intersects.length > 0) {
-      let clickedCell = null;
-      let hitMole = false;
+      let clickedCellIndex = null;
+      let hitMolePart = false;
 
       for (const intersect of intersects) {
-        let obj = intersect.object;
+        const obj = intersect.object;
         
-        let moleAncestor = null;
-        let temp = obj;
-        while (temp.parent) {
-          if (temp.parent.userData && temp.parent.userData.hasOwnProperty('index')) {
-            moleAncestor = temp.parent;
-            if (temp === moleAncestor.userData.mole || moleAncestor.userData.mole.children.includes(temp)) {
-              hitMole = true;
+        if (obj.userData && obj.userData.isMolePart) {
+          hitMolePart = true;
+          let parent = obj.parent;
+          while (parent) {
+            if (parent.userData && typeof parent.userData.index === 'number') {
+              clickedCellIndex = parent.userData.index;
+              break;
             }
+            parent = parent.parent;
+          }
+          break;
+        }
+        
+        let parent = obj.parent;
+        while (parent) {
+          if (parent.userData && typeof parent.userData.index === 'number') {
+            clickedCellIndex = parent.userData.index;
             break;
           }
-          temp = temp.parent;
+          parent = parent.parent;
         }
-
-        if (moleAncestor) {
-          clickedCell = moleAncestor;
+        
+        if (clickedCellIndex !== null) {
           break;
         }
       }
 
-      if (clickedCell) {
-        const cellIndex = clickedCell.userData.index;
-        const isMoleActive = activeMoleIndexRef.current === cellIndex;
-        const mole = clickedCell.userData.mole;
-        const isMoleVisible = mole && mole.position.y > -1;
+      if (clickedCellIndex !== null) {
+        const isMoleActive = activeMoleIndexRef.current === clickedCellIndex;
+        const cell = moleCellsRef.current[clickedCellIndex];
+        const mole = cell.userData.mole;
+        const isMoleVisible = mole && mole.position.y > -0.5;
 
-        if (isMoleActive && isMoleVisible) {
+        if (isMoleActive && isMoleVisible && hitMolePart) {
           scoreRef.current += SCORE_PER_HIT;
           setScore(scoreRef.current);
           
@@ -457,9 +478,9 @@ function App() {
             moleTimeoutRef.current = null;
           }
           
-          hideMole(cellIndex);
+          mole.position.y = -1.5;
           activeMoleIndexRef.current = null;
-        } else {
+        } else if (!isMoleActive || !isMoleVisible) {
           scoreRef.current += SCORE_PER_MISS;
           setScore(scoreRef.current);
         }
