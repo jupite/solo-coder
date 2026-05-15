@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Endless Runner</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; font-family: Arial, sans-serif; }
+    #game-container { width: 100vw; height: 100vh; }
+    #hud { position: absolute; top: 20px; left: 20px; color: white; font-size: 24px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
+    #game-over { 
+      position: absolute; 
+      top: 50%; 
+      left: 50%; 
+      transform: translate(-50%, -50%); 
+      text-align: center; 
+      display: none;
+      color: white;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    }
+    #game-over h1 { font-size: 48px; margin-bottom: 20px; }
+    #game-over p { font-size: 24px; margin-bottom: 20px; }
+    #restart-btn { 
+      padding: 15px 40px; 
+      font-size: 20px; 
+      background: #4CAF50; 
+      color: white; 
+      border: none; 
+      border-radius: 5px; 
+      cursor: pointer;
+    }
+    #restart-btn:hover { background: #45a049; }
+    #instructions { 
+      position: absolute; 
+      bottom: 20px; 
+      left: 50%; 
+      transform: translateX(-50%); 
+      color: white; 
+      font-size: 16px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index-D3_kbea3.js"></script>
+</head>
+<body>
+  <div id="game-container"></div>
+  <div id="hud">分数: <span id="score">0</span></div>
+  <div id="game-over">
+    <h1>游戏结束</h1>
+    <p>最终得分: <span id="final-score">0</span></p>
+    <button id="restart-btn">重新开始</button>
+  </div>
+  <div id="instructions">按 空格键 跳跃</div>
+</body>
+</html>

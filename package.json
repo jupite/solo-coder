@@ -1,0 +1,16 @@
+{
+  "name": "endless-runner",
+  "version": "1.0.0",
+  "description": "Three.js endless runner game",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
