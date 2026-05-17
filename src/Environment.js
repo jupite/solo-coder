@@ -46,7 +46,7 @@ class Environment {
     }
 
     createPond() {
-        const waterGeometry = new THREE.PlaneGeometry(this.pondRadius * 2, this.pondRadius * 2, 64, 64);
+        const waterGeometry = new THREE.CircleGeometry(this.pondRadius, 64);
         const waterMaterial = new THREE.MeshStandardMaterial({
             color: 0x1E90FF,
             transparent: true,
