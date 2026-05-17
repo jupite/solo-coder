@@ -36,6 +36,8 @@ export class BowlingBall {
       this.radius,
       this.mass
     );
+    body.sleepSpeedLimit = 0.1;
+    body.sleepTimeLimit = 1;
     return body;
   }
 

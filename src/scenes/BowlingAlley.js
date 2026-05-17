@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 
 export class BowlingAlley {
   constructor(scene, physics) {
@@ -133,7 +134,7 @@ export class BowlingAlley {
   }
 
   getBallStartPosition() {
-    return new THREE.Vector3(-this.alleyLength / 2 + 2.0, 0.1, 0);
+    return new THREE.Vector3(-this.alleyLength / 2 + 2.0, 0.2, 0);
   }
 
   getAlleyDimensions() {

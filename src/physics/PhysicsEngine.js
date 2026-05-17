@@ -5,9 +5,14 @@ export class PhysicsEngine {
     this.world = new CANNON.World();
     this.world.gravity.set(0, -9.82, 0);
     this.world.broadphase = new CANNON.NaiveBroadphase();
-    this.world.solver.iterations = 10;
+    this.world.solver.iterations = 20;
+    this.world.allowSleep = true;
     
     this.bodies = [];
+    this.accumulatedTime = 0;
+    
+    this.createGlobalGround();
+    
     this.materials = {
       ground: new CANNON.Material({ friction: 0.8, restitution: 0.2 }),
       ball: new CANNON.Material({ friction: 0.3, restitution: 0.3 }),
@@ -41,7 +46,24 @@ export class PhysicsEngine {
   }
 
   step(deltaTime) {
-    this.world.step(1 / 60, deltaTime, 3);
+    const fixedTimeStep = 1 / 60;
+    this.accumulatedTime += deltaTime;
+    
+    while (this.accumulatedTime >= fixedTimeStep) {
+      this.world.step(fixedTimeStep);
+      this.accumulatedTime -= fixedTimeStep;
+    }
+  }
+
+  createGlobalGround() {
+    const shape = new CANNON.Plane();
+    const body = new CANNON.Body({ 
+      mass: 0, 
+      shape: shape
+    });
+    body.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+    body.position.set(0, 0, 0);
+    this.world.addBody(body);
   }
 
   createGroundPlane(position, rotation, size) {
