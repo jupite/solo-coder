@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import { PHYSICS, GAME, COLORS } from '../utils/constants.js';
 
 export class TargetHole {
-  constructor(sceneManager, position) {
+  constructor(sceneManager, position, platformMesh) {
     this.sceneManager = sceneManager;
     this.position = position;
+    this.platformMesh = platformMesh;
     this.ringMesh = null;
     this.innerDisc = null;
     this.init();
@@ -26,9 +27,9 @@ export class TargetHole {
 
     this.ringMesh = new THREE.Mesh(ringGeometry, ringMaterial);
     this.ringMesh.rotation.x = -Math.PI / 2;
-    this.ringMesh.position.set(this.position.x, GAME.holeYOffset, this.position.z);
+    this.ringMesh.position.set(this.position.x, PHYSICS.platformThickness / 2 + 0.001, this.position.z);
     this.ringMesh.castShadow = true;
-    this.sceneManager.add(this.ringMesh);
+    this.platformMesh.add(this.ringMesh);
 
     const innerGeometry = new THREE.CircleGeometry(innerRadius, 64);
     const innerMaterial = new THREE.MeshBasicMaterial({
@@ -38,8 +39,8 @@ export class TargetHole {
     
     this.innerDisc = new THREE.Mesh(innerGeometry, innerMaterial);
     this.innerDisc.rotation.x = -Math.PI / 2;
-    this.innerDisc.position.set(this.position.x, GAME.holeYOffset + 0.001, this.position.z);
-    this.sceneManager.add(this.innerDisc);
+    this.innerDisc.position.set(this.position.x, PHYSICS.platformThickness / 2 + 0.002, this.position.z);
+    this.platformMesh.add(this.innerDisc);
   }
 
   getPosition() {
@@ -59,6 +60,16 @@ export class TargetHole {
       this.ringMesh.rotation.z += 0.02;
       const scale = 1 + Math.sin(Date.now() * 0.003) * 0.05;
       this.ringMesh.scale.set(scale, scale, scale);
+    }
+  }
+
+  setPosition(x, z) {
+    this.position = { x, z };
+    if (this.ringMesh) {
+      this.ringMesh.position.set(x, PHYSICS.platformThickness / 2 + 0.001, z);
+    }
+    if (this.innerDisc) {
+      this.innerDisc.position.set(x, PHYSICS.platformThickness / 2 + 0.002, z);
     }
   }
 }

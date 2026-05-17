@@ -27,7 +27,8 @@ export class Game {
       this.sceneManager,
       this.ball,
       this.platform,
-      this.uiManager
+      this.uiManager,
+      this.physicsEngine
     );
   }
 
@@ -48,6 +49,9 @@ export class Game {
     
     if (this.gameLogic.isGameActive()) {
       this.platform.updateTilt(tilt.x, tilt.y);
+      this.gameLogic.obstacles.forEach(obstacle => {
+        obstacle.updateRotation(tilt.x, tilt.y);
+      });
     }
 
     this.physicsEngine.update(deltaTime);

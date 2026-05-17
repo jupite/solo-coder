@@ -72,4 +72,22 @@ export class Ball {
       z: this.body.velocity.z,
     };
   }
+
+  fallIntoHole(holeX, holeZ) {
+    this.body.collisionFilterGroup = 0;
+    this.body.collisionFilterMask = 0;
+    this.body.position.set(holeX, 0.1, holeZ);
+    this.body.velocity.set(0, -8, 0);
+    this.body.angularVelocity.set(0, 0, 0);
+  }
+
+  restoreCollision() {
+    this.body.collisionFilterGroup = 1;
+    this.body.collisionFilterMask = 1;
+  }
+
+  setPosition(x, z) {
+    this.initialPosition = { x, y: 1, z };
+    this.reset();
+  }
 }

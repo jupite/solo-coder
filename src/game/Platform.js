@@ -38,8 +38,8 @@ export class Platform {
     this.sceneManager.add(this.edgeMesh);
 
     const gridHelper = new THREE.GridHelper(size, 20, 0x4a5a6a, 0x3a4a5a);
-    gridHelper.position.y = 0.01;
-    this.sceneManager.add(gridHelper);
+    gridHelper.position.y = thickness / 2 + 0.001;
+    this.mesh.add(gridHelper);
 
     const halfSize = size / 2;
     const shape = new CANNON.Box(new CANNON.Vec3(halfSize, thickness / 2, halfSize));
