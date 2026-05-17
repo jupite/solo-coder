@@ -32,7 +32,7 @@ class Environment {
             const z = positions.getY(i);
             const distance = Math.sqrt(x * x + z * z);
             if (distance < this.pondRadius + 1) {
-                positions.setZ(i, -0.1);
+                positions.setZ(i, -1);
             } else {
                 positions.setZ(i, (Math.random() - 0.5) * 0.3);
             }

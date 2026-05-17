@@ -13,10 +13,11 @@ class GameLogic {
         this.waitTime = 0;
         this.hookedTime = 0;
         this.tension = 0;
-        this.tensionDecayRate = 40;
-        this.tensionGainRate = 80;
-        this.reelDuration = 1;
+        this.tensionDecayRate = 30;
+        this.tensionGainRate = 120;
+        this.reelDuration = 1.5;
         this.elapsedTime = 0;
+        this.spacePressed = false;
         
         this.raycaster = new THREE.Raycaster();
         this.mouse = new THREE.Vector2();
@@ -34,7 +35,15 @@ class GameLogic {
         document.addEventListener('keydown', (event) => {
             if (event.code === 'Space') {
                 event.preventDefault();
+                this.spacePressed = true;
                 this.handleSpacePress();
+            }
+        });
+        
+        document.addEventListener('keyup', (event) => {
+            if (event.code === 'Space') {
+                event.preventDefault();
+                this.spacePressed = false;
             }
         });
     }
@@ -146,8 +155,14 @@ class GameLogic {
         
         if (this.gameState === 'reeling') {
             this.hookedTime += deltaTime;
-            this.tension -= this.tensionDecayRate * deltaTime;
-            this.tension = Math.max(0, this.tension);
+            
+            if (this.spacePressed) {
+                this.tension += this.tensionGainRate * deltaTime;
+            } else {
+                this.tension -= this.tensionDecayRate * deltaTime;
+            }
+            
+            this.tension = Math.max(0, Math.min(100, this.tension));
             this.ui.setTension(this.tension);
             
             if (this.tension >= 100) {
