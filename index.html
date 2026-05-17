@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>保龄球模拟游戏</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Arial', sans-serif;
+      overflow: hidden;
+      background: #1a1a1a;
+    }
+    
+    #container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+    
+    .instructions {
+      position: absolute;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+      text-align: center;
+      pointer-events: none;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div class="instructions">
+      <p>按住鼠标向后拖动来控制投掷方向和力度</p>
+      <p>拖动距离越长，力度越大</p>
+    </div>
+  </div>
+  
+  <script type="module">
+    import { BowlingGame } from './src/main.js';
+    
+    const container = document.getElementById('container');
+    const game = new BowlingGame(container);
+    
+    window.addEventListener('beforeunload', () => {
+      game.dispose();
+    });
+  </script>
+</body>
+</html>
