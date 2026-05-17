@@ -33,10 +33,10 @@ export class ObstacleManager {
   constructor(scene) {
     this.scene = scene
     this.obstacles = []
-    this.spawnInterval = 12
+    this.spawnInterval = 7
     this.minSpawnInterval = 4
     this.obstacleHeightRange = { min: 1.5, max: 4.5 }
-    this.nextSpawnX = 30
+    this.nextSpawnX = 25
   }
 
   spawnObstacle(x) {
@@ -74,7 +74,7 @@ export class ObstacleManager {
   }
 
   adjustSpawnInterval(score) {
-    this.spawnInterval = Math.max(this.minSpawnInterval, 12 - score * 0.02)
+    this.spawnInterval = Math.max(this.minSpawnInterval, 7 - score * 0.015)
   }
 
   reset() {
@@ -82,7 +82,7 @@ export class ObstacleManager {
       obstacle.remove()
     }
     this.obstacles = []
-    this.nextSpawnX = 30
-    this.spawnInterval = 12
+    this.nextSpawnX = 25
+    this.spawnInterval = 7
   }
 }

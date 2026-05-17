@@ -6,8 +6,8 @@ export class Player {
     this.mesh = null
     this.velocity = new THREE.Vector3(0, 0, 0)
     this.isJumping = false
-    this.jumpForce = 5.5
-    this.gravity = 1.5
+    this.jumpForce = 5
+    this.gravity = 0.3
     this.initialY = 0
     this.createPlayer()
   }
@@ -72,7 +72,7 @@ export class Player {
       }
     }
     
-    this.mesh.position.x += speed * 0.05
+    this.mesh.position.x += speed * 0.04
   }
 
   getBoundingBox() {
