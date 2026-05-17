@@ -36,27 +36,20 @@ export class ObstacleManager {
     this.spawnInterval = 12
     this.minSpawnInterval = 4
     this.obstacleHeightRange = { min: 1.5, max: 4.5 }
-    this.spawnDistance = 50
+    this.nextSpawnX = 30
   }
 
-  spawnObstacle(playerX) {
+  spawnObstacle(x) {
     const height = this.obstacleHeightRange.min + 
       Math.random() * (this.obstacleHeightRange.max - this.obstacleHeightRange.min)
-    const farthestObstacle = this.obstacles.length > 0 
-      ? Math.max(...this.obstacles.map(o => o.mesh.position.x))
-      : playerX
-    const x = farthestObstacle + this.spawnInterval + Math.random() * 3
     const obstacle = new Obstacle(this.scene, x, height)
     this.obstacles.push(obstacle)
   }
 
   update(playerX, speed) {
-    const farthestObstacle = this.obstacles.length > 0 
-      ? Math.max(...this.obstacles.map(o => o.mesh.position.x))
-      : playerX
-    
-    if (farthestObstacle < playerX + this.spawnDistance) {
-      this.spawnObstacle(playerX)
+    while (this.nextSpawnX < playerX + 80) {
+      this.spawnObstacle(this.nextSpawnX)
+      this.nextSpawnX += this.spawnInterval + Math.random() * 4
     }
     
     for (let i = this.obstacles.length - 1; i >= 0; i--) {
@@ -81,8 +74,7 @@ export class ObstacleManager {
   }
 
   adjustSpawnInterval(score) {
-    const targetInterval = Math.max(this.minSpawnInterval, 8 - score * 0.05)
-    this.spawnInterval = targetInterval
+    this.spawnInterval = Math.max(this.minSpawnInterval, 12 - score * 0.02)
   }
 
   reset() {
@@ -90,6 +82,7 @@ export class ObstacleManager {
       obstacle.remove()
     }
     this.obstacles = []
-    this.spawnInterval = 8
+    this.nextSpawnX = 30
+    this.spawnInterval = 12
   }
 }

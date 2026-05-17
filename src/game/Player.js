@@ -6,9 +6,9 @@ export class Player {
     this.mesh = null
     this.velocity = new THREE.Vector3(0, 0, 0)
     this.isJumping = false
-    this.jumpForce = 3.5
+    this.jumpForce = 5.5
     this.gravity = 1.5
-    this.initialY = 2
+    this.initialY = 0
     this.createPlayer()
   }
 
