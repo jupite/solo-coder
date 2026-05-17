@@ -25,27 +25,51 @@ export class DirectionIndicator {
       opacity: 0.8
     });
 
-    this.arrowX = this.createArrow(arrowMaterial);
-    this.arrowX.rotation.y = Math.PI / 2;
+    this.arrowX = this.createArrowX(arrowMaterial);
     this.group.add(this.arrowX);
 
-    this.arrowZ = this.createArrow(arrowMaterial);
-    this.arrowZ.rotation.x = Math.PI / 2;
+    this.arrowZ = this.createArrowZ(arrowMaterial);
     this.group.add(this.arrowZ);
   }
 
-  createArrow(material) {
+  createArrowX(material) {
     const group = new THREE.Group();
 
-    const shaftGeometry = new THREE.CylinderGeometry(0.08, 0.08, 1, 8);
+    const shaftGeometry = new THREE.CylinderGeometry(0.08, 0.08, 1.2, 8);
     const shaft = new THREE.Mesh(shaftGeometry, material);
-    shaft.position.y = 0.5;
+    shaft.rotation.z = Math.PI / 2;
     group.add(shaft);
 
-    const headGeometry = new THREE.ConeGeometry(0.2, 0.4, 8);
-    const head = new THREE.Mesh(headGeometry, material);
-    head.position.y = 1.2;
-    group.add(head);
+    const headLeft = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.4, 8), material);
+    headLeft.rotation.z = -Math.PI / 2;
+    headLeft.position.x = -0.8;
+    group.add(headLeft);
+
+    const headRight = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.4, 8), material);
+    headRight.rotation.z = Math.PI / 2;
+    headRight.position.x = 0.8;
+    group.add(headRight);
+
+    return group;
+  }
+
+  createArrowZ(material) {
+    const group = new THREE.Group();
+
+    const shaftGeometry = new THREE.CylinderGeometry(0.08, 0.08, 1.2, 8);
+    const shaft = new THREE.Mesh(shaftGeometry, material);
+    shaft.rotation.x = Math.PI / 2;
+    group.add(shaft);
+
+    const headFront = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.4, 8), material);
+    headFront.rotation.x = Math.PI / 2;
+    headFront.position.z = 0.8;
+    group.add(headFront);
+
+    const headBack = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.4, 8), material);
+    headBack.rotation.x = -Math.PI / 2;
+    headBack.position.z = -0.8;
+    group.add(headBack);
 
     return group;
   }
