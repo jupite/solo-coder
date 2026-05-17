@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>太空射击防御游戏</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        <div id="ui">
+            <div id="score">分数: 0</div>
+            <div id="lives">生命: 3</div>
+        </div>
+        <div id="game-over" class="hidden">
+            <div class="game-over-content">
+                <h1>游戏结束</h1>
+                <p>最终分数: <span id="final-score">0</span></p>
+                <button id="restart-btn">重新开始</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
