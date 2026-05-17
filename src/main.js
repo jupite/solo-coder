@@ -47,7 +47,7 @@ class GameApp {
     this.gameManager.on('blockSpawned', (data) => {
       this.blockRenderer.createBlockMesh(data.block);
       if (data.isMoving) {
-        this.directionIndicator.setDirection(this.gameManager.nextMoveDirection);
+        this.directionIndicator.setDirection(data.block.moveDirection);
         this.directionIndicator.setHeight(this.gameManager.layer);
         this.directionIndicator.setVisible(true);
       }
@@ -100,6 +100,7 @@ class GameApp {
 
   startGame() {
     this.uiManager.hideAllOverlays();
+    this.sceneManager.forceResize();
     this.gameManager.start();
     this.uiManager.updateDirection(this.gameManager.nextMoveDirection);
   }

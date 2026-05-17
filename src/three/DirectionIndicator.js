@@ -66,10 +66,6 @@ export class DirectionIndicator {
   }
 
   update(deltaTime) {
-    const time = Date.now() * 0.003;
-    this.group.position.x = Math.sin(time) * 0.2;
-    this.group.position.z = Math.cos(time) * 0.2;
-    this.group.rotation.y += deltaTime * 0.5;
   }
 
   dispose() {

@@ -15,13 +15,16 @@ export class SceneManager {
   }
 
   init() {
+    const width = this.container.clientWidth || window.innerWidth;
+    const height = this.container.clientHeight || window.innerHeight;
+
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x1a1a2e);
     this.scene.fog = new THREE.Fog(0x1a1a2e, 10, 50);
 
     this.camera = new THREE.PerspectiveCamera(
       60,
-      this.container.clientWidth / this.container.clientHeight,
+      width / height,
       0.1,
       1000
     );
@@ -33,7 +36,7 @@ export class SceneManager {
     this.camera.lookAt(0, 3, 0);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+    this.renderer.setSize(width, height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -111,6 +114,10 @@ export class SceneManager {
     const targetLookAtY = layer * GameConfig.BLOCK_HEIGHT - 1;
     this.camera.position.y = targetY;
     this.camera.lookAt(0, targetLookAtY, 0);
+  }
+
+  forceResize() {
+    this.onResize();
   }
 
   startAnimation() {
