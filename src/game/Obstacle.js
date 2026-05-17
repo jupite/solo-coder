@@ -42,11 +42,13 @@ export class Obstacle {
       mass: 0,
       material: this.physicsEngine.platformMaterial,
       type: CANNON.Body.STATIC,
+      collisionFilterGroup: 1,
+      collisionFilterMask: 1,
     });
     this.body.addShape(shape);
     this.body.position.set(
       this.position.x,
-      -PHYSICS.platformThickness / 2 + PHYSICS.platformThickness + height / 2,
+      height / 2,
       this.position.z
     );
     

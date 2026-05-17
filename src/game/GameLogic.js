@@ -233,6 +233,7 @@ export class GameLogic {
 
     setTimeout(() => {
       this.resetBallAndPlatform();
+      this.generateLevel();
     }, GAME.resetDelay);
   }
 
