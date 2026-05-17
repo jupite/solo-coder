@@ -45,25 +45,20 @@ export class BowlingPins {
   createPin(position) {
     const group = new THREE.Group();
     
-    const bodyGeometry = new THREE.CylinderGeometry(0.04, 0.055, 0.38, 16);
+    const bodyGeometry = new THREE.CylinderGeometry(0.04, 0.055, 0.35, 16);
     const bodyMaterial = new THREE.MeshStandardMaterial({
       color: 0xFFFFFF,
       roughness: 0.4,
       metalness: 0.1
     });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    body.position.y = 0.19;
+    body.position.y = 0.175;
     group.add(body);
     
     const headGeometry = new THREE.SphereGeometry(0.05, 16, 16);
     const head = new THREE.Mesh(headGeometry, bodyMaterial);
-    head.position.y = 0.4;
+    head.position.y = 0.375;
     group.add(head);
-    
-    const neckGeometry = new THREE.CylinderGeometry(0.025, 0.04, 0.08, 12);
-    const neck = new THREE.Mesh(neckGeometry, bodyMaterial);
-    neck.position.y = 0.36;
-    group.add(neck);
     
     const bottomGeometry = new THREE.CylinderGeometry(0.06, 0.065, 0.03, 12);
     const bottomMaterial = new THREE.MeshStandardMaterial({
@@ -119,7 +114,10 @@ export class BowlingPins {
     q.vmult(up, pinUp);
     
     const dot = up.dot(pinUp);
-    return Math.abs(dot) < 0.3;
+    const velocity = pin.physicsBody.velocity.length();
+    const angularVelocity = pin.physicsBody.angularVelocity.length();
+    
+    return Math.abs(dot) < 0.2 || (velocity > 0.5 && angularVelocity > 0.5);
   }
 
   reset() {

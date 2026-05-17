@@ -306,6 +306,7 @@ class BowlingGame {
     
     if (this.ball) {
       this.ball.update();
+      this.checkBallBoundary();
     }
     
     if (this.pins) {
@@ -315,6 +316,31 @@ class BowlingGame {
     if (this.camera && !this.isPaused) {
       this.camera.update();
     }
+  }
+
+  checkBallBoundary() {
+    if (!this.ball || !this.ball.isLaunched) return;
+    
+    const pos = this.ball.getPosition();
+    const alleyWidth = this.alley ? this.alley.alleyWidth : 1.0668;
+    const alleyLength = this.alley ? this.alley.alleyLength : 18.288;
+    
+    const isOutOfBounds = 
+      Math.abs(pos.z) > alleyWidth / 2 + 0.3 ||
+      pos.x > alleyLength / 2 + 1 ||
+      pos.x < -alleyLength / 2 - 1 ||
+      pos.y < -1;
+    
+    if (isOutOfBounds) {
+      this.stopBall();
+    }
+  }
+
+  stopBall() {
+    if (!this.ball || !this.ball.physicsBody) return;
+    
+    this.ball.physicsBody.velocity.set(0, 0, 0);
+    this.ball.physicsBody.angularVelocity.set(0, 0, 0);
   }
 
   animate() {
