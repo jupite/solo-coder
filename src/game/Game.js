@@ -39,7 +39,11 @@ export class Game {
   gameLoop() {
     if (!this.isGameOver) {
       this.update()
+<<<<<<< HEAD
       this.sceneManager.render(this.player.mesh.position, this.currentSpeed)
+=======
+      this.sceneManager.render(this.player.mesh.position)
+>>>>>>> fa5f62a2aea1dd6388f52c51a20fc959d8d7666f
     }
     this.animationId = requestAnimationFrame(() => this.gameLoop())
   }
@@ -48,7 +52,11 @@ export class Game {
     this.currentSpeed = Math.min(this.currentSpeed + this.speedIncrement, this.maxSpeed)
     
     this.player.update(this.currentSpeed)
+<<<<<<< HEAD
     this.obstacleManager.update(this.player.mesh.position.x, this.currentSpeed)
+=======
+    this.obstacleManager.update(this.currentSpeed)
+>>>>>>> fa5f62a2aea1dd6388f52c51a20fc959d8d7666f
     
     if (this.checkCollision()) {
       this.gameOver()
