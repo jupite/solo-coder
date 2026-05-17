@@ -5,14 +5,8 @@ export class SceneManager {
     this.scene = null
     this.camera = null
     this.renderer = null
-<<<<<<< HEAD
-    this.trackSegments = []
-    this.segmentLength = 100
-    this.trackGroup = null
-=======
     this.trackOffset = 0
     this.trackLength = 50
->>>>>>> fa5f62a2aea1dd6388f52c51a20fc959d8d7666f
     this.init()
   }
 
@@ -21,12 +15,8 @@ export class SceneManager {
     this.createCamera()
     this.createRenderer()
     this.createLighting()
-<<<<<<< HEAD
-    this.createInfiniteTrack()
-=======
     this.createTrack()
     this.animateTrack()
->>>>>>> fa5f62a2aea1dd6388f52c51a20fc959d8d7666f
     window.addEventListener('resize', () => this.onWindowResize())
   }
 
@@ -43,11 +33,7 @@ export class SceneManager {
       1000
     )
     this.camera.position.set(-10, 8, 10)
-<<<<<<< HEAD
-    this.camera.lookAt(5, 3, 0)
-=======
     this.camera.lookAt(0, 2, 0)
->>>>>>> fa5f62a2aea1dd6388f52c51a20fc959d8d7666f
   }
 
   createRenderer() {
@@ -67,39 +53,15 @@ export class SceneManager {
     this.scene.add(directionalLight)
   }
 
-<<<<<<< HEAD
-  createTrackSegment(xStart) {
-    const group = new THREE.Group()
-    
-    const groundGeometry = new THREE.PlaneGeometry(this.segmentLength, 6)
-=======
   createTrack() {
     const trackGroup = new THREE.Group()
     
     const groundGeometry = new THREE.PlaneGeometry(1000, 6)
->>>>>>> fa5f62a2aea1dd6388f52c51a20fc959d8d7666f
     const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 })
     const ground = new THREE.Mesh(groundGeometry, groundMaterial)
     ground.rotation.x = -Math.PI / 2
     ground.position.y = 0
     ground.receiveShadow = true
-<<<<<<< HEAD
-    group.add(ground)
-    
-    const leftBorderGeometry = new THREE.BoxGeometry(this.segmentLength, 0.5, 0.3)
-    const leftBorderMaterial = new THREE.MeshPhongMaterial({ color: 0x4444ff })
-    const leftBorder = new THREE.Mesh(leftBorderGeometry, leftBorderMaterial)
-    leftBorder.position.set(0, 0.25, -3.15)
-    group.add(leftBorder)
-    
-    const rightBorderGeometry = new THREE.BoxGeometry(this.segmentLength, 0.5, 0.3)
-    const rightBorderMaterial = new THREE.MeshPhongMaterial({ color: 0x4444ff })
-    const rightBorder = new THREE.Mesh(rightBorderGeometry, rightBorderMaterial)
-    rightBorder.position.set(0, 0.25, 3.15)
-    group.add(rightBorder)
-    
-    const laneLineGeometry = new THREE.PlaneGeometry(this.segmentLength, 0.1)
-=======
     trackGroup.add(ground)
     
     const leftBorderGeometry = new THREE.BoxGeometry(1000, 0.5, 0.3)
@@ -115,44 +77,10 @@ export class SceneManager {
     trackGroup.add(rightBorder)
     
     const laneLineGeometry = new THREE.PlaneGeometry(1000, 0.1)
->>>>>>> fa5f62a2aea1dd6388f52c51a20fc959d8d7666f
     const laneLineMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff })
     const laneLine = new THREE.Mesh(laneLineGeometry, laneLineMaterial)
     laneLine.rotation.x = -Math.PI / 2
     laneLine.position.set(0, 0.01, 0)
-<<<<<<< HEAD
-    group.add(laneLine)
-    
-    group.position.x = xStart
-    return group
-  }
-
-  createInfiniteTrack() {
-    this.trackGroup = new THREE.Group()
-    for (let i = -2; i <= 3; i++) {
-      const segment = this.createTrackSegment(i * this.segmentLength)
-      this.trackSegments.push(segment)
-      this.trackGroup.add(segment)
-    }
-    this.scene.add(this.trackGroup)
-  }
-
-  updateTrack(playerX) {
-    for (let i = this.trackSegments.length - 1; i >= 0; i--) {
-      const segment = this.trackSegments[i]
-      if (segment.position.x + this.segmentLength / 2 < playerX - this.segmentLength) {
-        segment.position.x += this.segmentLength * 5
-      }
-    }
-  }
-
-  render(playerPosition, speed) {
-    this.updateTrack(playerPosition.x)
-    
-    const targetX = playerPosition.x - 10
-    this.camera.position.x += (targetX - this.camera.position.x) * 0.1
-    this.camera.lookAt(playerPosition.x + 5, 3, 0)
-=======
     trackGroup.add(laneLine)
     
     this.scene.add(trackGroup)
@@ -169,7 +97,6 @@ export class SceneManager {
     const targetX = playerPosition.x - 10
     this.camera.position.x += (targetX - this.camera.position.x) * 0.1
     this.camera.lookAt(playerPosition.x, playerPosition.y + 1, 0)
->>>>>>> fa5f62a2aea1dd6388f52c51a20fc959d8d7666f
     this.renderer.render(this.scene, this.camera)
   }
 
