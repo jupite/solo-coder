@@ -21,29 +21,29 @@ export const CONFIG = {
         BASE_SPEED_MULTIPLIER: 0.85,
         SPEED_VARIANCE: 0.1,
         STEER_SPEED: 3.0,
-        LOOK_AHEAD: 50,
+        LOOK_AHEAD: 80,
     },
     
     TRACK: {
-        WIDTH: 24,
-        RADIUS: 80,
-        SEGMENTS: 64,
+        WIDTH: 35,
+        RADIUS: 200,
+        SEGMENTS: 96,
         ROAD_HEIGHT: 0.2,
         KERB_HEIGHT: 0.15,
-        KERB_WIDTH: 1.5,
+        KERB_WIDTH: 2,
     },
     
     OBSTACLES: {
-        COUNT: 8,
+        COUNT: 12,
         SIZE: 3,
         SPEED_MIN: 5,
         SPEED_MAX: 15,
-        MOVE_RADIUS: 10,
+        MOVE_RADIUS: 12,
         SLOW_DOWN_FACTOR: 0.8,
     },
     
     POWERUPS: {
-        COUNT: 5,
+        COUNT: 8,
         SIZE: 1.5,
         BOOST_DURATION: 3000,
         BOOST_MULTIPLIER: 1.5,
@@ -54,10 +54,10 @@ export const CONFIG = {
     },
     
     CAMERA: {
-        DISTANCE: 12,
-        HEIGHT: 5,
+        DISTANCE: 18,
+        HEIGHT: 7,
         LERP_SPEED: 5,
-        LOOK_AHEAD: 8,
+        LOOK_AHEAD: 12,
     },
     
     COLORS: {

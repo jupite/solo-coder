@@ -59,7 +59,7 @@ class Game {
     createScene() {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(CONFIG.COLORS.SKY);
-        this.scene.fog = new THREE.Fog(CONFIG.COLORS.SKY, 100, 300);
+        this.scene.fog = new THREE.Fog(CONFIG.COLORS.SKY, 200, 600);
         
         this.camera = new THREE.PerspectiveCamera(
             75,
@@ -87,11 +87,11 @@ class Game {
         directionalLight.shadow.mapSize.width = 2048;
         directionalLight.shadow.mapSize.height = 2048;
         directionalLight.shadow.camera.near = 0.5;
-        directionalLight.shadow.camera.far = 500;
-        directionalLight.shadow.camera.left = -200;
-        directionalLight.shadow.camera.right = 200;
-        directionalLight.shadow.camera.top = 200;
-        directionalLight.shadow.camera.bottom = -200;
+        directionalLight.shadow.camera.far = 800;
+        directionalLight.shadow.camera.left = -300;
+        directionalLight.shadow.camera.right = 300;
+        directionalLight.shadow.camera.top = 300;
+        directionalLight.shadow.camera.bottom = -300;
         this.scene.add(directionalLight);
         
         window.addEventListener('resize', () => this.onWindowResize());

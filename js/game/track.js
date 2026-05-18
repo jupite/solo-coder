@@ -19,7 +19,7 @@ export class Track {
     }
 
     createGround() {
-        const groundGeometry = new THREE.PlaneGeometry(500, 500);
+        const groundGeometry = new THREE.PlaneGeometry(1000, 1000);
         const groundMaterial = new THREE.MeshStandardMaterial({
             color: CONFIG.COLORS.GROUND,
             roughness: 0.8,
@@ -69,13 +69,13 @@ export class Track {
         line.rotation.y = Math.PI / 2;
         lineGroup.add(line);
 
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < 16; i++) {
             const checkerGeometry = new THREE.BoxGeometry(2, 0.05, 2);
             const checkerMaterial = new THREE.MeshStandardMaterial({
                 color: i % 2 === 0 ? 0x000000 : 0xffffff,
             });
             const checker = new THREE.Mesh(checkerGeometry, checkerMaterial);
-            checker.position.set(CONFIG.TRACK.RADIUS, ROAD_HEIGHT + 0.02, (i - 3.5) * 2);
+            checker.position.set(CONFIG.TRACK.RADIUS, ROAD_HEIGHT + 0.02, (i - 7.5) * 2);
             checker.rotation.y = Math.PI / 2;
             lineGroup.add(checker);
         }
@@ -193,7 +193,7 @@ export class Track {
     }
 
     getStartPosition() {
-        return new THREE.Vector3(CONFIG.TRACK.RADIUS - 10, CONFIG.CAR.HEIGHT / 2, 0);
+        return new THREE.Vector3(CONFIG.TRACK.RADIUS - 15, CONFIG.CAR.HEIGHT / 2, 0);
     }
 
     getStartRotation() {
