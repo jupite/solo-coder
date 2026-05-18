@@ -1,9 +1,7 @@
-import { Points, BufferGeometry, PointsMaterial, Vector3 } from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
-
 class Particle {
     constructor(x, y, z) {
-        this.position = new Vector3(x, y, z);
-        this.velocity = new Vector3(
+        this.position = new THREE.Vector3(x, y, z);
+        this.velocity = new THREE.Vector3(
             (Math.random() - 0.5) * 10,
             (Math.random() - 0.5) * 10,
             (Math.random() - 0.5) * 10
@@ -68,12 +66,12 @@ export class ParticleSystem {
             sizes[i] = p.size * p.life;
         }
         
-        this.geometry = new BufferGeometry();
+        this.geometry = new THREE.BufferGeometry();
         this.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         this.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
         this.geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
         
-        this.material = new PointsMaterial({
+        this.material = new THREE.PointsMaterial({
             size: 0.5,
             vertexColors: true,
             transparent: true,
@@ -81,7 +79,7 @@ export class ParticleSystem {
             sizeAttenuation: true
         });
         
-        this.points = new Points(this.geometry, this.material);
+        this.points = new THREE.Points(this.geometry, this.material);
         this.scene.add(this.points);
     }
     

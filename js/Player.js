@@ -1,5 +1,3 @@
-import { Mesh, Geometry, Material, Vector3, Shape, ExtrudeGeometry, MeshPhongMaterial } from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
-
 export class Player {
     constructor(scene) {
         this.scene = scene;
@@ -12,7 +10,7 @@ export class Player {
     }
     
     createPlayer() {
-        const shape = new Shape();
+        const shape = new THREE.Shape();
         shape.moveTo(0, 3);
         shape.lineTo(-2, -2);
         shape.lineTo(2, -2);
@@ -27,14 +25,14 @@ export class Player {
             bevelThickness: 0.1
         };
         
-        const geometry = new ExtrudeGeometry(shape, extrudeSettings);
-        const material = new MeshPhongMaterial({ 
+        const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+        const material = new THREE.MeshPhongMaterial({ 
             color: 0x00ffff,
             emissive: 0x0088aa,
             shininess: 100
         });
         
-        this.mesh = new Mesh(geometry, material);
+        this.mesh = new THREE.Mesh(geometry, material);
         this.mesh.position.y = -20;
         this.mesh.position.z = 0;
         this.mesh.rotation.x = Math.PI / 2;
@@ -58,7 +56,7 @@ export class Player {
     }
     
     getPosition() {
-        return new Vector3(this.mesh.position.x, this.mesh.position.y, this.mesh.position.z);
+        return new THREE.Vector3(this.mesh.position.x, this.mesh.position.y, this.mesh.position.z);
     }
     
     reset() {

@@ -1,5 +1,3 @@
-import { Points, BufferGeometry, PointsMaterial } from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
-
 export class StarField {
     constructor(scene) {
         this.scene = scene;
@@ -19,17 +17,17 @@ export class StarField {
             positions[i * 3 + 2] = (Math.random() - 0.5) * 50;
         }
         
-        const geometry = new BufferGeometry();
+        const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         
-        const material = new PointsMaterial({ 
+        const material = new THREE.PointsMaterial({ 
             color: 0xffffff,
             size: 0.5,
             transparent: true,
             opacity: 0.8
         });
         
-        this.points = new Points(geometry, material);
+        this.points = new THREE.Points(geometry, material);
         this.scene.add(this.points);
     }
     

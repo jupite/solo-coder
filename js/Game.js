@@ -1,6 +1,5 @@
-import { Scene, PerspectiveCamera, WebGLRenderer, Color, Vector3 } from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
 import { Player } from './Player.js';
-import { AsteroidManager } from './AsteroidManager.js';
+import { EnemyManager } from './EnemyManager.js';
 import { BulletManager } from './BulletManager.js';
 import { StarField } from './StarField.js';
 import { UI } from './UI.js';
@@ -13,7 +12,7 @@ export class Game {
         this.camera = null;
         this.renderer = null;
         this.player = null;
-        this.asteroidManager = null;
+        this.enemyManager = null;
         this.bulletManager = null;
         this.starField = null;
         this.ui = null;
@@ -23,7 +22,7 @@ export class Game {
         this.lives = 3;
         this.gameOver = false;
         this.baseSpawnRate = 2000;
-        this.lastSpawnTime = 0;
+        this.currentDifficulty = 0;
         
         this.keys = {
             left: false,
@@ -37,14 +36,21 @@ export class Game {
     }
     
     init() {
-        this.scene = new Scene();
-        this.scene.background = new Color(0x000011);
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x000011);
         
-        this.camera = new PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        this.scene.add(ambientLight);
+        
+        const pointLight = new THREE.PointLight(0xffffff, 1);
+        pointLight.position.set(0, 0, 30);
+        this.scene.add(pointLight);
+        
+        this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.camera.position.set(0, 0, 50);
-        this.camera.lookAt(new Vector3(0, 0, 0));
+        this.camera.lookAt(new THREE.Vector3(0, 0, 0));
         
-        this.renderer = new WebGLRenderer({ 
+        this.renderer = new THREE.WebGLRenderer({ 
             canvas: this.canvas, 
             antialias: true,
             alpha: true
@@ -54,9 +60,9 @@ export class Game {
         
         this.starField = new StarField(this.scene);
         this.player = new Player(this.scene);
-        this.asteroidManager = new AsteroidManager(this.scene);
         this.bulletManager = new BulletManager(this.scene);
         this.particleSystem = new ParticleSystem(this.scene);
+        this.enemyManager = new EnemyManager(this.scene, this.bulletManager, this.particleSystem);
         this.ui = new UI();
         
         this.setupEventListeners();
@@ -109,42 +115,57 @@ export class Game {
         
         this.player.update(this.keys, this.mouseX, this.useMouseControl, deltaTime);
         this.bulletManager.update(deltaTime);
-        this.asteroidManager.update(deltaTime);
+        this.enemyManager.update(deltaTime);
         this.particleSystem.update(deltaTime);
         this.starField.update(deltaTime);
         
         this.checkCollisions();
-        this.spawnAsteroids();
+        this.spawnEnemies();
         this.updateDifficulty();
     }
     
     checkCollisions() {
-        const bullets = this.bulletManager.getBullets();
-        const asteroids = this.asteroidManager.getAsteroids();
+        const playerBullets = this.bulletManager.getPlayerBullets();
+        const enemies = this.enemyManager.getEnemies();
+        const enemyBullets = this.bulletManager.getEnemyBulletObjects();
         const playerPos = this.player.getPosition();
         
-        for (let i = bullets.length - 1; i >= 0; i--) {
-            const bullet = bullets[i];
-            for (let j = asteroids.length - 1; j >= 0; j--) {
-                const asteroid = asteroids[j];
-                const dist = bullet.position.distanceTo(asteroid.mesh.position);
-                if (dist < 1.5) {
-                    this.particleSystem.createExplosion(asteroid.mesh.position.x, asteroid.mesh.position.y, asteroid.mesh.position.z);
-                    this.asteroidManager.removeAsteroid(j);
-                    this.bulletManager.removeBullet(i);
-                    this.score += 1;
-                    this.ui.updateScore(this.score);
+        for (let i = playerBullets.length - 1; i >= 0; i--) {
+            const bullet = playerBullets[i];
+            
+            for (let j = enemies.length - 1; j >= 0; j--) {
+                const enemy = enemies[j];
+                const dist = bullet.position.distanceTo(enemy.mesh.position);
+                const collisionRadius = enemy instanceof DefenseTurret ? 1 : 1.5;
+                
+                if (dist < collisionRadius) {
+                    if (enemy.takeDamage()) {
+                        this.particleSystem.createExplosion(
+                            enemy.mesh.position.x, 
+                            enemy.mesh.position.y, 
+                            enemy.mesh.position.z
+                        );
+                        this.score += enemy.getScore();
+                        this.ui.updateScore(this.score);
+                    }
+                    
+                    this.bulletManager.removePlayerBullet(i);
                     break;
                 }
             }
         }
         
-        for (let i = asteroids.length - 1; i >= 0; i--) {
-            const asteroid = asteroids[i];
-            const dist = playerPos.distanceTo(asteroid.mesh.position);
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            const enemy = enemies[i];
+            const dist = playerPos.distanceTo(enemy.mesh.position);
+            
             if (dist < 3) {
                 this.particleSystem.createExplosion(playerPos.x, playerPos.y, playerPos.z);
-                this.asteroidManager.removeAsteroid(i);
+                
+                if (enemy instanceof DefenseTurret && enemy.isActive()) {
+                    enemy.triggerExplosion();
+                }
+                
                 this.lives -= 1;
                 this.ui.updateLives(this.lives);
                 
@@ -154,20 +175,39 @@ export class Game {
                 break;
             }
             
-            if (asteroid.mesh.position.y < -30) {
-                this.asteroidManager.removeAsteroid(i);
+            if (enemy.shouldRemove()) {
+                this.enemyManager.removeEnemy(i);
+            }
+        }
+        
+        for (let i = enemyBullets.length - 1; i >= 0; i--) {
+            const enemyBullet = enemyBullets[i];
+            const dist = playerPos.distanceTo(enemyBullet.mesh.position);
+            
+            if (dist < 2) {
+                this.particleSystem.createExplosion(
+                    enemyBullet.mesh.position.x, 
+                    enemyBullet.mesh.position.y, 
+                    enemyBullet.mesh.position.z
+                );
+                this.bulletManager.removeEnemyBullet(i);
+                this.lives -= 1;
+                this.ui.updateLives(this.lives);
+                
+                if (this.lives <= 0) {
+                    this.endGame();
+                }
             }
         }
     }
     
-    spawnAsteroids() {
+    spawnEnemies() {
         const now = Date.now();
-        const spawnRate = Math.max(500, this.baseSpawnRate - (this.score * 50));
+        const spawnRate = Math.max(500, this.baseSpawnRate - (this.score * 30));
         
-        if (now - this.lastSpawnTime > spawnRate) {
-            const x = (Math.random() - 0.5) * 60;
-            this.asteroidManager.addAsteroid(x, 25);
-            this.lastSpawnTime = now;
+        if (now - this.enemyManager.getLastSpawnTime() > spawnRate) {
+            this.enemyManager.spawnRandomEnemy(this.currentDifficulty);
+            this.enemyManager.setLastSpawnTime(now);
         }
     }
     
@@ -175,7 +215,7 @@ export class Game {
         const newDifficulty = Math.floor(this.score / 10);
         if (newDifficulty > this.currentDifficulty) {
             this.currentDifficulty = newDifficulty;
-            this.baseSpawnRate = Math.max(500, 2000 - (newDifficulty * 150));
+            this.baseSpawnRate = Math.max(500, 2000 - (newDifficulty * 120));
         }
     }
     
@@ -190,10 +230,9 @@ export class Game {
         this.gameOver = false;
         this.baseSpawnRate = 2000;
         this.currentDifficulty = 0;
-        this.lastSpawnTime = 0;
         
         this.player.reset();
-        this.asteroidManager.clear();
+        this.enemyManager.clear();
         this.bulletManager.clear();
         this.particleSystem.clear();
         
