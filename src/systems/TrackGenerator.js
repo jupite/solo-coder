@@ -162,7 +162,7 @@ export class TrackGenerator {
     
     update(playerZ, deltaTime) {
         const recycleThreshold = playerZ + this.segmentLength;
-        const createThreshold = playerZ - this.segmentsVisible * this.segmentLength;
+        const furthestNeededZ = playerZ - this.segmentsVisible * this.segmentLength;
         
         this.trackSegments = this.trackSegments.filter((segment) => {
             if (segment.z > recycleThreshold) {
@@ -188,10 +188,11 @@ export class TrackGenerator {
             return true;
         });
         
-        const lastSegment = this.trackSegments[this.trackSegments.length - 1];
-        if (lastSegment && lastSegment.z > createThreshold) {
-            const newZ = lastSegment.z - this.segmentLength;
+        let lastSegment = this.trackSegments[this.trackSegments.length - 1];
+        while (!lastSegment || lastSegment.z > furthestNeededZ) {
+            const newZ = lastSegment ? lastSegment.z - this.segmentLength : playerZ;
             this.createTrackSegment(newZ);
+            lastSegment = this.trackSegments[this.trackSegments.length - 1];
         }
         
         this.flags.forEach((flag) => flag.update(deltaTime));
