@@ -7,7 +7,8 @@ export class Ball {
     this.bounds = bounds;
     this.radius = 0.3;
     this.baseSpeed = 8;
-    this.speedMultiplier = 1;
+    this.baseSpeedMultiplier = 1;
+    this.globalSpeedMultiplier = 1;
     this.position = { x: 0, y: 2, z: 0 };
     this.velocity = { x: 0, y: 0, z: 0 };
     this.trail = [];
@@ -72,7 +73,7 @@ export class Ball {
 
     this.updateTrail();
 
-    const currentSpeed = this.baseSpeed * this.speedMultiplier;
+    const currentSpeed = this.baseSpeed * this.baseSpeedMultiplier * this.globalSpeedMultiplier;
     this.position.x += this.velocity.x * currentSpeed * deltaTime;
     this.position.y += this.velocity.y * currentSpeed * deltaTime;
     this.position.z += this.velocity.z * currentSpeed * deltaTime;
@@ -191,15 +192,27 @@ export class Ball {
     }
   }
 
+  launchFrom(position, velocity, speedMultiplier = 1) {
+    this.isLaunched = true;
+    this.position = { ...position };
+    this.velocity = { ...velocity };
+    this.baseSpeedMultiplier = speedMultiplier;
+  }
+
   setSpeedMultiplier(multiplier) {
-    this.speedMultiplier = Math.min(multiplier, 2.5);
+    this.baseSpeedMultiplier = Math.min(multiplier, 2.5);
+  }
+
+  setGlobalSpeedMultiplier(multiplier) {
+    this.globalSpeedMultiplier = multiplier;
   }
 
   reset() {
     this.position = { x: 0, y: 2, z: 0 };
     this.velocity = { x: 0, y: 0, z: 0 };
     this.isLaunched = false;
-    this.speedMultiplier = 1;
+    this.baseSpeedMultiplier = 1;
+    this.globalSpeedMultiplier = 1;
     this.trail.forEach(t => t.visible = false);
     this.mesh.position.set(this.position.x, this.position.y, this.position.z);
   }

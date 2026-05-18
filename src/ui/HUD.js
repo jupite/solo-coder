@@ -1,3 +1,10 @@
+const PowerUpIcons = {
+  multi_ball: '🔮',
+  slow_down: '🐢',
+  speed_up: '⚡',
+  wide_paddle: '📏'
+};
+
 export class HUD {
   constructor() {
     this.scoreElement = document.getElementById('score');
@@ -9,6 +16,10 @@ export class HUD {
     this.finalScore = document.getElementById('final-score');
     this.startBtn = document.getElementById('start-btn');
     this.restartBtn = document.getElementById('restart-btn');
+    this.levelSelectBtn = document.getElementById('level-select-btn');
+    this.backToMenuBtn = document.getElementById('back-to-menu-btn-game');
+    this.effectsContainer = document.getElementById('active-effects');
+    this.levelInfoElement = document.getElementById('level-info');
 
     this.score = 0;
     this.lives = 3;
@@ -69,5 +80,41 @@ export class HUD {
 
   onRestart(callback) {
     this.restartBtn.addEventListener('click', callback);
+  }
+
+  onLevelSelect(callback) {
+    this.levelSelectBtn.addEventListener('click', callback);
+  }
+
+  onBackToMenu(callback) {
+    this.backToMenuBtn.addEventListener('click', callback);
+  }
+
+  updateActiveEffects(effects) {
+    this.effectsContainer.innerHTML = '';
+    effects.forEach(effect => {
+      const icon = PowerUpIcons[effect.type] || '❓';
+      const timeLeft = Math.ceil(effect.remainingTime);
+      const effectElement = document.createElement('div');
+      effectElement.className = 'effect-item';
+      effectElement.innerHTML = `
+        <span class="effect-icon">${icon}</span>
+        <span class="effect-time">${timeLeft}s</span>
+      `;
+      this.effectsContainer.appendChild(effectElement);
+    });
+  }
+
+  setLevelInfo(levelName) {
+    if (this.levelInfoElement) {
+      this.levelInfoElement.textContent = `关卡: ${levelName}`;
+    }
+  }
+
+  reset() {
+    this.setScore(0);
+    this.setLives(3);
+    this.setSpeed(1);
+    this.updateActiveEffects([]);
   }
 }

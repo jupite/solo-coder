@@ -79,9 +79,11 @@ export class BrickManager {
     ];
   }
 
-  createBricks(rows = 4, cols = 4) {
+  createBricksFromLayout(layout) {
     this.clearBricks();
 
+    const rows = layout.length;
+    const cols = layout[0].length;
     const startX = -(cols - 1) * 1.2;
     const startZ = -(rows - 1) * 1.2;
     const yPos = 5;
@@ -89,17 +91,27 @@ export class BrickManager {
     let colorIndex = 0;
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
-        const position = {
-          x: startX + col * 2.4,
-          y: yPos,
-          z: startZ + row * 2.4 - 2
-        };
-        const color = this.colors[colorIndex % this.colors.length];
-        const brick = new Brick(this.scene, position, color);
-        this.bricks.push(brick);
-        colorIndex++;
+        if (layout[row][col] === 1) {
+          const position = {
+            x: startX + col * 2.4,
+            y: yPos,
+            z: startZ + row * 2.4 - 2
+          };
+          const color = this.colors[colorIndex % this.colors.length];
+          const brick = new Brick(this.scene, position, color);
+          this.bricks.push(brick);
+          colorIndex++;
+        }
       }
     }
+  }
+
+  createBricks(rows = 4, cols = 4) {
+    const layout = [];
+    for (let i = 0; i < rows; i++) {
+      layout.push(new Array(cols).fill(1));
+    }
+    this.createBricksFromLayout(layout);
   }
 
   update(deltaTime) {
@@ -118,10 +130,10 @@ export class BrickManager {
       const brick = this.bricks[i];
       if (!brick.isAnimating && ball.checkBrickCollision(brick)) {
         brick.hit();
-        return true;
+        return brick;
       }
     }
-    return false;
+    return null;
   }
 
   getRemainingBricks() {

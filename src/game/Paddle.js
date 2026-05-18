@@ -36,23 +36,9 @@ export class Paddle {
     this.scene.add(this.mesh);
   }
 
-  update(deltaTime, input) {
-    let moveX = 0;
-    let moveZ = 0;
-
-    if (input.left) moveX -= 1;
-    if (input.right) moveX += 1;
-    if (input.forward) moveZ -= 1;
-    if (input.backward) moveZ += 1;
-
-    if (moveX !== 0 || moveZ !== 0) {
-      const length = Math.sqrt(moveX * moveX + moveZ * moveZ);
-      moveX /= length;
-      moveZ /= length;
-    }
-
-    this.position.x += moveX * this.speed * deltaTime;
-    this.position.z += moveZ * this.speed * deltaTime;
+  update(deltaTime, movement) {
+    this.position.x += movement.x * this.speed * deltaTime;
+    this.position.z += movement.z * this.speed * deltaTime;
 
     const halfWidth = this.width / 2;
     const halfDepth = this.depth / 2;
@@ -68,10 +54,30 @@ export class Paddle {
 
     this.mesh.position.set(this.position.x, this.position.y, this.position.z);
 
-    const tiltX = -moveX * 0.15;
-    const tiltZ = moveZ * 0.15;
+    const tiltX = -movement.x * 0.15;
+    const tiltZ = movement.z * 0.15;
     this.mesh.rotation.x = tiltZ;
     this.mesh.rotation.z = tiltX;
+  }
+
+  setWidth(newWidth) {
+    this.width = newWidth;
+    this.rebuildMesh();
+  }
+
+  rebuildMesh() {
+    const oldPosition = { ...this.position };
+    const oldRotation = { x: this.mesh.rotation.x, z: this.mesh.rotation.z };
+
+    this.scene.remove(this.mesh);
+    this.mesh.geometry.dispose();
+    this.mesh.material.dispose();
+
+    this.createMesh();
+
+    this.mesh.position.set(oldPosition.x, oldPosition.y, oldPosition.z);
+    this.mesh.rotation.x = oldRotation.x;
+    this.mesh.rotation.z = oldRotation.z;
   }
 
   reset() {

@@ -23,19 +23,41 @@
         <span class="hud-label">球速</span>
         <span id="speed" class="hud-value">1.0x</span>
       </div>
+      <div class="hud-item">
+        <span class="hud-label" id="level-info">关卡: 入门</span>
+      </div>
+    </div>
+
+    <div id="active-effects"></div>
+
+    <div id="camera-hint">
+      🖱️ 鼠标拖动旋转视角 | 滚轮缩放
     </div>
 
     <div id="start-screen" class="overlay">
       <h1>3D 打砖块</h1>
       <p>使用 WASD 控制底板移动</p>
+      <p>鼠标拖动可自由调整视角</p>
       <p>消除所有砖块获得胜利</p>
-      <button id="start-btn">开始游戏</button>
+      <div class="menu-buttons">
+        <button id="start-btn">开始游戏</button>
+        <button id="level-select-btn" class="secondary">选择关卡</button>
+      </div>
+    </div>
+
+    <div id="level-select-screen" class="overlay hidden">
+      <h1>选择关卡</h1>
+      <div id="level-grid"></div>
+      <button id="back-to-menu-btn" class="secondary">返回主菜单</button>
     </div>
 
     <div id="game-over-screen" class="overlay hidden">
       <h1 id="game-result">游戏结束</h1>
       <p>最终分数: <span id="final-score">0</span></p>
-      <button id="restart-btn">重新开始</button>
+      <div class="menu-buttons">
+        <button id="restart-btn">重新开始</button>
+        <button id="back-to-menu-btn-game" class="secondary">返回主菜单</button>
+      </div>
     </div>
   </div>
 
