@@ -5,7 +5,8 @@ export class Base {
         this.mesh = null;
         this.health = 8;
         this.maxHealth = 8;
-        this.movePattern = 'stationary';
+        this.movePattern = 'straight';
+        this.speed = 1;
         this.time = 0;
         this.lastFireTime = 0;
         this.fireRate = 800;
@@ -86,6 +87,7 @@ export class Base {
     
     update(deltaTime) {
         this.time += deltaTime;
+        this.mesh.position.y -= this.speed * deltaTime;
         this.fireBullets();
         this.mesh.rotation.y += deltaTime * 0.2;
     }
@@ -104,7 +106,7 @@ export class Base {
     }
     
     shouldRemove() {
-        return false;
+        return this.mesh.position.y < -35;
     }
     
     destroy() {

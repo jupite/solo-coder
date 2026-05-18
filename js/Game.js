@@ -132,11 +132,12 @@ export class Game {
         
         for (let i = playerBullets.length - 1; i >= 0; i--) {
             const bullet = playerBullets[i];
+            let bulletHit = false;
             
             for (let j = enemies.length - 1; j >= 0; j--) {
                 const enemy = enemies[j];
                 const dist = bullet.position.distanceTo(enemy.mesh.position);
-                const collisionRadius = enemy instanceof DefenseTurret ? 1 : 1.5;
+                const collisionRadius = enemy.constructor.name === 'DefenseTurret' ? 1 : 1.5;
                 
                 if (dist < collisionRadius) {
                     if (enemy.takeDamage()) {
@@ -147,10 +148,18 @@ export class Game {
                         );
                         this.score += enemy.getScore();
                         this.ui.updateScore(this.score);
+                        this.enemyManager.removeEnemy(j, true);
                     }
                     
                     this.bulletManager.removePlayerBullet(i);
+                    bulletHit = true;
                     break;
+                }
+            }
+            
+            if (!bulletHit) {
+                if (bullet.position.y > 30) {
+                    this.bulletManager.removePlayerBullet(i);
                 }
             }
         }
@@ -162,10 +171,11 @@ export class Game {
             if (dist < 3) {
                 this.particleSystem.createExplosion(playerPos.x, playerPos.y, playerPos.z);
                 
-                if (enemy instanceof DefenseTurret && enemy.isActive()) {
+                if (enemy.constructor.name === 'DefenseTurret' && enemy.isActive && enemy.isActive()) {
                     enemy.triggerExplosion();
                 }
                 
+                this.enemyManager.removeEnemy(i, true);
                 this.lives -= 1;
                 this.ui.updateLives(this.lives);
                 
@@ -176,7 +186,7 @@ export class Game {
             }
             
             if (enemy.shouldRemove()) {
-                this.enemyManager.removeEnemy(i);
+                this.enemyManager.removeEnemy(i, false);
             }
         }
         

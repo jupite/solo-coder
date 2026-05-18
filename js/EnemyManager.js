@@ -70,24 +70,27 @@ export class EnemyManager {
     spawnRandomEnemy(difficulty) {
         const type = this.getRandomEnemyType(difficulty);
         const x = (Math.random() - 0.5) * 60;
-        const y = type === 'defense_turret' ? 0 : 25;
+        const y = type === 'defense_turret' ? 10 : 25;
         this.spawnEnemy(type, x, y);
     }
     
-    removeEnemy(index) {
+    removeEnemy(index, isDefeated = true) {
         if (this.enemies[index]) {
             const enemy = this.enemies[index];
-            const fragments = enemy.getFragments();
             
-            for (const frag of fragments) {
-                this.spawnEnemy(frag.type, frag.x, frag.y);
+            if (isDefeated) {
+                const fragments = enemy.getFragments();
+                
+                for (const frag of fragments) {
+                    this.spawnEnemy(frag.type, frag.x, frag.y);
+                }
+                
+                this.particleSystem.createExplosion(
+                    enemy.mesh.position.x, 
+                    enemy.mesh.position.y, 
+                    enemy.mesh.position.z
+                );
             }
-            
-            this.particleSystem.createExplosion(
-                enemy.mesh.position.x, 
-                enemy.mesh.position.y, 
-                enemy.mesh.position.z
-            );
             
             enemy.destroy();
             this.enemies.splice(index, 1);
@@ -97,10 +100,6 @@ export class EnemyManager {
     update(deltaTime) {
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             this.enemies[i].update(deltaTime);
-            
-            if (this.enemies[i].shouldRemove()) {
-                this.removeEnemy(i);
-            }
         }
     }
     
