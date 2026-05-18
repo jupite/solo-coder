@@ -1,0 +1,226 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow: hidden;
+    background: #1a1a2e;
+}
+
+#game-container {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+#ui-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+}
+
+#hud {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.hud-row {
+    display: flex;
+    gap: 20px;
+}
+
+.hud-item {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 2px solid #4a9eff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 100px;
+}
+
+.hud-item .label {
+    font-size: 12px;
+    color: #4a9eff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+
+.hud-item span:not(.label) {
+    font-size: 24px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+}
+
+#lap-times {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 15px;
+    border-radius: 8px;
+    border: 2px solid #4a9eff;
+    min-width: 180px;
+}
+
+.lap-times-title {
+    font-size: 14px;
+    color: #4a9eff;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+}
+
+#lap-times-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.lap-time-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: #fff;
+    padding: 4px 8px;
+    background: rgba(74, 158, 255, 0.1);
+    border-radius: 4px;
+}
+
+.lap-time-item.best {
+    background: rgba(255, 215, 0, 0.3);
+    border: 1px solid #ffd700;
+}
+
+#countdown {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 120px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 0 30px rgba(74, 158, 255, 0.8);
+    animation: pulse 1s ease-in-out;
+}
+
+@keyframes pulse {
+    0% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+    50% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+}
+
+#boost-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 48px;
+    font-weight: bold;
+    color: #ffd700;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+    animation: boostFlash 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes boostFlash {
+    from { opacity: 0.7; }
+    to { opacity: 1; }
+}
+
+#race-result {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: auto;
+}
+
+#result-content {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    padding: 40px 60px;
+    border-radius: 16px;
+    border: 3px solid #4a9eff;
+    text-align: center;
+    box-shadow: 0 0 50px rgba(74, 158, 255, 0.3);
+}
+
+#result-title {
+    font-size: 48px;
+    color: #4a9eff;
+    margin-bottom: 30px;
+    text-shadow: 0 0 20px rgba(74, 158, 255, 0.5);
+}
+
+#result-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.result-stat {
+    display: flex;
+    justify-content: space-between;
+    gap: 40px;
+    font-size: 18px;
+    color: #fff;
+    padding: 10px 20px;
+    background: rgba(74, 158, 255, 0.1);
+    border-radius: 8px;
+}
+
+.result-stat .stat-label {
+    color: #4a9eff;
+}
+
+.result-stat .stat-value {
+    font-weight: bold;
+    color: #ffd700;
+}
+
+#restart-btn {
+    background: linear-gradient(135deg, #4a9eff 0%, #0066cc 100%);
+    color: #fff;
+    border: none;
+    padding: 15px 50px;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+#restart-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 30px rgba(74, 158, 255, 0.5);
+}
+
+.hidden {
+    display: none !important;
+}

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 赛车游戏</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="ui-overlay">
+            <div id="hud">
+                <div class="hud-row">
+                    <div class="hud-item">
+                        <span class="label">圈数</span>
+                        <span id="lap-display">1 / 3</span>
+                    </div>
+                    <div class="hud-item">
+                        <span class="label">时间</span>
+                        <span id="time-display">00:00.000</span>
+                    </div>
+                    <div class="hud-item">
+                        <span class="label">最佳圈速</span>
+                        <span id="best-lap-display">--:--.---</span>
+                    </div>
+                    <div class="hud-item">
+                        <span class="label">排名</span>
+                        <span id="position-display">1 / 4</span>
+                    </div>
+                    <div class="hud-item">
+                        <span class="label">速度</span>
+                        <span id="speed-display">0</span>
+                    </div>
+                </div>
+                <div id="lap-times">
+                    <div class="lap-times-title">圈速记录</div>
+                    <div id="lap-times-list"></div>
+                </div>
+            </div>
+            <div id="countdown" class="hidden">3</div>
+            <div id="boost-indicator" class="hidden">加速中!</div>
+            <div id="race-result" class="hidden">
+                <div id="result-content">
+                    <h1 id="result-title">比赛完成!</h1>
+                    <div id="result-stats"></div>
+                    <button id="restart-btn">重新开始</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+        }
+    }
+    </script>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
