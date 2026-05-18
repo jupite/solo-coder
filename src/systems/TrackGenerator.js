@@ -63,18 +63,25 @@ export class TrackGenerator {
     createTrackSegment(zPosition) {
         const segment = new THREE.Group();
         
+        const overlap = 4;
         const groundGeometry = new THREE.PlaneGeometry(
             this.trackWidth + 40,
-            this.segmentLength + 2,
-            20,
-            20
+            this.segmentLength + overlap,
+            30,
+            30
         );
         
         const positions = groundGeometry.attributes.position;
+        const halfLength = (this.segmentLength + overlap) / 2;
+        
         for (let i = 0; i < positions.count; i++) {
             const x = positions.getX(i);
             const y = positions.getY(i);
-            const noise = Math.sin(x * 0.5) * Math.cos(y * 0.3) * 0.2;
+            
+            const edgeFactor = Math.abs(y) / halfLength;
+            const smoothFactor = Math.max(0, 1 - Math.pow(edgeFactor, 3));
+            
+            const noise = Math.sin(x * 0.3 + zPosition * 0.01) * Math.cos(y * 0.2) * 0.15 * smoothFactor;
             positions.setZ(i, noise);
         }
         groundGeometry.computeVertexNormals();
