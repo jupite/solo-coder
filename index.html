@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>滑雪竞速游戏</title>
+    <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        
+        <div id="hud">
+            <div class="hud-left">
+                <div class="hud-item">
+                    <span class="label">分数</span>
+                    <span id="score" class="value">0</span>
+                </div>
+                <div class="hud-item">
+                    <span class="label">距离</span>
+                    <span id="distance" class="value">0</span>m
+                </div>
+            </div>
+            
+            <div class="hud-right">
+                <div class="hud-item">
+                    <span class="label">时间</span>
+                    <span id="time" class="value">00:00</span>
+                </div>
+                <div class="hud-item">
+                    <span class="label">速度</span>
+                    <span id="speed" class="value">0</span>km/h
+                </div>
+            </div>
+        </div>
+        
+        <div id="controls-hint">
+            <span>A/D 或 ←/→ 左右移动</span>
+        </div>
+        
+        <div id="start-screen" class="overlay">
+            <h1>滑雪竞速</h1>
+            <p>躲避树木，收集旗子，挑战最远距离！</p>
+            <button id="start-btn">开始游戏</button>
+            <div class="instructions">
+                <p>A / ← : 向左移动</p>
+                <p>D / → : 向右移动</p>
+            </div>
+        </div>
+        
+        <div id="penalty-indicator" class="hidden">
+            <span>罚时 +2秒</span>
+        </div>
+    </div>
+    
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>

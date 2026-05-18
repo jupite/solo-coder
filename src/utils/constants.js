@@ -1,0 +1,48 @@
+export const GAME_CONFIG = {
+    PLAYER_SPEED_INITIAL: 30,
+    PLAYER_SPEED_MAX: 80,
+    PLAYER_SPEED_ACCELERATION: 2,
+    PLAYER_HORIZONTAL_SPEED: 15,
+    PLAYER_HIT_RADIUS: 1.5,
+    
+    TRACK_WIDTH: 30,
+    TRACK_SEGMENT_LENGTH: 100,
+    TRACK_SEGMENTS_VISIBLE: 6,
+    TRACK_SLOPE: 0.15,
+    
+    TREE_SPAWN_CHANCE: 0.7,
+    TREE_MIN_DISTANCE_FROM_CENTER: 5,
+    TREE_HIT_RADIUS: 2,
+    
+    FLAG_SPAWN_CHANCE: 0.4,
+    FLAG_COLLECT_RADIUS: 2,
+    FLAG_SCORE: 10,
+    
+    COLLISION_PENALTY_TIME: 2,
+    COLLISION_SPEED_REDUCTION: 0.5,
+    
+    SNOW_PARTICLE_COUNT: 1000,
+    SNOW_PARTICLE_SIZE: 0.3,
+    
+    CAMERA_DISTANCE_BEHIND: 12,
+    CAMERA_HEIGHT_ABOVE: 6,
+    CAMERA_LOOK_AHEAD: 10,
+    
+    WORLD_OFFSET_Y: 0,
+};
+
+export const COLORS = {
+    SNOW: 0xffffff,
+    SNOW_DARK: 0xe8e8e8,
+    TREE_TRUNK: 0x4a3728,
+    TREE_LEAVES: 0x2d5a27,
+    PLAYER: 0x4a90d9,
+    FLAG_COLORS: [0xff4444, 0x44ff44, 0x4444ff, 0xffff44, 0xff44ff, 0x44ffff],
+    SKY: 0x87ceeb,
+    FOG: 0xb8d4e8,
+};
+
+export const INPUT_KEYS = {
+    LEFT: ['KeyA', 'ArrowLeft'],
+    RIGHT: ['KeyD', 'ArrowRight'],
+};
