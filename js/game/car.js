@@ -194,7 +194,7 @@ class Car {
         forward.applyQuaternion(this.group.quaternion);
         this.group.position.add(forward.multiplyScalar(this.speed * deltaTime));
         
-        this.group.position.y = CONFIG.CAR.HEIGHT / 2;
+        this.group.position.y = CONFIG.CAR.HEIGHT / 2 + CONFIG.TRACK.ROAD_HEIGHT;
         
         this.wheels.forEach(wheel => {
             wheel.rotation.x += this.speed * deltaTime * 2;
@@ -291,6 +291,7 @@ class Car {
         this.lap = 1;
         this.currentWaypoint = 0;
         this.raceProgress = 0;
+        this.lastLapProgress = 0;
         this.isBoosting = false;
         this.boostMultiplier = 1;
         this.flashWhite = false;

@@ -7,7 +7,14 @@ class CollisionSystem {
         const carPos = car.getPosition();
         const carRadius = Math.max(CONFIG.CAR.WIDTH, CONFIG.CAR.LENGTH) / 2;
         
-        if (obstacleSystem.checkCollision(carPos, carRadius)) {
+        const collisionResult = obstacleSystem.checkCollision(carPos, carRadius);
+        if (collisionResult.hit) {
+            const obstacle = collisionResult.obstacle;
+            
+            const pushDir = new THREE.Vector3().subVectors(carPos, obstacle.mesh.position).normalize();
+            const overlap = (carRadius + obstacle.size / 2) - collisionResult.distance;
+            car.group.position.add(pushDir.multiplyScalar(overlap + 0.1));
+            
             const carId = car.isPlayer ? 'player' : `ai_${Math.random()}`;
             const now = performance.now();
             const lastHit = this.obstacleCooldowns.get(carId) || 0;

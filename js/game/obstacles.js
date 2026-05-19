@@ -92,10 +92,10 @@ class ObstacleSystem {
         for (const obstacle of this.obstacles) {
             const distance = position.distanceTo(obstacle.mesh.position);
             if (distance < radius + obstacle.size / 2) {
-                return true;
+                return { hit: true, obstacle, distance };
             }
         }
-        return false;
+        return { hit: false };
     }
 
     reset() {

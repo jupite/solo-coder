@@ -4,13 +4,13 @@ class Track {
         this.mesh = null;
         this.waypoints = [];
         this.group = new THREE.Group();
-        this.trackPath = [];
+        this.trackSegments = [];
         this.init();
     }
 
     init() {
         this.createGround();
-        this.createTrackPoints();
+        this.createSmoothTrackPoints();
         this.createTrack();
         this.createKerbs();
         this.createSigns();
@@ -30,90 +30,57 @@ class Track {
         this.group.add(ground);
     }
 
-    createTrackPoints() {
+    createSmoothTrackPoints() {
         const { SEGMENTS_PER_POINT } = CONFIG.TRACK;
+        const points3d = [];
         
         for (let i = 0; i < TRACK_POINTS.length; i++) {
-            const p1 = TRACK_POINTS[i % TRACK_POINTS.length];
-            const p2 = TRACK_POINTS[(i + 1) % TRACK_POINTS.length];
-            
-            for (let t = 0; t < SEGMENTS_PER_POINT; t++) {
-                const alpha = t / SEGMENTS_PER_POINT;
-                const x = p1.x + (p2.x - p1.x) * alpha;
-                const z = p1.z + (p2.z - p1.z) * alpha;
-                this.trackPath.push(new THREE.Vector2(x, z));
-                this.waypoints.push(new THREE.Vector3(x, 0, z));
-            }
+            const p = TRACK_POINTS[i];
+            points3d.push(new THREE.Vector3(p.x, 0, p.z));
+        }
+        
+        const curve = new THREE.CatmullRomCurve3(points3d, true, 'centripetal', 0.5);
+        const totalPoints = TRACK_POINTS.length * SEGMENTS_PER_POINT;
+        
+        for (let i = 0; i < totalPoints; i++) {
+            const t = i / totalPoints;
+            const point = curve.getPoint(t);
+            this.waypoints.push(point);
         }
     }
 
     createTrack() {
         const { WIDTH, ROAD_HEIGHT } = CONFIG.TRACK;
-        const trackShape = new THREE.Shape();
+        const trackGroup = new THREE.Group();
         
-        for (let i = 0; i < this.trackPath.length; i++) {
-            const point = this.trackPath[i];
-            const nextPoint = this.trackPath[(i + 1) % this.trackPath.length];
-            const prevPoint = this.trackPath[(i - 1 + this.trackPath.length) % this.trackPath.length];
+        for (let i = 0; i < this.waypoints.length; i++) {
+            const p1 = this.waypoints[i];
+            const p2 = this.waypoints[(i + 1) % this.waypoints.length];
             
-            const tangent = new THREE.Vector2(
-                nextPoint.x - prevPoint.x,
-                nextPoint.y - prevPoint.y
-            ).normalize();
+            const direction = new THREE.Vector3().subVectors(p2, p1);
+            const length = direction.length();
+            const center = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
             
-            const normal = new THREE.Vector2(-tangent.y, tangent.x);
+            const perp = new THREE.Vector3(-direction.z, 0, direction.x).normalize();
             
-            if (i === 0) {
-                trackShape.moveTo(
-                    point.x + normal.x * WIDTH / 2,
-                    point.y + normal.y * WIDTH / 2
-                );
-            } else {
-                trackShape.lineTo(
-                    point.x + normal.x * WIDTH / 2,
-                    point.y + normal.y * WIDTH / 2
-                );
-            }
+            const segmentGeometry = new THREE.BoxGeometry(WIDTH, ROAD_HEIGHT, length);
+            const segmentMaterial = new THREE.MeshStandardMaterial({
+                color: CONFIG.COLORS.ROAD,
+                roughness: 0.9,
+            });
+            
+            const segment = new THREE.Mesh(segmentGeometry, segmentMaterial);
+            segment.position.copy(center);
+            segment.position.y = ROAD_HEIGHT / 2;
+            segment.rotation.y = Math.atan2(direction.x, direction.z);
+            segment.receiveShadow = true;
+            
+            trackGroup.add(segment);
+            this.trackSegments.push({ segment, center, perp, direction: direction.clone().normalize(), length });
         }
         
-        for (let i = this.trackPath.length - 1; i >= 0; i--) {
-            const point = this.trackPath[i];
-            const nextPoint = this.trackPath[(i + 1) % this.trackPath.length];
-            const prevPoint = this.trackPath[(i - 1 + this.trackPath.length) % this.trackPath.length];
-            
-            const tangent = new THREE.Vector2(
-                nextPoint.x - prevPoint.x,
-                nextPoint.y - prevPoint.y
-            ).normalize();
-            
-            const normal = new THREE.Vector2(-tangent.y, tangent.x);
-            
-            trackShape.lineTo(
-                point.x - normal.x * WIDTH / 2,
-                point.y - normal.y * WIDTH / 2
-            );
-        }
-        
-        trackShape.closePath();
-        
-        const extrudeSettings = {
-            steps: 1,
-            depth: ROAD_HEIGHT,
-            bevelEnabled: false,
-        };
-        
-        const trackGeometry = new THREE.ExtrudeGeometry(trackShape, extrudeSettings);
-        const trackMaterial = new THREE.MeshStandardMaterial({
-            color: CONFIG.COLORS.ROAD,
-            roughness: 0.9,
-            side: THREE.DoubleSide,
-        });
-        
-        this.mesh = new THREE.Mesh(trackGeometry, trackMaterial);
-        this.mesh.rotation.x = -Math.PI / 2;
-        this.mesh.position.y = 0;
-        this.mesh.receiveShadow = true;
-        this.group.add(this.mesh);
+        this.mesh = trackGroup;
+        this.group.add(trackGroup);
         
         const startLine = this.createStartLine();
         this.group.add(startLine);
@@ -124,7 +91,7 @@ class Track {
         const lineGroup = new THREE.Group();
 
         const startPoint = this.waypoints[0];
-        const nextPoint = this.waypoints[5];
+        const nextPoint = this.waypoints[10];
         const direction = new THREE.Vector3().subVectors(nextPoint, startPoint).normalize();
 
         const lineGeometry = new THREE.BoxGeometry(WIDTH, 0.05, 0.5);
@@ -159,32 +126,25 @@ class Track {
     createKerbs() {
         const { WIDTH, KERB_HEIGHT, KERB_WIDTH } = CONFIG.TRACK;
         
-        for (let i = 0; i < this.waypoints.length; i++) {
-            const p1 = this.waypoints[i];
-            const p2 = this.waypoints[(i + 1) % this.waypoints.length];
-            const p0 = this.waypoints[(i - 1 + this.waypoints.length) % this.waypoints.length];
-            
-            const direction = new THREE.Vector3().subVectors(p2, p0).normalize();
-            const perp = new THREE.Vector3(-direction.z, 0, direction.x);
-            
-            const length = p1.distanceTo(p2);
+        for (let i = 0; i < this.trackSegments.length; i++) {
+            const seg = this.trackSegments[i];
+            const perp = seg.perp;
             
             for (let side = 0; side < 2; side++) {
                 const sideOffset = side === 0 ? -1 : 1;
-                const kerbPos = new THREE.Vector3()
-                    .copy(p1)
-                    .add(p2)
-                    .multiplyScalar(0.5)
-                    .add(perp.clone().multiplyScalar(sideOffset * (WIDTH / 2 + KERB_WIDTH / 2)));
+                const kerbPos = seg.center.clone().add(
+                    perp.clone().multiplyScalar(sideOffset * (WIDTH / 2 + KERB_WIDTH / 2))
+                );
                 
-                const kerbGeometry = new THREE.BoxGeometry(KERB_WIDTH, KERB_HEIGHT, length);
+                const kerbGeometry = new THREE.BoxGeometry(KERB_WIDTH, KERB_HEIGHT, seg.length);
                 const kerbMaterial = new THREE.MeshStandardMaterial({
                     color: i % 2 === 0 ? CONFIG.COLORS.KERB_RED : CONFIG.COLORS.KERB_WHITE,
                 });
 
                 const kerb = new THREE.Mesh(kerbGeometry, kerbMaterial);
-                kerb.position.set(kerbPos.x, KERB_HEIGHT / 2, kerbPos.z);
-                kerb.rotation.y = Math.atan2(direction.x, direction.z);
+                kerb.position.copy(kerbPos);
+                kerb.position.y = KERB_HEIGHT / 2;
+                kerb.rotation.y = Math.atan2(seg.direction.x, seg.direction.z);
                 kerb.castShadow = true;
                 kerb.receiveShadow = true;
                 this.group.add(kerb);
@@ -273,20 +233,20 @@ class Track {
 
     getStartPosition() {
         const start = this.waypoints[0];
-        const next = this.waypoints[5];
+        const next = this.waypoints[10];
         const direction = new THREE.Vector3().subVectors(next, start).normalize();
         const perp = new THREE.Vector3(-direction.z, 0, direction.x);
         
         return new THREE.Vector3(
             start.x + perp.x * 5 - direction.x * 10,
-            CONFIG.CAR.HEIGHT / 2,
+            CONFIG.CAR.HEIGHT / 2 + CONFIG.TRACK.ROAD_HEIGHT,
             start.z + perp.z * 5 - direction.z * 10
         );
     }
 
     getStartRotation() {
         const start = this.waypoints[0];
-        const next = this.waypoints[5];
+        const next = this.waypoints[10];
         const direction = new THREE.Vector3().subVectors(next, start).normalize();
         const angle = Math.atan2(direction.x, direction.z);
         return new THREE.Euler(0, angle, 0);

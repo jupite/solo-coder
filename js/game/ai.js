@@ -8,10 +8,11 @@ class AIController {
         
         this.speedMultiplier = CONFIG.AI.BASE_SPEED_MULTIPLIER + 
             (Math.random() - 0.5) * CONFIG.AI.SPEED_VARIANCE * 2;
+        this.originalMaxSpeed = this.car.maxSpeed * this.speedMultiplier;
         
         this.targetWaypointOffset = CONFIG.AI.LOOK_AHEAD;
         this.currentTargetWaypoint = 0;
-        this.pathOffset = (Math.random() - 0.5) * (CONFIG.TRACK.WIDTH * 0.6);
+        this.pathOffset = (Math.random() - 0.5) * (CONFIG.TRACK.WIDTH * 0.5);
         
         this.init();
     }
@@ -19,13 +20,14 @@ class AIController {
     init() {
         const startPos = this.track.getStartPosition();
         const startRot = this.track.getStartRotation();
-        const startDir = this.track.waypoints[1] ? 
-            new THREE.Vector3().subVectors(this.track.waypoints[1], this.track.waypoints[0]).normalize() :
-            new THREE.Vector3(0, 0, 1);
+        const startDir = new THREE.Vector3().subVectors(
+            this.track.waypoints[10] || this.track.waypoints[1],
+            this.track.waypoints[0]
+        ).normalize();
         const startPerp = new THREE.Vector3(-startDir.z, 0, startDir.x);
         
-        const offsetForward = (this.index + 1) * 6;
-        const offsetSide = (this.index % 2 === 0 ? 1 : -1) * 5;
+        const offsetForward = (this.index + 1) * 8;
+        const offsetSide = (this.index % 2 === 0 ? 1 : -1) * 6;
         
         this.car.setPosition(new THREE.Vector3(
             startPos.x - startDir.x * offsetForward + startPerp.x * offsetSide,
@@ -33,10 +35,12 @@ class AIController {
             startPos.z - startDir.z * offsetForward + startPerp.z * offsetSide
         ));
         this.car.setRotation(startRot);
-        this.car.maxSpeed *= this.speedMultiplier;
+        this.car.maxSpeed = this.originalMaxSpeed;
     }
 
     update(deltaTime) {
+        if (!this.car) return;
+        
         this.updateTargetWaypoint();
         this.calculateSteering();
         this.calculateAcceleration();
@@ -65,15 +69,15 @@ class AIController {
         
         const steerAmount = cross.y;
         
-        if (steerAmount > 0.1) {
-            this.car.steerInput = 1;
-        } else if (steerAmount < -0.1) {
-            this.car.steerInput = -1;
+        if (steerAmount > 0.05) {
+            this.car.steerInput = Math.min(steerAmount * 8, 1);
+        } else if (steerAmount < -0.05) {
+            this.car.steerInput = Math.max(steerAmount * 8, -1);
         } else {
-            this.car.steerInput = steerAmount * 10;
+            this.car.steerInput = 0;
         }
         
-        if (dot < -0.5) {
+        if (dot < 0) {
             this.car.steerInput = steerAmount > 0 ? 1 : -1;
         }
     }
@@ -94,7 +98,6 @@ class AIController {
         
         const toTarget = new THREE.Vector3().subVectors(targetPos, carPos);
         toTarget.y = 0;
-        
         const distance = toTarget.length();
         toTarget.normalize();
         
@@ -104,25 +107,25 @@ class AIController {
         
         const dot = carForward.dot(toTarget);
         
-        const nextNextWaypoint = this.track.getWaypoint(this.currentTargetWaypoint + 2);
+        const nextNextWaypoint = this.track.getWaypoint(this.currentTargetWaypoint + 3);
         const waypoint = this.track.getWaypoint(this.currentTargetWaypoint);
         const nextWaypoint = this.track.getWaypoint(this.currentTargetWaypoint + 1);
         
         const dir1 = new THREE.Vector3().subVectors(nextWaypoint, waypoint).normalize();
         const dir2 = new THREE.Vector3().subVectors(nextNextWaypoint, nextWaypoint).normalize();
-        const angleChange = Math.abs(dir1.dot(dir2));
+        const angleChange = dir1.dot(dir2);
         
-        const slowdownFactor = Math.max(0.5, angleChange);
+        const slowdownFactor = Math.max(0.4, angleChange);
         
-        if (dot > 0.5 && distance > 10) {
+        if (dot > 0.7 && distance > 5) {
             this.car.accelInput = slowdownFactor;
             this.car.brakeInput = 0;
         } else if (dot > 0) {
-            this.car.accelInput = 0.5 * slowdownFactor;
+            this.car.accelInput = 0.6 * slowdownFactor;
             this.car.brakeInput = 0;
         } else {
-            this.car.accelInput = 0.1;
-            this.car.brakeInput = 0.3;
+            this.car.accelInput = 0.3;
+            this.car.brakeInput = 0.2;
         }
     }
 
@@ -132,6 +135,7 @@ class AIController {
 
     reset() {
         this.car.reset();
+        this.car.maxSpeed = this.originalMaxSpeed;
         this.init();
     }
 }
