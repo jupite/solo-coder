@@ -29,6 +29,8 @@ export class Physics {
         const stone1 = this.stones[i]
         const stone2 = this.stones[j]
 
+        if (stone1.isOutOfBounds || stone2.isOutOfBounds) continue
+
         const pos1 = stone1.getPosition()
         const pos2 = stone2.getPosition()
 

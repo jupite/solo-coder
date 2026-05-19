@@ -8,6 +8,7 @@ export class Stone {
   isMoving: boolean
   team: Team
   id: string
+  isOutOfBounds: boolean = false
 
   constructor(team: Team, id: string) {
     this.team = team
@@ -90,7 +91,7 @@ export class Stone {
   update(deltaTime: number) {
     if (!this.isMoving) return
 
-    const { FRICTION, MIN_VELOCITY, RINK_WIDTH, RINK_LENGTH } = GAME_CONFIG
+    const { FRICTION, MIN_VELOCITY, RINK_WIDTH, RINK_LENGTH, STONE_RADIUS } = GAME_CONFIG
 
     this.velocity.multiplyScalar(1 - FRICTION * deltaTime * 60)
 
@@ -103,21 +104,17 @@ export class Stone {
     const newX = this.mesh.position.x + this.velocity.x * deltaTime * 60
     const newZ = this.mesh.position.z + this.velocity.y * deltaTime * 60
 
-    const halfWidth = RINK_WIDTH / 2 - GAME_CONFIG.STONE_RADIUS
-    if (newX < -halfWidth || newX > halfWidth) {
-      this.velocity.x *= -0.8
-      this.mesh.position.x = Math.max(-halfWidth, Math.min(halfWidth, newX))
-    } else {
-      this.mesh.position.x = newX
+    const halfWidth = RINK_WIDTH / 2 - STONE_RADIUS
+    const halfLength = RINK_LENGTH / 2 - STONE_RADIUS
+
+    if (!this.isOutOfBounds) {
+      if (newX < -halfWidth || newX > halfWidth || newZ < -halfLength || newZ > halfLength) {
+        this.isOutOfBounds = true
+      }
     }
 
-    const halfLength = RINK_LENGTH / 2 - GAME_CONFIG.STONE_RADIUS
-    if (newZ < -halfLength || newZ > halfLength) {
-      this.velocity.y *= -0.8
-      this.mesh.position.z = Math.max(-halfLength, Math.min(halfLength, newZ))
-    } else {
-      this.mesh.position.z = newZ
-    }
+    this.mesh.position.x = newX
+    this.mesh.position.z = newZ
 
     this.mesh.rotation.x += this.velocity.y * deltaTime * 5
     this.mesh.rotation.z -= this.velocity.x * deltaTime * 5

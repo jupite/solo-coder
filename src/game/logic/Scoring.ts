@@ -17,6 +17,7 @@ export class Scoring {
     const maxRadius = HOUSE_RADIUSES[HOUSE_RADIUSES.length - 1]
 
     const stonesInHouse = stones
+      .filter((stone) => !stone.isOutOfBounds)
       .filter((stone) => {
         const pos = stone.getPosition()
         const dx = pos.x - houseCenter.x
@@ -93,7 +94,9 @@ export class Scoring {
     houseCenter: THREE.Vector3,
     team?: Team,
   ): { stone: Stone; distance: number } | null {
-    const filteredStones = team ? stones.filter((s) => s.team === team) : stones
+    const filteredStones = stones
+      .filter((s) => !s.isOutOfBounds)
+      .filter((s) => (team ? s.team === team : true))
 
     let closest: { stone: Stone; distance: number } | null = null
 

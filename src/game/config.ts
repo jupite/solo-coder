@@ -9,10 +9,10 @@ export const GAME_CONFIG = {
   STONE_HEIGHT: 0.2,
   STONE_MASS: 1,
 
-  FRICTION: 0.015,
+  FRICTION: 0.01,
   MIN_VELOCITY: 0.001,
-  MAX_POWER: 20,
-  POWER_MULTIPLIER: 0.08,
+  MAX_POWER: 3.5,
+  POWER_MULTIPLIER: 0.025,
 
   STONES_PER_PLAYER: 5,
 
@@ -20,11 +20,20 @@ export const GAME_CONFIG = {
   THROW_START_X: 0,
 
   CAMERA_DEFAULT: {
-    position: { x: 0, y: 15, z: 25 },
-    target: { x: 0, y: 0, z: -5 },
+    position: { x: 0, y: 8, z: 28 },
+    target: { x: 0, y: 0, z: 15 },
   },
   CAMERA_TOP: {
-    position: { x: 0, y: 35, z: 0 },
+    position: { x: 0, y: 45, z: 0 },
     target: { x: 0, y: 0, z: -5 },
+  },
+  CAMERA_THROW: {
+    position: { x: 0, y: 6, z: 26 },
+    target: { x: 0, y: 0, z: 20 },
+  },
+  CAMERA_ZOOM: {
+    min: 10,
+    max: 100,
+    speed: 0.001,
   },
 }

@@ -23,41 +23,17 @@ export class IceRink {
     ice.receiveShadow = true
     this.mesh.add(ice)
 
-    const borderMaterial = new THREE.MeshStandardMaterial({
+    const edgeGeometry = new THREE.EdgesGeometry(
+      new THREE.PlaneGeometry(RINK_WIDTH, RINK_LENGTH),
+    )
+    const edgeMaterial = new THREE.LineBasicMaterial({
       color: 0x1565c0,
-      roughness: 0.5,
+      linewidth: 2,
     })
-
-    const borderHeight = 0.3
-    const borderThickness = 0.2
-
-    const leftBorder = new THREE.Mesh(
-      new THREE.BoxGeometry(borderThickness, borderHeight, RINK_LENGTH),
-      borderMaterial,
-    )
-    leftBorder.position.set(-RINK_WIDTH / 2 - borderThickness / 2, borderHeight / 2, 0)
-    this.mesh.add(leftBorder)
-
-    const rightBorder = new THREE.Mesh(
-      new THREE.BoxGeometry(borderThickness, borderHeight, RINK_LENGTH),
-      borderMaterial,
-    )
-    rightBorder.position.set(RINK_WIDTH / 2 + borderThickness / 2, borderHeight / 2, 0)
-    this.mesh.add(rightBorder)
-
-    const backBorder = new THREE.Mesh(
-      new THREE.BoxGeometry(RINK_WIDTH + borderThickness * 2, borderHeight, borderThickness),
-      borderMaterial,
-    )
-    backBorder.position.set(0, borderHeight / 2, -RINK_LENGTH / 2 - borderThickness / 2)
-    this.mesh.add(backBorder)
-
-    const frontBorder = new THREE.Mesh(
-      new THREE.BoxGeometry(RINK_WIDTH + borderThickness * 2, borderHeight, borderThickness),
-      borderMaterial,
-    )
-    frontBorder.position.set(0, borderHeight / 2, RINK_LENGTH / 2 + borderThickness / 2)
-    this.mesh.add(frontBorder)
+    const edges = new THREE.LineSegments(edgeGeometry, edgeMaterial)
+    edges.rotation.x = -Math.PI / 2
+    edges.position.y = 0.01
+    this.mesh.add(edges)
 
     const centerLineGeometry = new THREE.BufferGeometry()
     const centerLinePoints = [
@@ -90,6 +66,26 @@ export class IceRink {
     ])
     const hogLine2 = new THREE.Line(hogLineGeometry2, centerLineMaterial)
     this.mesh.add(hogLine2)
+
+    const backLineZ = -RINK_LENGTH / 2
+    const backLineGeometry = new THREE.BufferGeometry()
+    backLineGeometry.setFromPoints([
+      new THREE.Vector3(-RINK_WIDTH / 2, 0.01, backLineZ),
+      new THREE.Vector3(RINK_WIDTH / 2, 0.01, backLineZ),
+    ])
+    const backLineMaterial = new THREE.LineBasicMaterial({ color: 0x0d47a1, linewidth: 3 })
+    const backLine = new THREE.Line(backLineGeometry, backLineMaterial)
+    this.mesh.add(backLine)
+
+    const hackZ = RINK_LENGTH / 2 - 0.5
+    const hackGeometry = new THREE.BufferGeometry()
+    hackGeometry.setFromPoints([
+      new THREE.Vector3(-0.3, 0.01, hackZ),
+      new THREE.Vector3(0.3, 0.01, hackZ),
+    ])
+    const hackMaterial = new THREE.LineBasicMaterial({ color: 0xff5722, linewidth: 3 })
+    const hack = new THREE.Line(hackGeometry, hackMaterial)
+    this.mesh.add(hack)
   }
 
   getMesh(): THREE.Group {

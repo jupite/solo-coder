@@ -9,8 +9,9 @@ export class AIOpponent {
     aiStonesThrown: number,
   ): { power: number; angle: number } {
     const houseCenterZ = GAME_CONFIG.HOUSE_CENTER_Z
-    const playerStones = stones.filter((s) => s.team === 'player' && !s.isMoving)
-    const aiStones = stones.filter((s) => s.team === 'ai' && !s.isMoving)
+    const validStones = stones.filter((s) => !s.isOutOfBounds)
+    const playerStones = validStones.filter((s) => s.team === 'player' && !s.isMoving)
+    const aiStones = validStones.filter((s) => s.team === 'ai' && !s.isMoving)
 
     const closestPlayerStone = this.findClosestToHouse(playerStones)
     const closestAiStone = this.findClosestToHouse(aiStones)
@@ -50,21 +51,23 @@ export class AIOpponent {
     const houseCenter = GAME_CONFIG.HOUSE_CENTER_Z
     let closest: { stone: Stone; distance: number } | null = null
 
-    stones.forEach((stone) => {
-      const pos = stone.getPosition()
-      const dx = pos.x
-      const dz = pos.z - houseCenter
-      const distance = Math.sqrt(dx * dx + dz * dz)
-      if (!closest || distance < closest.distance) {
-        closest = { stone, distance }
-      }
-    })
+    stones
+      .filter((s) => !s.isOutOfBounds)
+      .forEach((stone) => {
+        const pos = stone.getPosition()
+        const dx = pos.x
+        const dz = pos.z - houseCenter
+        const distance = Math.sqrt(dx * dx + dz * dz)
+        if (!closest || distance < closest.distance) {
+          closest = { stone, distance }
+        }
+      })
 
     return closest
   }
 
   private aimForHouse(): { power: number; angle: number } {
-    const basePower = 12 + Math.random() * 3
+    const basePower = 2.2 + Math.random() * 0.6
     const angle = (Math.random() - 0.5) * 0.15
     return { power: basePower, angle }
   }
@@ -79,7 +82,7 @@ export class AIOpponent {
     const angle = Math.atan2(dx, dz)
 
     const distance = Math.sqrt(dx * dx + dz * dz)
-    const power = Math.min(GAME_CONFIG.MAX_POWER, distance * 0.8 + Math.random() * 2)
+    const power = Math.min(GAME_CONFIG.MAX_POWER, distance * 0.12 + Math.random() * 0.5)
 
     return { power, angle }
   }

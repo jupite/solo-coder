@@ -123,11 +123,16 @@ export class Game {
     canvas.addEventListener('mousemove', this.onMouseMove.bind(this))
     canvas.addEventListener('mouseup', this.onMouseUp.bind(this))
     canvas.addEventListener('mouseleave', this.onMouseUp.bind(this))
+    canvas.addEventListener('wheel', this.onWheel.bind(this), { passive: true })
 
     window.addEventListener('resize', () => {
       this.camera.resize(canvas.clientWidth, canvas.clientHeight)
       this.renderer.setSize(canvas.clientWidth, canvas.clientHeight)
     })
+  }
+
+  private onWheel(event: WheelEvent) {
+    this.camera.zoom(event.deltaY)
   }
 
   private onMouseDown(event: MouseEvent) {
@@ -183,13 +188,15 @@ export class Game {
     const power = Math.min(Math.sqrt(dx * dx + dy * dy) * GAME_CONFIG.POWER_MULTIPLIER, GAME_CONFIG.MAX_POWER)
     const angle = Math.atan2(dx, dy)
 
-    if (power > 0.5) {
+    if (power > 0.3) {
       const vx = -Math.sin(angle) * power
       const vz = Math.cos(angle) * power
       this.state.currentStone.setVelocity(vx, vz)
 
       this.physics.addStone(this.state.currentStone)
       this.camera.setFollowTarget(this.state.currentStone.getMesh())
+      this.camera.setMode('follow')
+      this.state.cameraMode = 'follow'
 
       this.state.phase = 'calculating'
       this.state.message = '冰壶滑行中...'
@@ -286,6 +293,8 @@ export class Game {
     this.scene.addStone(stone)
     this.physics.addStone(stone)
     this.camera.setFollowTarget(stone.getMesh())
+    this.camera.setMode('follow')
+    this.state.cameraMode = 'follow'
     this.state.aiStonesThrown++
   }
 
@@ -332,9 +341,21 @@ export class Game {
     this.physics.update(deltaTime)
     this.camera.update(deltaTime)
 
+    if (this.state.phase === 'calculating') {
+      const movingStones = this.physics.stones.filter((s) => s.isMoving)
+      const outOfBoundsStones = movingStones.filter((s) => s.isOutOfBounds)
+
+      if (outOfBoundsStones.length > 0) {
+        outOfBoundsStones.forEach((stone) => stone.stop())
+        this.state.message = '冰壶出界！'
+        this.notifyStateChange()
+      }
+    }
+
     if (this.state.phase === 'calculating' && this.physics.allStonesStopped()) {
       this.camera.setFollowTarget(null)
-      this.camera.setMode(this.state.cameraMode)
+      this.camera.setMode('default')
+      this.state.cameraMode = 'default'
 
       if (this.checkGameEnd()) return
 
