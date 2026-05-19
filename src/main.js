@@ -27,8 +27,9 @@ class Game {
         this.inputController = new InputController(this.canvas, this.sceneManager.camera);
         
         this.clock = new THREE.Clock();
-        this.scoreCheckTimer = 0;
-        this.scoreCheckDelay = 3;
+        this.sleepCheckTimer = 0;
+        this.sleepThreshold = 2;
+        this.isWaitingForSleep = false;
         
         this.setupEventListeners();
         this.buildTower();
@@ -69,7 +70,7 @@ class Game {
         });
         
         this.projectile.setOnLandCallback(() => {
-            this.startScoreCountdown();
+            this.startSleepCheck();
         });
         
         this.gameManager.setOnRestartCallback(() => {
@@ -86,25 +87,43 @@ class Game {
         this.projectile.launch(velocity);
     }
     
-    startScoreCountdown() {
-        this.scoreCheckTimer = this.scoreCheckDelay;
+    startSleepCheck() {
+        this.isWaitingForSleep = true;
+        this.sleepCheckTimer = 0;
     }
     
-    updateScoreCountdown(deltaTime) {
-        if (this.scoreCheckTimer > 0) {
-            this.scoreCheckTimer -= deltaTime;
+    updateSleepCheck(deltaTime) {
+        if (!this.isWaitingForSleep) return;
+        
+        const projectileSpeed = this.projectile.body.velocity.length();
+        const projectileAngularSpeed = this.projectile.body.angularVelocity.length();
+        const projectileSleeping = projectileSpeed < 0.1 && projectileAngularSpeed < 0.1;
+        const allBlocksSleeping = this.tower.areAllBlocksSleeping();
+        
+        if (projectileSleeping && allBlocksSleeping) {
+            this.sleepCheckTimer += deltaTime;
             
-            if (this.scoreCheckTimer <= 0) {
-                const fallenBlocks = this.tower.countFallenBlocks();
-                if (fallenBlocks > 0) {
-                    this.gameManager.addScore(fallenBlocks);
-                }
-                this.gameManager.completeThrow();
-                
-                if (!this.gameManager.isGameOver) {
-                    this.projectile.reset();
-                }
+            if (this.sleepCheckTimer >= this.sleepThreshold) {
+                this.endRound();
             }
+        } else {
+            this.sleepCheckTimer = 0;
+        }
+    }
+    
+    endRound() {
+        this.isWaitingForSleep = false;
+        this.sleepCheckTimer = 0;
+        
+        const fallenBlocks = this.tower.countFallenBlocks();
+        if (fallenBlocks > 0) {
+            this.gameManager.addScore(fallenBlocks);
+        }
+        
+        this.gameManager.completeThrow();
+        
+        if (!this.gameManager.isGameOver) {
+            this.projectile.reset();
         }
     }
     
@@ -112,7 +131,8 @@ class Game {
         this.tower.clear();
         this.buildTower();
         this.projectile.reset();
-        this.scoreCheckTimer = 0;
+        this.isWaitingForSleep = false;
+        this.sleepCheckTimer = 0;
     }
     
     update() {
@@ -122,7 +142,7 @@ class Game {
         this.tower.update();
         this.projectile.update();
         this.cameraController.update(deltaTime);
-        this.updateScoreCountdown(deltaTime);
+        this.updateSleepCheck(deltaTime);
     }
     
     animate() {

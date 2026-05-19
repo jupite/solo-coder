@@ -126,4 +126,15 @@ export class Tower {
     getTotalBlocks() {
         return this.blocks.length;
     }
+    
+    areAllBlocksSleeping() {
+        for (const block of this.blocks) {
+            const speed = block.body.velocity.length();
+            const angularSpeed = block.body.angularVelocity.length();
+            if (speed > 0.1 || angularSpeed > 0.1) {
+                return false;
+            }
+        }
+        return true;
+    }
 }

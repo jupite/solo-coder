@@ -124,6 +124,7 @@ export class InputController {
         }
         
         const normalizedDrag = this.currentDrag.clone().normalize();
+        normalizedDrag.y = -normalizedDrag.y;
         
         const cameraDirection = new THREE.Vector3();
         this.camera.getWorldDirection(cameraDirection);
@@ -134,7 +135,7 @@ export class InputController {
         cameraRight.crossVectors(cameraDirection, new THREE.Vector3(0, 1, 0));
         
         const horizontalAngle = normalizedDrag.x * 0.8;
-        const verticalAngle = 0.3 + normalizedDrag.y * 0.6;
+        const verticalAngle = 0.3 + Math.max(0, normalizedDrag.y) * 0.6;
         
         const direction = new THREE.Vector3();
         direction.copy(cameraDirection);

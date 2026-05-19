@@ -98,7 +98,7 @@ export class Projectile {
         this.body.velocity.set(0, 0, 0);
         this.body.angularVelocity.set(0, 0, 0);
         this.body.quaternion.set(0, 0, 0, 1);
-        this.body.sleep();
+        this.body.wakeUp();
     }
     
     setOnLandCallback(callback) {
