@@ -1,0 +1,51 @@
+export const GAME_CONFIG = {
+    INITIAL_SPEED: 0.0008,
+    MAX_SPEED: 0.003,
+    SPEED_INCREMENT: 0.0000005,
+    TRACK_WIDTH: 3,
+    TRACK_HEIGHT: 0.2,
+    CART_WIDTH: 1.2,
+    CART_HEIGHT: 0.8,
+    CART_LENGTH: 1.8,
+    PLAYER_HEIGHT: 1.6,
+    PLAYER_CROUCH_HEIGHT: 0.8,
+    JUMP_FORCE: 0.3,
+    GRAVITY: 0.015,
+    LANE_WIDTH: 1.2,
+    MAX_LIVES: 3,
+    GOLD_SCORE: 10,
+    OBSTACLE_SPAWN_DISTANCE: 15,
+    GOLD_SPAWN_DISTANCE: 8,
+    TRACK_SEGMENT_LENGTH: 200,
+    CURVE_INTENSITY: 15,
+};
+
+export const COLORS = {
+    TRACK: 0x333333,
+    RAIL: 0x666666,
+    CART_BODY: 0x8B4513,
+    CART_FRAME: 0x4a4a4a,
+    CART_WHEEL: 0x222222,
+    PLAYER_BODY: 0x4169E1,
+    PLAYER_HEAD: 0xFFDAB9,
+    PLAYER_HELMET: 0xFFD700,
+    GOLD: 0xFFD700,
+    OBSTACLE_BEAM: 0x8B0000,
+    OBSTACLE_SIDE: 0x4A0000,
+    CAVE_WALL: 0x2a1810,
+    CAVE_FLOOR: 0x1a0a00,
+    FOG: 0x0a0500,
+};
+
+export const OBSTACLE_TYPES = {
+    BEAM: 'beam',
+    LEFT_BLOCK: 'left_block',
+    RIGHT_BLOCK: 'right_block',
+    GAP: 'gap',
+};
+
+export const GAME_STATES = {
+    MENU: 'menu',
+    PLAYING: 'playing',
+    GAME_OVER: 'game_over',
+};

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>矿车冒险 - Minecart Adventure</title>
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+        }
+    }
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            background: #0a0a0a;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .ui-panel {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #ffd700;
+            border-radius: 10px;
+            padding: 15px 25px;
+            color: #fff;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        #score-panel {
+            top: 20px;
+            left: 20px;
+        }
+
+        #lives-panel {
+            top: 20px;
+            right: 20px;
+        }
+
+        .heart {
+            color: #ff4444;
+            font-size: 24px;
+            margin: 0 3px;
+        }
+
+        .heart.lost {
+            color: #444;
+        }
+
+        #speed-panel {
+            top: 80px;
+            left: 20px;
+        }
+
+        #controls-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #888;
+            border-radius: 10px;
+            padding: 10px 20px;
+            color: #ccc;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: all;
+        }
+
+        #game-over-screen h1 {
+            color: #ff4444;
+            font-size: 64px;
+            margin-bottom: 20px;
+            text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.8);
+        }
+
+        #final-score {
+            color: #ffd700;
+            font-size: 36px;
+            margin-bottom: 40px;
+        }
+
+        #restart-btn {
+            padding: 15px 40px;
+            font-size: 24px;
+            background: linear-gradient(145deg, #ffd700, #ffaa00);
+            border: none;
+            border-radius: 10px;
+            color: #000;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+        }
+
+        #restart-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.6);
+        }
+
+        #restart-btn:active {
+            transform: translateY(0);
+        }
+
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #1a0a00 0%, #000 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: all;
+        }
+
+        #start-screen h1 {
+            color: #ffd700;
+            font-size: 72px;
+            margin-bottom: 20px;
+            text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.8);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 4px 4px 8px rgba(255, 215, 0, 0.5); }
+            to { text-shadow: 4px 4px 20px rgba(255, 215, 0, 1); }
+        }
+
+        #start-screen .subtitle {
+            color: #aaa;
+            font-size: 24px;
+            margin-bottom: 50px;
+        }
+
+        #start-btn {
+            padding: 20px 60px;
+            font-size: 28px;
+            background: linear-gradient(145deg, #ffd700, #ffaa00);
+            border: none;
+            border-radius: 15px;
+            color: #000;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 20px rgba(255, 215, 0, 0.5);
+        }
+
+        #start-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(255, 215, 0, 0.8);
+        }
+
+        .instructions {
+            margin-top: 40px;
+            color: #888;
+            font-size: 16px;
+            text-align: center;
+            line-height: 2;
+        }
+
+        .instructions span {
+            display: inline-block;
+            background: #333;
+            padding: 5px 12px;
+            border-radius: 5px;
+            margin: 0 5px;
+            color: #ffd700;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="ui-overlay">
+        <div class="ui-panel" id="score-panel">
+            分数: <span id="score-value">0</span>
+        </div>
+        <div class="ui-panel" id="lives-panel">
+            生命: <span id="lives-container">
+                <span class="heart">♥</span>
+                <span class="heart">♥</span>
+                <span class="heart">♥</span>
+            </span>
+        </div>
+        <div class="ui-panel" id="speed-panel">
+            速度: <span id="speed-value">0</span>
+        </div>
+        
+        <div id="controls-hint">
+            ↓ 弯腰 | ← → 左右躲避 | 空格 跳跃
+        </div>
+    </div>
+
+    <div id="start-screen">
+        <h1>矿车冒险</h1>
+        <p class="subtitle">Minecart Adventure</p>
+        <button id="start-btn">开始游戏</button>
+        <div class="instructions">
+            <p><span>↓</span> 躲避横梁</p>
+            <p><span>←</span> <span>→</span> 左右躲避</p>
+            <p><span>空格</span> 跳跃越过断层</p>
+        </div>
+    </div>
+
+    <div id="game-over-screen">
+        <h1>游戏结束</h1>
+        <p id="final-score">最终分数: 0</p>
+        <button id="restart-btn">重新开始</button>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+</body>
+</html>
