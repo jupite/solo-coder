@@ -112,6 +112,6 @@ export class Terrain {
   }
 
   getStartPosition() {
-    return new THREE.Vector3(0, this.heightScale * 0.8 + 50, 0);
+    return new THREE.Vector3(0, this.heightScale * 0.9 + 100, 0);
   }
 }

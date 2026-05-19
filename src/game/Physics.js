@@ -5,27 +5,30 @@ export class Physics {
   constructor() {
     this.gravity = new THREE.Vector3(0, -9.8, 0);
     this.airDensity = 1.225;
-    this.liftCoefficient = 0.8;
-    this.dragCoefficient = 0.05;
-    this.wingArea = 20;
+    this.liftCoefficient = 1.2;
+    this.dragCoefficient = 0.15;
+    this.wingArea = 25;
     this.mass = 80;
-    this.minSpeed = 5;
-    this.maxSpeed = 50;
+    this.minSpeed = 4;
+    this.maxSpeed = 15;
     this.angleOfAttack = 0;
+    this.glideRatio = 6;
   }
 
   calculateLift(velocity, angleOfAttack) {
     const speed = velocity.length();
-    if (speed < this.minSpeed) return new THREE.Vector3();
+    if (speed < this.minSpeed * 0.5) return new THREE.Vector3();
 
     const dynamicPressure = 0.5 * this.airDensity * speed * speed;
     const liftMagnitude = dynamicPressure * this.liftCoefficient * this.wingArea;
 
     const angleRad = degToRad(angleOfAttack);
-    const liftMultiplier = Math.sin(angleRad * 2);
+    const liftMultiplier = Math.sin(angleRad * 1.5) * 0.8 + 0.5;
 
-    const liftDir = new THREE.Vector3(0, 1, 0);
-    return liftDir.multiplyScalar(liftMagnitude * liftMultiplier);
+    const right = new THREE.Vector3(-velocity.z, 0, velocity.x).normalize();
+    const liftDir = new THREE.Vector3().crossVectors(velocity, right).normalize();
+
+    return liftDir.multiplyScalar(liftMagnitude * Math.max(0.2, liftMultiplier));
   }
 
   calculateDrag(velocity) {
@@ -39,11 +42,20 @@ export class Physics {
     return dragDir.multiplyScalar(dragMagnitude);
   }
 
-  calculateThrust(forwardDir, speed) {
-    if (speed < this.minSpeed) {
-      return forwardDir.clone().multiplyScalar(50);
-    }
-    return new THREE.Vector3();
+  calculateGlideForce(velocity, rotation) {
+    const speed = velocity.length();
+    if (speed < 2) return new THREE.Vector3();
+
+    const forward = new THREE.Vector3(
+      -Math.sin(rotation.y) * Math.cos(rotation.x),
+      Math.sin(rotation.x),
+      -Math.cos(rotation.y) * Math.cos(rotation.x)
+    ).normalize();
+
+    const targetSpeed = 6;
+    const speedDiff = targetSpeed - speed;
+    const glideMagnitude = (this.mass * 9.8) / this.glideRatio + speedDiff * 20;
+    return forward.multiplyScalar(Math.max(0, glideMagnitude));
   }
 
   update(player, input, dt) {
@@ -70,19 +82,19 @@ export class Physics {
     ).normalize();
 
     const speed = velocity.length();
-    this.angleOfAttack = rotation.x * 180 / Math.PI + 5;
-    this.angleOfAttack = clamp(this.angleOfAttack, -15, 20);
+    this.angleOfAttack = rotation.x * 180 / Math.PI + 8;
+    this.angleOfAttack = clamp(this.angleOfAttack, -10, 25);
 
     const lift = this.calculateLift(velocity, this.angleOfAttack);
     const drag = this.calculateDrag(velocity);
-    const thrust = this.calculateThrust(forwardDir, speed);
+    const glideForce = this.calculateGlideForce(velocity, rotation);
 
     const gravityForce = this.gravity.clone().multiplyScalar(this.mass);
 
     const totalForce = new THREE.Vector3()
       .add(lift)
       .add(drag)
-      .add(thrust)
+      .add(glideForce)
       .add(gravityForce);
 
     const acceleration = totalForce.divideScalar(this.mass);

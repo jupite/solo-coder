@@ -5,10 +5,10 @@ export class RingSystem {
   constructor(scene) {
     this.scene = scene;
     this.rings = [];
-    this.ringRadius = 8;
-    this.maxRings = 8;
-    this.spawnDistance = 100;
-    this.maxDistance = 600;
+    this.ringRadius = 6;
+    this.maxRings = 10;
+    this.spawnDistance = 20;
+    this.maxDistance = 300;
   }
 
   createRing(position) {
@@ -59,18 +59,21 @@ export class RingSystem {
   }
 
   spawnRing(playerPos, forwardDir) {
-    const angle = randomRange(-Math.PI / 4, Math.PI / 4);
-    const distance = randomRange(80, 200);
+    const right = new THREE.Vector3(-forwardDir.z, 0, forwardDir.x).normalize();
+    const offset = randomRange(-25, 25);
+    const distance = randomRange(20, 150);
+    const heightOffset = randomRange(-8, 25);
 
     const spawnPos = playerPos.clone();
-    spawnPos.x += forwardDir.x * distance + Math.sin(angle) * 30;
-    spawnPos.z += forwardDir.z * distance + Math.cos(angle) * 30;
-    spawnPos.y += randomRange(20, 80);
+    spawnPos.add(forwardDir.clone().multiplyScalar(distance));
+    spawnPos.add(right.clone().multiplyScalar(offset));
+    spawnPos.y += heightOffset;
 
     const terrainHeight = this.terrain ? this.terrain.getHeight(spawnPos.x, spawnPos.z) : 0;
-    spawnPos.y = Math.max(spawnPos.y, terrainHeight + 30);
+    spawnPos.y = Math.max(spawnPos.y, terrainHeight + 25);
 
     const ring = this.createRing(spawnPos);
+    ring.mesh.lookAt(playerPos.x, spawnPos.y, playerPos.z);
     this.rings.push(ring);
     this.scene.add(ring.mesh);
   }
@@ -78,18 +81,23 @@ export class RingSystem {
   init(terrain, playerPos) {
     this.terrain = terrain;
     const forwardDir = new THREE.Vector3(1, 0, 0);
+    const right = new THREE.Vector3(0, 0, 1);
 
     for (let i = 0; i < this.maxRings; i++) {
-      const distance = 80 + i * 60;
+      const distance = 20 + i * 25;
+      const offset = randomRange(-20, 20);
+      const heightOffset = randomRange(-5, 25);
+
       const spawnPos = playerPos.clone();
-      spawnPos.x += forwardDir.x * distance + randomRange(-50, 50);
-      spawnPos.z += forwardDir.z * distance + randomRange(-50, 50);
-      spawnPos.y += randomRange(20, 80);
+      spawnPos.add(forwardDir.clone().multiplyScalar(distance));
+      spawnPos.add(right.clone().multiplyScalar(offset));
+      spawnPos.y += heightOffset;
 
       const terrainHeight = terrain.getHeight(spawnPos.x, spawnPos.z);
-      spawnPos.y = Math.max(spawnPos.y, terrainHeight + 30);
+      spawnPos.y = Math.max(spawnPos.y, terrainHeight + 25);
 
       const ring = this.createRing(spawnPos);
+      ring.mesh.lookAt(playerPos.x, spawnPos.y, playerPos.z);
       this.rings.push(ring);
       this.scene.add(ring.mesh);
     }
@@ -140,6 +148,10 @@ export class RingSystem {
     while (this.rings.length < this.maxRings) {
       this.spawnRing(playerPos, forwardDir);
     }
+
+    for (const ring of this.rings) {
+      ring.mesh.lookAt(playerPos.x, ring.mesh.position.y, playerPos.z);
+    }
   }
 
   reset(playerPos, terrain) {
@@ -147,6 +159,28 @@ export class RingSystem {
       this.scene.remove(ring.mesh);
     }
     this.rings = [];
-    this.init(terrain, playerPos);
+    this.terrain = terrain;
+
+    const forwardDir = new THREE.Vector3(1, 0, 0);
+    const right = new THREE.Vector3(0, 0, 1);
+
+    for (let i = 0; i < this.maxRings; i++) {
+      const distance = 20 + i * 25;
+      const offset = randomRange(-20, 20);
+      const heightOffset = randomRange(-5, 25);
+
+      const spawnPos = playerPos.clone();
+      spawnPos.add(forwardDir.clone().multiplyScalar(distance));
+      spawnPos.add(right.clone().multiplyScalar(offset));
+      spawnPos.y += heightOffset;
+
+      const terrainHeight = terrain.getHeight(spawnPos.x, spawnPos.z);
+      spawnPos.y = Math.max(spawnPos.y, terrainHeight + 25);
+
+      const ring = this.createRing(spawnPos);
+      ring.mesh.lookAt(playerPos.x, spawnPos.y, playerPos.z);
+      this.rings.push(ring);
+      this.scene.add(ring.mesh);
+    }
   }
 }
