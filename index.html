@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>滑翔伞游戏</title>
+  <link rel="stylesheet" href="/src/styles/main.css" />
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="ui">
+    <div class="top-bar">
+      <div class="energy-container">
+        <div class="energy-label">能量</div>
+        <div class="energy-bar">
+          <div id="energyFill" class="energy-fill"></div>
+        </div>
+      </div>
+      <div class="score-container">
+        <span class="score-label">分数</span>
+        <span id="scoreValue" class="score-value">0</span>
+      </div>
+    </div>
+
+    <div class="controls-hint">
+      <span>W/S 俯仰 | A/D 倾斜 | 鼠标控制方向</span>
+    </div>
+
+    <div id="gameOver" class="game-over hidden">
+      <h2>游戏结束</h2>
+      <p>最终得分: <span id="finalScore">0</span></p>
+      <button id="restartBtn" class="restart-btn">重新开始</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
