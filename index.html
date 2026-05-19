@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>堆叠冰淇淋游戏</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        overflow: hidden;
+        font-family: 'Arial', sans-serif;
+        background: linear-gradient(135deg, #87CEEB 0%, #E0F6FF 100%);
+      }
+      #game-container {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+      }
+      #ui {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        z-index: 100;
+        color: #fff;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      }
+      #score {
+        font-size: 32px;
+        font-weight: bold;
+        background: rgba(255, 105, 180, 0.8);
+        padding: 10px 20px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(255, 105, 180, 0.4);
+      }
+      #game-over {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 40px 60px;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        z-index: 200;
+        display: none;
+      }
+      #game-over h1 {
+        color: #FF6B6B;
+        font-size: 48px;
+        margin-bottom: 20px;
+      }
+      #game-over p {
+        color: #333;
+        font-size: 24px;
+        margin-bottom: 30px;
+      }
+      #final-score {
+        color: #4ECDC4;
+        font-size: 36px;
+        font-weight: bold;
+      }
+      #restart-btn {
+        background: linear-gradient(135deg, #FF6B6B, #FF8E8E);
+        color: white;
+        border: none;
+        padding: 15px 40px;
+        font-size: 20px;
+        border-radius: 30px;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+      }
+      #restart-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 6px 20px rgba(255, 107, 107, 0.6);
+      }
+      #instructions {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: #fff;
+        font-size: 18px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        background: rgba(0, 0, 0, 0.3);
+        padding: 10px 20px;
+        border-radius: 10px;
+        z-index: 100;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game-container">
+      <div id="ui">
+        <div id="score">分数: 0</div>
+      </div>
+      <div id="instructions">← → 或移动鼠标控制蛋筒接住冰淇淋球</div>
+      <div id="game-over">
+        <h1>游戏结束!</h1>
+        <p>最终得分: <span id="final-score">0</span></p>
+        <button id="restart-btn">再玩一次</button>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
