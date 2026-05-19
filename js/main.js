@@ -1,14 +1,3 @@
-import * as THREE from 'three';
-import { CONFIG } from './game/config.js';
-import { Track } from './game/track.js';
-import { Car } from './game/car.js';
-import { AIController } from './game/ai.js';
-import { ObstacleSystem } from './game/obstacles.js';
-import { PowerupSystem } from './game/powerups.js';
-import { CollisionSystem } from './game/collision.js';
-import { CameraSystem } from './game/camera.js';
-import { UISystem } from './game/ui.js';
-
 class Game {
     constructor() {
         this.scene = null;
@@ -33,6 +22,7 @@ class Game {
         this.raceTime = 0;
         this.lapStartTime = 0;
         this.lastLapWaypoint = 0;
+        this.lastLapProgress = 0;
         
         this.animFrameId = null;
         this.boundAnimate = null;
@@ -82,16 +72,16 @@ class Game {
         this.scene.add(ambientLight);
         
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(50, 100, 50);
+        directionalLight.position.set(100, 150, 100);
         directionalLight.castShadow = true;
         directionalLight.shadow.mapSize.width = 2048;
         directionalLight.shadow.mapSize.height = 2048;
         directionalLight.shadow.camera.near = 0.5;
         directionalLight.shadow.camera.far = 800;
-        directionalLight.shadow.camera.left = -300;
-        directionalLight.shadow.camera.right = 300;
-        directionalLight.shadow.camera.top = 300;
-        directionalLight.shadow.camera.bottom = -300;
+        directionalLight.shadow.camera.left = -400;
+        directionalLight.shadow.camera.right = 400;
+        directionalLight.shadow.camera.top = 400;
+        directionalLight.shadow.camera.bottom = -400;
         this.scene.add(directionalLight);
         
         window.addEventListener('resize', () => this.onWindowResize());
@@ -197,16 +187,17 @@ class Game {
         this.raceTime = 0;
         this.lapStartTime = performance.now();
         this.lastLapWaypoint = this.playerCar.currentWaypoint;
+        this.lastLapProgress = this.playerCar.raceProgress;
     }
 
     checkLapCompletion(car) {
-        const currentWaypoint = car.currentWaypoint;
+        const progress = car.raceProgress;
         
-        if (this.lastLapWaypoint > this.track.waypoints.length / 2 && currentWaypoint < 5) {
-            const lapTime = performance.now() - this.lapStartTime;
-            car.lap++;
-            
-            if (car.isPlayer) {
+        if (car.isPlayer) {
+            if (this.lastLapProgress > 0.8 && progress < 0.2) {
+                const lapTime = performance.now() - this.lapStartTime;
+                car.lap++;
+                
                 this.ui.addLapTime(car.lap - 1, lapTime);
                 this.lapStartTime = performance.now();
                 
@@ -216,9 +207,13 @@ class Game {
                     this.ui.updateLap(car.lap);
                 }
             }
+            this.lastLapProgress = progress;
+        } else {
+            if (car.lastLapProgress > 0.8 && progress < 0.2) {
+                car.lap++;
+            }
+            car.lastLapProgress = progress;
         }
-        
-        this.lastLapWaypoint = currentWaypoint;
     }
 
     updatePositions() {
@@ -236,7 +231,6 @@ class Game {
 
     finishRace() {
         this.raceState = 'finished';
-        const totalTime = performance.now() - this.lapStartTime + (CONFIG.RACE.TOTAL_LAPS - 1) * 60000;
         
         const allCars = [this.playerCar, ...this.aiCars.map(ai => ai.car)];
         allCars.sort((a, b) => {

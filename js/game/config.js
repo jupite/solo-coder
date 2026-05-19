@@ -1,4 +1,4 @@
-export const CONFIG = {
+const CONFIG = {
     RACE: {
         TOTAL_LAPS: 3,
         COUNTDOWN_TIME: 3,
@@ -26,8 +26,7 @@ export const CONFIG = {
     
     TRACK: {
         WIDTH: 35,
-        RADIUS: 200,
-        SEGMENTS: 96,
+        SEGMENTS_PER_POINT: 10,
         ROAD_HEIGHT: 0.2,
         KERB_HEIGHT: 0.15,
         KERB_WIDTH: 2,
@@ -72,3 +71,16 @@ export const CONFIG = {
         POWERUP: 0x00ffff,
     },
 };
+
+const TRACK_POINTS = [
+    { x: 0, z: -150 },
+    { x: 100, z: -150 },
+    { x: 150, z: -100 },
+    { x: 150, z: 0 },
+    { x: 100, z: 80 },
+    { x: 0, z: 120 },
+    { x: -100, z: 100 },
+    { x: -150, z: 0 },
+    { x: -120, z: -80 },
+    { x: -50, z: -120 },
+];

@@ -1,7 +1,4 @@
-import * as THREE from 'three';
-import { CONFIG } from './config.js';
-
-export class Car {
+class Car {
     constructor(scene, color, isPlayer = false) {
         this.scene = scene;
         this.color = color;
@@ -23,6 +20,7 @@ export class Car {
         this.lap = 1;
         this.checkpointPassed = false;
         this.raceProgress = 0;
+        this.lastLapProgress = 0;
         
         this.isBoosting = false;
         this.boostEndTime = 0;
@@ -190,7 +188,7 @@ export class Car {
         this.speed *= this.friction;
         
         const speedFactor = Math.min(Math.abs(this.speed) / currentMaxSpeed, 1);
-        this.group.rotation.y += this.steerInput * this.turnSpeed * speedFactor * deltaTime;
+        this.group.rotation.y -= this.steerInput * this.turnSpeed * speedFactor * deltaTime;
         
         const forward = new THREE.Vector3(0, 0, 1);
         forward.applyQuaternion(this.group.quaternion);

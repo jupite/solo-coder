@@ -1,6 +1,4 @@
-import { CONFIG } from './config.js';
-
-export class CollisionSystem {
+class CollisionSystem {
     constructor() {
         this.obstacleCooldowns = new Map();
     }

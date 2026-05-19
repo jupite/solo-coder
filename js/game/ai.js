@@ -1,8 +1,4 @@
-import * as THREE from 'three';
-import { CONFIG } from './config.js';
-import { Car } from './car.js';
-
-export class AIController {
+class AIController {
     constructor(scene, track, index) {
         this.scene = scene;
         this.track = track;
@@ -23,14 +19,18 @@ export class AIController {
     init() {
         const startPos = this.track.getStartPosition();
         const startRot = this.track.getStartRotation();
+        const startDir = this.track.waypoints[1] ? 
+            new THREE.Vector3().subVectors(this.track.waypoints[1], this.track.waypoints[0]).normalize() :
+            new THREE.Vector3(0, 0, 1);
+        const startPerp = new THREE.Vector3(-startDir.z, 0, startDir.x);
         
-        const offsetZ = (this.index + 1) * 6;
-        const offsetX = (this.index % 2 === 0 ? 1 : -1) * 5;
+        const offsetForward = (this.index + 1) * 6;
+        const offsetSide = (this.index % 2 === 0 ? 1 : -1) * 5;
         
         this.car.setPosition(new THREE.Vector3(
-            startPos.x + offsetX,
+            startPos.x - startDir.x * offsetForward + startPerp.x * offsetSide,
             startPos.y,
-            startPos.z + offsetZ
+            startPos.z - startDir.z * offsetForward + startPerp.z * offsetSide
         ));
         this.car.setRotation(startRot);
         this.car.maxSpeed *= this.speedMultiplier;

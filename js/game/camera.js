@@ -1,7 +1,4 @@
-import * as THREE from 'three';
-import { CONFIG } from './config.js';
-
-export class CameraSystem {
+class CameraSystem {
     constructor(camera, targetCar) {
         this.camera = camera;
         this.targetCar = targetCar;

@@ -1,17 +1,16 @@
-import * as THREE from 'three';
-import { CONFIG } from './config.js';
-
-export class Track {
+class Track {
     constructor(scene) {
         this.scene = scene;
         this.mesh = null;
         this.waypoints = [];
         this.group = new THREE.Group();
+        this.trackPath = [];
         this.init();
     }
 
     init() {
         this.createGround();
+        this.createTrackPoints();
         this.createTrack();
         this.createKerbs();
         this.createSigns();
@@ -19,7 +18,7 @@ export class Track {
     }
 
     createGround() {
-        const groundGeometry = new THREE.PlaneGeometry(1000, 1000);
+        const groundGeometry = new THREE.PlaneGeometry(800, 800);
         const groundMaterial = new THREE.MeshStandardMaterial({
             color: CONFIG.COLORS.GROUND,
             roughness: 0.8,
@@ -31,29 +30,91 @@ export class Track {
         this.group.add(ground);
     }
 
-    createTrack() {
-        const { RADIUS, WIDTH, SEGMENTS, ROAD_HEIGHT } = CONFIG.TRACK;
-        const points = [];
-
-        for (let i = 0; i <= SEGMENTS; i++) {
-            const angle = (i / SEGMENTS) * Math.PI * 2;
-            const x = Math.cos(angle) * RADIUS;
-            const z = Math.sin(angle) * RADIUS;
-            points.push(new THREE.Vector3(x, ROAD_HEIGHT / 2, z));
-            this.waypoints.push(new THREE.Vector3(x, 0, z));
+    createTrackPoints() {
+        const { SEGMENTS_PER_POINT } = CONFIG.TRACK;
+        
+        for (let i = 0; i < TRACK_POINTS.length; i++) {
+            const p1 = TRACK_POINTS[i % TRACK_POINTS.length];
+            const p2 = TRACK_POINTS[(i + 1) % TRACK_POINTS.length];
+            
+            for (let t = 0; t < SEGMENTS_PER_POINT; t++) {
+                const alpha = t / SEGMENTS_PER_POINT;
+                const x = p1.x + (p2.x - p1.x) * alpha;
+                const z = p1.z + (p2.z - p1.z) * alpha;
+                this.trackPath.push(new THREE.Vector2(x, z));
+                this.waypoints.push(new THREE.Vector3(x, 0, z));
+            }
         }
+    }
 
-        const curve = new THREE.CatmullRomCurve3(points, true);
-        const tubeGeometry = new THREE.TubeGeometry(curve, SEGMENTS * 4, WIDTH / 2, 8, true);
-        const roadMaterial = new THREE.MeshStandardMaterial({
+    createTrack() {
+        const { WIDTH, ROAD_HEIGHT } = CONFIG.TRACK;
+        const trackShape = new THREE.Shape();
+        
+        for (let i = 0; i < this.trackPath.length; i++) {
+            const point = this.trackPath[i];
+            const nextPoint = this.trackPath[(i + 1) % this.trackPath.length];
+            const prevPoint = this.trackPath[(i - 1 + this.trackPath.length) % this.trackPath.length];
+            
+            const tangent = new THREE.Vector2(
+                nextPoint.x - prevPoint.x,
+                nextPoint.y - prevPoint.y
+            ).normalize();
+            
+            const normal = new THREE.Vector2(-tangent.y, tangent.x);
+            
+            if (i === 0) {
+                trackShape.moveTo(
+                    point.x + normal.x * WIDTH / 2,
+                    point.y + normal.y * WIDTH / 2
+                );
+            } else {
+                trackShape.lineTo(
+                    point.x + normal.x * WIDTH / 2,
+                    point.y + normal.y * WIDTH / 2
+                );
+            }
+        }
+        
+        for (let i = this.trackPath.length - 1; i >= 0; i--) {
+            const point = this.trackPath[i];
+            const nextPoint = this.trackPath[(i + 1) % this.trackPath.length];
+            const prevPoint = this.trackPath[(i - 1 + this.trackPath.length) % this.trackPath.length];
+            
+            const tangent = new THREE.Vector2(
+                nextPoint.x - prevPoint.x,
+                nextPoint.y - prevPoint.y
+            ).normalize();
+            
+            const normal = new THREE.Vector2(-tangent.y, tangent.x);
+            
+            trackShape.lineTo(
+                point.x - normal.x * WIDTH / 2,
+                point.y - normal.y * WIDTH / 2
+            );
+        }
+        
+        trackShape.closePath();
+        
+        const extrudeSettings = {
+            steps: 1,
+            depth: ROAD_HEIGHT,
+            bevelEnabled: false,
+        };
+        
+        const trackGeometry = new THREE.ExtrudeGeometry(trackShape, extrudeSettings);
+        const trackMaterial = new THREE.MeshStandardMaterial({
             color: CONFIG.COLORS.ROAD,
             roughness: 0.9,
+            side: THREE.DoubleSide,
         });
-
-        this.mesh = new THREE.Mesh(tubeGeometry, roadMaterial);
+        
+        this.mesh = new THREE.Mesh(trackGeometry, trackMaterial);
+        this.mesh.rotation.x = -Math.PI / 2;
+        this.mesh.position.y = 0;
         this.mesh.receiveShadow = true;
         this.group.add(this.mesh);
-
+        
         const startLine = this.createStartLine();
         this.group.add(startLine);
     }
@@ -62,11 +123,15 @@ export class Track {
         const { WIDTH, ROAD_HEIGHT } = CONFIG.TRACK;
         const lineGroup = new THREE.Group();
 
+        const startPoint = this.waypoints[0];
+        const nextPoint = this.waypoints[5];
+        const direction = new THREE.Vector3().subVectors(nextPoint, startPoint).normalize();
+
         const lineGeometry = new THREE.BoxGeometry(WIDTH, 0.05, 0.5);
         const lineMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
         const line = new THREE.Mesh(lineGeometry, lineMaterial);
-        line.position.set(CONFIG.TRACK.RADIUS, ROAD_HEIGHT + 0.03, 0);
-        line.rotation.y = Math.PI / 2;
+        line.position.set(startPoint.x, ROAD_HEIGHT + 0.03, startPoint.z);
+        line.rotation.y = Math.atan2(direction.x, direction.z);
         lineGroup.add(line);
 
         for (let i = 0; i < 16; i++) {
@@ -75,8 +140,16 @@ export class Track {
                 color: i % 2 === 0 ? 0x000000 : 0xffffff,
             });
             const checker = new THREE.Mesh(checkerGeometry, checkerMaterial);
-            checker.position.set(CONFIG.TRACK.RADIUS, ROAD_HEIGHT + 0.02, (i - 7.5) * 2);
-            checker.rotation.y = Math.PI / 2;
+            
+            const perp = new THREE.Vector3(-direction.z, 0, direction.x);
+            const offset = perp.clone().multiplyScalar((i - 7.5) * 2);
+            
+            checker.position.set(
+                startPoint.x + offset.x,
+                ROAD_HEIGHT + 0.02,
+                startPoint.z + offset.z
+            );
+            checker.rotation.y = Math.atan2(direction.x, direction.z);
             lineGroup.add(checker);
         }
 
@@ -84,31 +157,34 @@ export class Track {
     }
 
     createKerbs() {
-        const { RADIUS, WIDTH, SEGMENTS, KERB_HEIGHT, KERB_WIDTH } = CONFIG.TRACK;
-        const innerRadius = RADIUS - WIDTH / 2 - KERB_WIDTH / 2;
-        const outerRadius = RADIUS + WIDTH / 2 + KERB_WIDTH / 2;
-
-        for (let side = 0; side < 2; side++) {
-            const radius = side === 0 ? innerRadius : outerRadius;
-            for (let i = 0; i < SEGMENTS; i++) {
-                const angle = (i / SEGMENTS) * Math.PI * 2;
-                const nextAngle = ((i + 1) / SEGMENTS) * Math.PI * 2;
-
-                const x1 = Math.cos(angle) * radius;
-                const z1 = Math.sin(angle) * radius;
-                const x2 = Math.cos(nextAngle) * radius;
-                const z2 = Math.sin(nextAngle) * radius;
-
-                const length = Math.sqrt((x2 - x1) ** 2 + (z2 - z1) ** 2);
-
+        const { WIDTH, KERB_HEIGHT, KERB_WIDTH } = CONFIG.TRACK;
+        
+        for (let i = 0; i < this.waypoints.length; i++) {
+            const p1 = this.waypoints[i];
+            const p2 = this.waypoints[(i + 1) % this.waypoints.length];
+            const p0 = this.waypoints[(i - 1 + this.waypoints.length) % this.waypoints.length];
+            
+            const direction = new THREE.Vector3().subVectors(p2, p0).normalize();
+            const perp = new THREE.Vector3(-direction.z, 0, direction.x);
+            
+            const length = p1.distanceTo(p2);
+            
+            for (let side = 0; side < 2; side++) {
+                const sideOffset = side === 0 ? -1 : 1;
+                const kerbPos = new THREE.Vector3()
+                    .copy(p1)
+                    .add(p2)
+                    .multiplyScalar(0.5)
+                    .add(perp.clone().multiplyScalar(sideOffset * (WIDTH / 2 + KERB_WIDTH / 2)));
+                
                 const kerbGeometry = new THREE.BoxGeometry(KERB_WIDTH, KERB_HEIGHT, length);
                 const kerbMaterial = new THREE.MeshStandardMaterial({
                     color: i % 2 === 0 ? CONFIG.COLORS.KERB_RED : CONFIG.COLORS.KERB_WHITE,
                 });
 
                 const kerb = new THREE.Mesh(kerbGeometry, kerbMaterial);
-                kerb.position.set((x1 + x2) / 2, KERB_HEIGHT / 2, (z1 + z2) / 2);
-                kerb.rotation.y = -angle + Math.PI / 2;
+                kerb.position.set(kerbPos.x, KERB_HEIGHT / 2, kerbPos.z);
+                kerb.rotation.y = Math.atan2(direction.x, direction.z);
                 kerb.castShadow = true;
                 kerb.receiveShadow = true;
                 this.group.add(kerb);
@@ -117,20 +193,23 @@ export class Track {
     }
 
     createSigns() {
-        const { RADIUS, WIDTH, SEGMENTS } = CONFIG.TRACK;
-        const signPositions = [0, 16, 32, 48];
-
-        signPositions.forEach((index, i) => {
-            const angle = (index / SEGMENTS) * Math.PI * 2;
-            const radius = RADIUS + WIDTH / 2 + 5;
-            const x = Math.cos(angle) * radius;
-            const z = Math.sin(angle) * radius;
-
+        const signInterval = Math.floor(this.waypoints.length / 4);
+        
+        for (let i = 0; i < 4; i++) {
+            const index = i * signInterval;
+            const waypoint = this.waypoints[index];
+            const nextWaypoint = this.waypoints[(index + 10) % this.waypoints.length];
+            
+            const direction = new THREE.Vector3().subVectors(nextWaypoint, waypoint).normalize();
+            const perp = new THREE.Vector3(-direction.z, 0, direction.x);
+            
+            const signPos = waypoint.clone().add(perp.clone().multiplyScalar(CONFIG.TRACK.WIDTH / 2 + 5));
+            
             const sign = this.createSignPost(i + 1);
-            sign.position.set(x, 0, z);
-            sign.rotation.y = -angle;
+            sign.position.set(signPos.x, 0, signPos.z);
+            sign.rotation.y = Math.atan2(direction.x, direction.z) + Math.PI;
             this.group.add(sign);
-        });
+        }
     }
 
     createSignPost(distance) {
@@ -193,10 +272,23 @@ export class Track {
     }
 
     getStartPosition() {
-        return new THREE.Vector3(CONFIG.TRACK.RADIUS - 15, CONFIG.CAR.HEIGHT / 2, 0);
+        const start = this.waypoints[0];
+        const next = this.waypoints[5];
+        const direction = new THREE.Vector3().subVectors(next, start).normalize();
+        const perp = new THREE.Vector3(-direction.z, 0, direction.x);
+        
+        return new THREE.Vector3(
+            start.x + perp.x * 5 - direction.x * 10,
+            CONFIG.CAR.HEIGHT / 2,
+            start.z + perp.z * 5 - direction.z * 10
+        );
     }
 
     getStartRotation() {
-        return new THREE.Euler(0, -Math.PI / 2, 0);
+        const start = this.waypoints[0];
+        const next = this.waypoints[5];
+        const direction = new THREE.Vector3().subVectors(next, start).normalize();
+        const angle = Math.atan2(direction.x, direction.z);
+        return new THREE.Euler(0, angle, 0);
     }
 }

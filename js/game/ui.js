@@ -1,6 +1,4 @@
-import { CONFIG } from './config.js';
-
-export class UISystem {
+class UISystem {
     constructor() {
         this.lapDisplay = document.getElementById('lap-display');
         this.timeDisplay = document.getElementById('time-display');

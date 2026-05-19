@@ -1,7 +1,4 @@
-import * as THREE from 'three';
-import { CONFIG } from './config.js';
-
-export class PowerupSystem {
+class PowerupSystem {
     constructor(scene, track) {
         this.scene = scene;
         this.track = track;
