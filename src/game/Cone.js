@@ -9,6 +9,7 @@ export class Cone {
     this.currentX = 0
     this.moveSpeed = 0.15
     this.boundary = 10
+    this.stackedBalls = []
     this.init()
   }
 
@@ -22,6 +23,7 @@ export class Cone {
       metalness: 0.1
     })
     const cone = new THREE.Mesh(coneGeometry, coneMaterial)
+    cone.rotation.x = Math.PI
     cone.position.y = this.coneHeight / 2
     cone.castShadow = true
     cone.receiveShadow = true
@@ -47,6 +49,7 @@ export class Cone {
       wireframe: true
     })
     const lines = new THREE.Mesh(linesGeometry, linesMaterial)
+    lines.rotation.x = Math.PI
     lines.position.y = this.coneHeight / 2
     group.add(lines)
 
@@ -78,9 +81,30 @@ export class Cone {
     return this.mesh
   }
 
+  addStackedBall(ball) {
+    this.stackedBalls.push(ball)
+    this.mesh.add(ball.getMesh())
+  }
+
+  removeAllStackedBalls() {
+    this.stackedBalls.forEach(ball => {
+      this.mesh.remove(ball.getMesh())
+    })
+    this.stackedBalls = []
+  }
+
+  getStackedBalls() {
+    return this.stackedBalls
+  }
+
+  getStackedBallCount() {
+    return this.stackedBalls.length
+  }
+
   reset() {
     this.targetX = 0
     this.currentX = 0
     this.mesh.position.x = 0
+    this.removeAllStackedBalls()
   }
 }

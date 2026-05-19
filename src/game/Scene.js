@@ -32,7 +32,6 @@ export class GameScene {
 
     this.setupLights()
     this.createGround()
-    this.createEnvironment()
 
     window.addEventListener('resize', () => this.onResize())
   }
@@ -77,27 +76,6 @@ export class GameScene {
     gridHelper.material.opacity = 0.2
     gridHelper.material.transparent = true
     this.scene.add(gridHelper)
-  }
-
-  createEnvironment() {
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2
-      const distance = 15 + Math.random() * 5
-      const cloudGeometry = new THREE.SphereGeometry(1.5 + Math.random(), 8, 8)
-      const cloudMaterial = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        roughness: 1,
-        metalness: 0
-      })
-      const cloud = new THREE.Mesh(cloudGeometry, cloudMaterial)
-      cloud.position.set(
-        Math.cos(angle) * distance,
-        12 + Math.random() * 5,
-        Math.sin(angle) * distance
-      )
-      cloud.scale.set(1 + Math.random(), 0.6 + Math.random() * 0.4, 1 + Math.random())
-      this.scene.add(cloud)
-    }
   }
 
   onResize() {

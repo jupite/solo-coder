@@ -16,7 +16,6 @@ export class Game {
     this.ui = null
     this.clock = null
     this.fallingBalls = []
-    this.stackedBalls = []
     this.isGameOver = false
     this.isRunning = false
     this.spawnTimer = 0
@@ -52,13 +51,12 @@ export class Game {
       this.scene.remove(ball.getMesh())
       ball.dispose()
     })
-    this.stackedBalls.forEach(ball => {
-      this.scene.remove(ball.getMesh())
+
+    this.cone.getStackedBalls().forEach(ball => {
       ball.dispose()
     })
 
     this.fallingBalls = []
-    this.stackedBalls = []
     this.spawnTimer = 0
     this.spawnInterval = 1.5
     this.isGameOver = false
@@ -74,7 +72,9 @@ export class Game {
   spawnBall() {
     const ball = new IceCreamBall(1)
     const spawnX = (Math.random() - 0.5) * 16
-    const spawnY = 15 + Math.random() * 5
+    const stackedCount = this.cone.getStackedBallCount()
+    const topY = this.cone.getTopY() + stackedCount * 2
+    const spawnY = Math.max(15, topY + 5 + Math.random() * 3)
     ball.setPosition(spawnX, spawnY, 0)
     this.fallingBalls.push(ball)
     this.scene.add(ball.getMesh())
@@ -94,22 +94,38 @@ export class Game {
     this.cone.setPosition(targetX)
     this.cone.update(deltaTime)
 
+    const stackedBalls = this.cone.getStackedBalls()
+
     for (let i = this.fallingBalls.length - 1; i >= 0; i--) {
       const ball = this.fallingBalls[i]
       this.physics.updateBall(ball, deltaTime)
 
-      if (this.stackedBalls.length > 0) {
-        const stackResult = this.physics.checkBallStackCollision(ball, this.stackedBalls)
+      if (stackedBalls.length > 0) {
+        const stackResult = this.checkBallStackCollision(ball, stackedBalls)
         if (stackResult.collided) {
-          this.stackBall(ball, stackResult)
+          if (stackResult.success) {
+            this.stackBall(ball, stackResult)
+          } else {
+            this.scene.remove(ball.getMesh())
+            ball.dispose()
+            this.gameOver()
+            return
+          }
           this.fallingBalls.splice(i, 1)
           continue
         }
       }
 
-      const coneResult = this.physics.checkBallConeCollision(ball, this.cone)
+      const coneResult = this.checkBallConeCollision(ball)
       if (coneResult.collided) {
-        this.stackBall(ball, coneResult)
+        if (coneResult.success) {
+          this.stackBall(ball, coneResult)
+        } else {
+          this.scene.remove(ball.getMesh())
+          ball.dispose()
+          this.gameOver()
+          return
+        }
         this.fallingBalls.splice(i, 1)
         continue
       }
@@ -120,15 +136,92 @@ export class Game {
       }
     }
 
-    const cameraTargetY = Math.max(8, this.cone.getTopY() + this.stackedBalls.length * 1.5)
+    const cameraTargetY = Math.max(8, this.cone.getTopY() + stackedBalls.length * 1.5)
     this.scene.camera.position.y += (cameraTargetY - this.scene.camera.position.y) * 0.05
     this.scene.camera.lookAt(0, cameraTargetY - 3, 0)
   }
 
+  checkBallConeCollision(ball) {
+    const ballPos = ball.getPosition()
+    const ballRadius = ball.getRadius()
+    const coneTopY = this.cone.getTopY()
+    const coneTopX = this.cone.getTopX()
+    const coneRadius = this.cone.getRadius()
+
+    const dx = ballPos.x - coneTopX
+    const horizontalDistance = Math.sqrt(dx * dx + ballPos.z * ballPos.z)
+
+    if (ballPos.y - ballRadius <= coneTopY && ballPos.y >= coneTopY - ballRadius * 0.5) {
+      if (horizontalDistance <= coneRadius * 0.6) {
+        const localX = ballPos.x - coneTopX
+        return {
+          collided: true,
+          success: true,
+          localX: localX,
+          localY: coneTopY + ballRadius,
+          localZ: ballPos.z
+        }
+      } else if (horizontalDistance <= coneRadius * 0.9) {
+        return {
+          collided: true,
+          success: false
+        }
+      }
+    }
+
+    return { collided: false }
+  }
+
+  checkBallStackCollision(ball, stackedBalls) {
+    const ballPos = ball.getPosition()
+    const ballRadius = ball.getRadius()
+    const coneX = this.cone.getTopX()
+
+    for (let i = stackedBalls.length - 1; i >= 0; i--) {
+      const stackedBall = stackedBalls[i]
+      const stackedLocalPos = stackedBall.getPosition()
+      const stackedWorldX = coneX + stackedLocalPos.x
+      const stackedWorldY = stackedLocalPos.y
+      const stackedWorldZ = stackedLocalPos.z
+      const stackedRadius = stackedBall.getRadius()
+
+      const dx = ballPos.x - stackedWorldX
+      const dz = ballPos.z - stackedWorldZ
+      const dy = ballPos.y - stackedWorldY
+      const distance = Math.sqrt(dx * dx + dz * dz + dy * dy)
+      const minDistance = ballRadius + stackedRadius
+
+      if (distance <= minDistance * 0.95) {
+        const contactY = stackedWorldY + stackedRadius * 2
+        const horizontalDistance = Math.sqrt(dx * dx + dz * dz)
+
+        if (horizontalDistance <= (ballRadius + stackedRadius) * 0.5) {
+          const localX = ballPos.x - coneX
+          return {
+            collided: true,
+            success: true,
+            localX: localX,
+            localY: contactY,
+            localZ: ballPos.z,
+            stackIndex: i
+          }
+        } else if (horizontalDistance <= (ballRadius + stackedRadius) * 0.8) {
+          return {
+            collided: true,
+            success: false
+          }
+        }
+      }
+    }
+
+    return { collided: false }
+  }
+
   stackBall(ball, result) {
-    ball.setPosition(result.stackX, result.stackY, result.stackZ)
+    this.scene.remove(ball.getMesh())
+    ball.setPosition(result.localX, result.localY, result.localZ)
     ball.setStacked()
-    this.stackedBalls.push(ball)
+    this.cone.addStackedBall(ball)
     this.ui.updateScore(this.pointsPerBall)
   }
 
@@ -155,6 +248,6 @@ export class Game {
     this.ui.dispose()
 
     this.fallingBalls.forEach(ball => ball.dispose())
-    this.stackedBalls.forEach(ball => ball.dispose())
+    this.cone.getStackedBalls().forEach(ball => ball.dispose())
   }
 }
