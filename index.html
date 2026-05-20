@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>平衡走钢丝 - Three.js Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="ui-overlay">
+            <div class="ui-panel" id="distance-panel">
+                <div class="ui-label">距离</div>
+                <div class="ui-value"><span id="distance">0</span> / <span id="target-distance">100</span>m</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+            </div>
+
+            <div class="ui-panel" id="wind-panel">
+                <div class="ui-label">风速</div>
+                <div class="wind-indicator">
+                    <div class="wind-arrow" id="wind-arrow">→</div>
+                    <div class="wind-strength" id="wind-strength">0</div>
+                </div>
+            </div>
+
+            <div class="ui-panel" id="balance-panel">
+                <div class="ui-label">平衡</div>
+                <div class="balance-bar">
+                    <div class="balance-center"></div>
+                    <div class="balance-fill" id="balance-fill"></div>
+                </div>
+            </div>
+
+            <div class="ui-panel" id="controls-panel">
+                <div class="ui-label">操作</div>
+                <div class="controls-info">
+                    <span class="key">A</span> 左倾 &nbsp;
+                    <span class="key">D</span> 右倾
+                </div>
+            </div>
+        </div>
+
+        <div id="start-screen" class="overlay">
+            <div class="overlay-content">
+                <h1>平衡走钢丝</h1>
+                <p>在钢丝上保持平衡，走到终点！</p>
+                <div class="instructions">
+                    <p><span class="key">A</span> / <span class="key">D</span> 控制左右倾斜</p>
+                    <p>注意风向变化，及时调整平衡</p>
+                </div>
+                <button id="start-btn">开始游戏</button>
+            </div>
+        </div>
+
+        <div id="game-over-screen" class="overlay hidden">
+            <div class="overlay-content">
+                <h1 id="result-title">游戏结束</h1>
+                <p id="result-message">你掉落了！</p>
+                <p>最终距离: <span id="final-distance">0</span>m</p>
+                <button id="restart-btn">重新开始</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+        }
+    }
+    </script>
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>
