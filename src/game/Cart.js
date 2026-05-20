@@ -16,6 +16,8 @@ export class Cart {
         this.isJumping = false;
         this.jumpHeight = 0;
         this.isOnGap = false;
+        this.leanAngle = 0;
+        this.targetLeanAngle = 0;
         this.init();
     }
 
@@ -104,6 +106,8 @@ export class Cart {
 
                 const lookAtPos = position.clone().add(tangent);
                 this.mesh.lookAt(lookAtPos);
+                
+                this.mesh.rotateZ(this.leanAngle);
 
                 this.wheels.forEach(wheel => {
                     wheel.rotation.x += this.speed * 50;
@@ -117,12 +121,14 @@ export class Cart {
     moveLeft() {
         if (this.targetLane > -1 && !this.isJumping) {
             this.targetLane--;
+            this.targetLeanAngle = 0.25;
         }
     }
 
     moveRight() {
         if (this.targetLane < 1 && !this.isJumping) {
             this.targetLane++;
+            this.targetLeanAngle = -0.25;
         }
     }
 
@@ -156,6 +162,11 @@ export class Cart {
 
         if (this.speed < GAME_CONFIG.MAX_SPEED) {
             this.speed += GAME_CONFIG.SPEED_INCREMENT;
+        }
+
+        this.leanAngle += (this.targetLeanAngle - this.leanAngle) * 0.15;
+        if (Math.abs(this.leanAngle) < 0.001) {
+            this.targetLeanAngle = 0;
         }
 
         this.updatePosition();

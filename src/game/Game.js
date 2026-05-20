@@ -171,10 +171,10 @@ export class Game {
         if (!this.track || !this.cart || !this.player || !this.obstacles || !this.collectibles) return;
 
         if (this.input.isMovingLeft()) {
-            this.player.leanLeft();
+            this.cart.moveLeft();
         }
         if (this.input.isMovingRight()) {
-            this.player.leanRight();
+            this.cart.moveRight();
         }
         if (this.input.isJumping()) {
             this.cart.jump();
@@ -184,7 +184,7 @@ export class Game {
         this.cart.update(deltaTime);
         this.player.update(deltaTime);
 
-        const playerLane = this.player.getCurrentLane();
+        const playerLane = this.cart.targetLane;
         const playerHeight = this.player.getEffectiveHeight();
         const isJumping = this.cart.isInAir();
         const isCrouching = this.player.isCrouching;

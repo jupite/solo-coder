@@ -22,10 +22,6 @@ export class Obstacles {
     }
 
     spawnObstacle(progress) {
-        const types = [OBSTACLE_TYPES.BEAM, OBSTACLE_TYPES.LEFT_BLOCK, OBSTACLE_TYPES.RIGHT_BLOCK];
-        const type = types[Math.floor(Math.random() * types.length)];
-        const obstacle = this.createObstacle(type, progress);
-        this.obstacles.push(obstacle);
     }
 
     createObstacle(type, progress) {

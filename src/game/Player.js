@@ -115,11 +115,17 @@ export class Player {
     crouch(state) {
         this.isCrouching = state;
         if (state) {
-            this.targetHeight = 0.3;
+            this.targetHeight = 0;
             this.targetLane = 0;
             this.targetLeanAngle = 0;
+            if (this.mesh) {
+                this.mesh.visible = false;
+            }
         } else {
             this.targetHeight = GAME_CONFIG.PLAYER_HEIGHT;
+            if (this.mesh) {
+                this.mesh.visible = true;
+            }
         }
     }
 
