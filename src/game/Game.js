@@ -29,8 +29,8 @@ export class Game {
         this.lives = GAME_CONFIG.MAX_LIVES;
         this.distance = 0;
         
-        this.cameraOffset = new THREE.Vector3(0, 4, 8);
-        this.cameraLookOffset = new THREE.Vector3(0, 1.5, -8);
+        this.cameraOffset = new THREE.Vector3(0, 4, 10);
+        this.cameraLookOffset = new THREE.Vector3(0, 1.5, -10);
         
         this.init();
     }
@@ -46,7 +46,7 @@ export class Game {
             0.1,
             1000
         );
-        this.camera.position.set(0, 5, 10);
+        this.camera.position.set(0, 5, 15);
 
         this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
@@ -56,10 +56,10 @@ export class Game {
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-        const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
         this.scene.add(ambientLight);
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
         directionalLight.position.set(10, 20, 10);
         directionalLight.castShadow = true;
         directionalLight.shadow.mapSize.width = 2048;
@@ -72,7 +72,7 @@ export class Game {
         directionalLight.shadow.camera.bottom = -30;
         this.scene.add(directionalLight);
 
-        const pointLight = new THREE.PointLight(0xffaa44, 0.6, 30);
+        const pointLight = new THREE.PointLight(0xffaa44, 0.7, 30);
         pointLight.position.set(0, 5, 0);
         this.scene.add(pointLight);
 
@@ -90,26 +90,23 @@ export class Game {
     }
 
     createMenuScene() {
-        const menuGeometry = new THREE.TorusKnotGeometry(5, 1.5, 100, 16);
+        const menuGeometry = new THREE.TorusKnotGeometry(3, 1, 100, 16);
         const menuMaterial = new THREE.MeshStandardMaterial({
             color: 0xffd700,
             roughness: 0.3,
             metalness: 0.8,
         });
         this.menuMesh = new THREE.Mesh(menuGeometry, menuMaterial);
-        this.menuMesh.position.set(0, 0, -20);
+        this.menuMesh.position.set(0, 0, -15);
         this.menuMesh.castShadow = true;
         this.scene.add(this.menuMesh);
-
-        const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
-        this.scene.add(ambientLight);
     }
 
     startGame() {
         if (this.menuMesh) {
             this.scene.remove(this.menuMesh);
-            this.menuMesh.geometry.dispose();
-            this.menuMesh.material.dispose();
+            if (this.menuMesh.geometry) this.menuMesh.geometry.dispose();
+            if (this.menuMesh.material) this.menuMesh.material.dispose();
             this.menuMesh = null;
         }
 
@@ -132,11 +129,26 @@ export class Game {
     }
 
     disposeGameObjects() {
-        if (this.track) this.track.dispose();
-        if (this.cart) this.cart.dispose();
-        if (this.player) this.player.dispose();
-        if (this.obstacles) this.obstacles.dispose();
-        if (this.collectibles) this.collectibles.dispose();
+        if (this.track) {
+            this.track.dispose();
+            this.track = null;
+        }
+        if (this.cart) {
+            this.cart.dispose();
+            this.cart = null;
+        }
+        if (this.player) {
+            this.player.dispose();
+            this.player = null;
+        }
+        if (this.obstacles) {
+            this.obstacles.dispose();
+            this.obstacles = null;
+        }
+        if (this.collectibles) {
+            this.collectibles.dispose();
+            this.collectibles = null;
+        }
     }
 
     update(deltaTime) {
@@ -149,19 +161,20 @@ export class Game {
         }
 
         if (this.state === GAME_STATES.GAME_OVER) {
-            if (this.cart) {
+            if (this.cart && this.track) {
                 this.updateCamera();
             }
             return;
         }
 
-        if (this.state !== GAME_STATES.PLAYING || !this.cart || !this.player || !this.obstacles || !this.collectibles) return;
+        if (this.state !== GAME_STATES.PLAYING) return;
+        if (!this.track || !this.cart || !this.player || !this.obstacles || !this.collectibles) return;
 
         if (this.input.isMovingLeft()) {
-            this.cart.moveLeft();
+            this.player.leanLeft();
         }
         if (this.input.isMovingRight()) {
-            this.cart.moveRight();
+            this.player.leanRight();
         }
         if (this.input.isJumping()) {
             this.cart.jump();
@@ -171,7 +184,7 @@ export class Game {
         this.cart.update(deltaTime);
         this.player.update(deltaTime);
 
-        const playerLane = this.cart.targetLane;
+        const playerLane = this.player.getCurrentLane();
         const playerHeight = this.player.getEffectiveHeight();
         const isJumping = this.cart.isInAir();
         const isCrouching = this.player.isCrouching;
@@ -221,37 +234,49 @@ export class Game {
     }
 
     updateCamera() {
-        if (!this.cart) return;
+        if (!this.cart || !this.track) return;
 
-        const cartPos = this.cart.getPosition();
-        const forward = this.cart.getForwardDirection();
-        
-        const cameraPosition = new THREE.Vector3()
-            .copy(cartPos)
-            .add(new THREE.Vector3(0, this.cameraOffset.y, 0))
-            .add(forward.clone().negate().multiplyScalar(this.cameraOffset.z));
+        try {
+            const cartPos = this.cart.getPosition();
+            const forward = this.cart.getForwardDirection();
+            
+            if (!cartPos || !forward) return;
 
-        const lookAtPosition = new THREE.Vector3()
-            .copy(cartPos)
-            .add(new THREE.Vector3(0, this.cameraLookOffset.y, 0))
-            .add(forward.clone().multiplyScalar(Math.abs(this.cameraLookOffset.z)));
+            const cameraPosition = new THREE.Vector3()
+                .copy(cartPos)
+                .add(new THREE.Vector3(0, this.cameraOffset.y, 0))
+                .add(forward.clone().negate().multiplyScalar(this.cameraOffset.z));
 
-        this.camera.position.lerp(cameraPosition, 0.1);
-        this.camera.lookAt(lookAtPosition);
+            const lookAtPosition = new THREE.Vector3()
+                .copy(cartPos)
+                .add(new THREE.Vector3(0, this.cameraLookOffset.y, 0))
+                .add(forward.clone().multiplyScalar(Math.abs(this.cameraLookOffset.z)));
+
+            this.camera.position.lerp(cameraPosition, 0.1);
+            this.camera.lookAt(lookAtPosition);
+        } catch (e) {
+            console.warn('Camera update error:', e);
+        }
     }
 
     onResize() {
-        this.camera.aspect = window.innerWidth / window.innerHeight;
-        this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        if (this.camera) {
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.updateProjectionMatrix();
+        }
+        if (this.renderer) {
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+        }
     }
 
     animate() {
         requestAnimationFrame(() => this.animate());
 
-        const deltaTime = this.clock.getDelta();
+        const deltaTime = Math.min(this.clock.getDelta(), 0.1);
         this.update(deltaTime);
 
-        this.renderer.render(this.scene, this.camera);
+        if (this.renderer && this.scene && this.camera) {
+            this.renderer.render(this.scene, this.camera);
+        }
     }
 }

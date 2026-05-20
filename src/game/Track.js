@@ -206,31 +206,63 @@ export class Track {
     }
 
     getPointAt(t) {
-        return this.curve.getPointAt(t);
+        if (!this.curve) return new THREE.Vector3(0, 0, 0);
+        try {
+            return this.curve.getPointAt(Math.max(0, Math.min(1, t)));
+        } catch (e) {
+            return new THREE.Vector3(0, 0, 0);
+        }
     }
 
     getTangentAt(t) {
-        return this.curve.getTangentAt(t);
+        if (!this.curve) return new THREE.Vector3(0, 0, -1).normalize();
+        try {
+            const tangent = this.curve.getTangentAt(Math.max(0, Math.min(1, t)));
+            if (tangent) {
+                return tangent.normalize();
+            }
+        } catch (e) {
+            console.warn('Get tangent error:', e);
+        }
+        return new THREE.Vector3(0, 0, -1).normalize();
     }
 
     getLength() {
-        return this.trackLength;
+        return this.trackLength || 0;
     }
 
     getTrackPosition(t, lateralOffset = 0) {
-        const point = this.curve.getPointAt(t);
-        const tangent = this.curve.getTangentAt(t).normalize();
-        const normal = new THREE.Vector3().crossVectors(tangent, new THREE.Vector3(0, 1, 0)).normalize();
+        if (!this.curve) {
+            return {
+                position: new THREE.Vector3(0, 0, 0),
+                tangent: new THREE.Vector3(0, 0, -1).normalize(),
+                normal: new THREE.Vector3(1, 0, 0),
+            };
+        }
+        
+        try {
+            const safeT = Math.max(0, Math.min(1, t));
+            const point = this.curve.getPointAt(safeT);
+            const tangent = this.curve.getTangentAt(safeT).normalize();
+            const normal = new THREE.Vector3().crossVectors(tangent, new THREE.Vector3(0, 1, 0)).normalize();
 
-        return {
-            position: new THREE.Vector3(
-                point.x + normal.x * lateralOffset,
-                point.y,
-                point.z + normal.z * lateralOffset
-            ),
-            tangent: tangent,
-            normal: normal,
-        };
+            return {
+                position: new THREE.Vector3(
+                    point.x + normal.x * lateralOffset,
+                    point.y,
+                    point.z + normal.z * lateralOffset
+                ),
+                tangent: tangent,
+                normal: normal,
+            };
+        } catch (e) {
+            console.warn('Get track position error:', e);
+            return {
+                position: new THREE.Vector3(0, 0, 0),
+                tangent: new THREE.Vector3(0, 0, -1).normalize(),
+                normal: new THREE.Vector3(1, 0, 0),
+            };
+        }
     }
 
     dispose() {

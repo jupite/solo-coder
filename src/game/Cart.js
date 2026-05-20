@@ -90,18 +90,28 @@ export class Cart {
     }
 
     updatePosition() {
-        const trackPos = this.track.getTrackPosition(this.progress, this.laneOffset);
-        const { position, tangent } = trackPos;
+        if (!this.track) return;
+        
+        try {
+            const trackPos = this.track.getTrackPosition(this.progress, this.laneOffset);
+            if (!trackPos || !trackPos.position || !trackPos.tangent) return;
+            
+            const { position, tangent } = trackPos;
 
-        this.mesh.position.copy(position);
-        this.mesh.position.y += this.jumpHeight;
+            if (this.mesh) {
+                this.mesh.position.copy(position);
+                this.mesh.position.y += this.jumpHeight;
 
-        const lookAtPos = position.clone().add(tangent);
-        this.mesh.lookAt(lookAtPos);
+                const lookAtPos = position.clone().add(tangent);
+                this.mesh.lookAt(lookAtPos);
 
-        this.wheels.forEach(wheel => {
-            wheel.rotation.x += this.speed * 50;
-        });
+                this.wheels.forEach(wheel => {
+                    wheel.rotation.x += this.speed * 50;
+                });
+            }
+        } catch (e) {
+            console.warn('Cart position update error:', e);
+        }
     }
 
     moveLeft() {
@@ -156,17 +166,31 @@ export class Cart {
     }
 
     getPosition() {
-        return this.mesh.position.clone();
+        if (this.mesh) {
+            return this.mesh.position.clone();
+        }
+        return new THREE.Vector3(0, 0, 0);
     }
 
     getForwardDirection() {
-        const tangent = this.track.getTangentAt(this.progress).clone();
-        return tangent.normalize();
+        if (this.track) {
+            try {
+                const tangent = this.track.getTangentAt(this.progress);
+                if (tangent) {
+                    return tangent.clone().normalize();
+                }
+            } catch (e) {
+                console.warn('Get forward direction error:', e);
+            }
+        }
+        return new THREE.Vector3(0, 0, -1).normalize();
     }
 
     getBoundingBox() {
-        const box = new THREE.Box3().setFromObject(this.mesh);
-        return box;
+        if (this.mesh) {
+            return new THREE.Box3().setFromObject(this.mesh);
+        }
+        return new THREE.Box3();
     }
 
     isInAir() {
@@ -174,10 +198,12 @@ export class Cart {
     }
 
     dispose() {
-        this.scene.remove(this.mesh);
-        this.mesh.traverse((child) => {
-            if (child.geometry) child.geometry.dispose();
-            if (child.material) child.material.dispose();
-        });
+        if (this.mesh && this.scene) {
+            this.scene.remove(this.mesh);
+            this.mesh.traverse((child) => {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+            });
+        }
     }
 }
