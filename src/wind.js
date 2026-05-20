@@ -2,10 +2,10 @@ export class WindSystem {
     constructor() {
         this.currentWind = 0;
         this.targetWind = 0;
-        this.maxWind = 3.5;
-        this.changeInterval = 3;
+        this.maxWind = 5;
+        this.changeInterval = 2.5;
         this.timeSinceChange = 0;
-        this.smoothing = 0.02;
+        this.smoothing = 0.03;
     }
 
     reset() {

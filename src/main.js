@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { GameScene } from './scene.js';
 import { Player } from './player.js';
 import { BalancePhysics } from './physics.js';

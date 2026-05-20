@@ -56,7 +56,7 @@ export class UIManager {
 
         this.windStrength.textContent = strength.toFixed(1);
 
-        const intensity = Math.min(1, strength / 3);
+        const intensity = Math.min(1, strength / 5);
         const green = Math.floor(255 * (1 - intensity));
         this.windArrow.style.color = `rgb(255, ${green}, 0)`;
     }

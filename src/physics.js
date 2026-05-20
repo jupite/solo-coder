@@ -1,9 +1,10 @@
 export class BalancePhysics {
     constructor() {
         this.gravity = 9.8;
-        this.pendulumLength = 1.5;
-        this.fallThreshold = Math.PI / 2.5;
-        this.damping = 0.98;
+        this.pendulumLength = 1.2;
+        this.fallThreshold = Math.PI / 3;
+        this.damping = 0.92;
+        this.momentOfInertia = 1;
     }
 
     update(player, deltaTime) {
@@ -12,11 +13,25 @@ export class BalancePhysics {
         const tiltAngle = player.getTiltAngle();
         const angularVelocity = player.angularVelocity;
 
-        const gravityTorque = -(this.gravity / this.pendulumLength) * Math.sin(tiltAngle);
+        const gravityTorque = -(this.gravity / this.pendulumLength) * Math.sin(tiltAngle) * this.momentOfInertia;
 
-        const newAngularVelocity = (angularVelocity + gravityTorque * deltaTime) * this.damping;
+        const inputTorque = player.getInputTorque();
+        const windTorque = player.getWindTorque();
 
-        player.angularVelocity = newAngularVelocity;
+        const totalTorque = gravityTorque + inputTorque + windTorque;
+
+        const angularAcceleration = totalTorque / this.momentOfInertia;
+
+        let newAngularVelocity = angularVelocity + angularAcceleration * deltaTime;
+        newAngularVelocity *= this.damping;
+
+        let newTiltAngle = tiltAngle + newAngularVelocity * deltaTime;
+
+        player.setTiltAngle(newTiltAngle);
+        player.setAngularVelocity(newAngularVelocity);
+
+        player.inputTorque = 0;
+        player.windTorque = 0;
     }
 
     checkFall(player) {
