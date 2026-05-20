@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { Track } from './Track.js';
 import { Cart } from './Cart.js';
 import { Player } from './Player.js';
@@ -29,8 +29,8 @@ export class Game {
         this.lives = GAME_CONFIG.MAX_LIVES;
         this.distance = 0;
         
-        this.cameraOffset = new THREE.Vector3(0, 3, 6);
-        this.cameraLookOffset = new THREE.Vector3(0, 1.5, -3);
+        this.cameraOffset = new THREE.Vector3(0, 4, 8);
+        this.cameraLookOffset = new THREE.Vector3(0, 1.5, -8);
         
         this.init();
     }
@@ -145,11 +145,17 @@ export class Game {
                 this.menuMesh.rotation.x += deltaTime * 0.3;
                 this.menuMesh.rotation.y += deltaTime * 0.5;
             }
-            this.input.update();
             return;
         }
 
-        if (this.state !== GAME_STATES.PLAYING) return;
+        if (this.state === GAME_STATES.GAME_OVER) {
+            if (this.cart) {
+                this.updateCamera();
+            }
+            return;
+        }
+
+        if (this.state !== GAME_STATES.PLAYING || !this.cart || !this.player || !this.obstacles || !this.collectibles) return;
 
         if (this.input.isMovingLeft()) {
             this.cart.moveLeft();
@@ -197,7 +203,7 @@ export class Game {
 
         this.updateCamera();
 
-        this.input.update();
+        this.input.clearPressed();
     }
 
     onCollision() {
@@ -219,19 +225,18 @@ export class Game {
 
         const cartPos = this.cart.getPosition();
         const forward = this.cart.getForwardDirection();
-        const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
-
-        const targetPosition = new THREE.Vector3()
+        
+        const cameraPosition = new THREE.Vector3()
             .copy(cartPos)
-            .add(forward.clone().multiplyScalar(this.cameraOffset.z))
-            .add(new THREE.Vector3(0, this.cameraOffset.y, 0));
+            .add(new THREE.Vector3(0, this.cameraOffset.y, 0))
+            .add(forward.clone().negate().multiplyScalar(this.cameraOffset.z));
 
         const lookAtPosition = new THREE.Vector3()
             .copy(cartPos)
-            .add(forward.clone().multiplyScalar(this.cameraLookOffset.z))
-            .add(new THREE.Vector3(0, this.cameraLookOffset.y, 0));
+            .add(new THREE.Vector3(0, this.cameraLookOffset.y, 0))
+            .add(forward.clone().multiplyScalar(Math.abs(this.cameraLookOffset.z)));
 
-        this.camera.position.lerp(targetPosition, 0.1);
+        this.camera.position.lerp(cameraPosition, 0.1);
         this.camera.lookAt(lookAtPosition);
     }
 

@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { GAME_CONFIG, COLORS } from '../config/constants.js';
 
 export class Cart {
@@ -160,9 +160,8 @@ export class Cart {
     }
 
     getForwardDirection() {
-        const direction = new THREE.Vector3();
-        this.mesh.getWorldDirection(direction);
-        return direction;
+        const tangent = this.track.getTangentAt(this.progress).clone();
+        return tangent.normalize();
     }
 
     getBoundingBox() {

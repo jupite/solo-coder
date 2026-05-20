@@ -46,7 +46,7 @@ export class Input {
         return false;
     }
 
-    update() {
+    clearPressed() {
         for (const key in this.keyPressed) {
             this.keyPressed[key] = false;
         }

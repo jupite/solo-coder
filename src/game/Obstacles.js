@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { GAME_CONFIG, COLORS, OBSTACLE_TYPES } from '../config/constants.js';
 
 export class Obstacles {
@@ -15,8 +15,8 @@ export class Obstacles {
     }
 
     preSpawnObstacles() {
-        for (let i = 0; i < 8; i++) {
-            const progress = 0.15 + i * 0.1;
+        for (let i = 0; i < 5; i++) {
+            const progress = 0.2 + i * 0.15;
             this.spawnObstacle(progress);
         }
     }
@@ -66,18 +66,18 @@ export class Obstacles {
     }
 
     createBeam(group, tangent, normal) {
-        const beamGeometry = new THREE.BoxGeometry(GAME_CONFIG.TRACK_WIDTH * 1.2, 0.4, 0.4);
+        const beamGeometry = new THREE.BoxGeometry(GAME_CONFIG.TRACK_WIDTH * 0.9, 0.3, 0.3);
         const beamMaterial = new THREE.MeshStandardMaterial({
             color: COLORS.OBSTACLE_BEAM,
             roughness: 0.7,
             metalness: 0.3,
         });
         const beam = new THREE.Mesh(beamGeometry, beamMaterial);
-        beam.position.y = 1.8;
+        beam.position.y = 1.4;
         beam.castShadow = true;
         group.add(beam);
 
-        const supportGeometry = new THREE.BoxGeometry(0.2, 2.5, 0.2);
+        const supportGeometry = new THREE.BoxGeometry(0.15, 1.8, 0.15);
         const supportMaterial = new THREE.MeshStandardMaterial({
             color: 0x555555,
             roughness: 0.6,
@@ -85,30 +85,30 @@ export class Obstacles {
         });
 
         const leftSupport = new THREE.Mesh(supportGeometry, supportMaterial);
-        leftSupport.position.set(-GAME_CONFIG.TRACK_WIDTH * 0.6, 1.25, 0);
+        leftSupport.position.set(-GAME_CONFIG.TRACK_WIDTH * 0.45, 0.9, 0);
         leftSupport.castShadow = true;
         group.add(leftSupport);
 
         const rightSupport = new THREE.Mesh(supportGeometry, supportMaterial);
-        rightSupport.position.set(GAME_CONFIG.TRACK_WIDTH * 0.6, 1.25, 0);
+        rightSupport.position.set(GAME_CONFIG.TRACK_WIDTH * 0.45, 0.9, 0);
         rightSupport.castShadow = true;
         group.add(rightSupport);
 
-        const hitboxGeometry = new THREE.BoxGeometry(GAME_CONFIG.TRACK_WIDTH, 0.5, 0.5);
+        const hitboxGeometry = new THREE.BoxGeometry(GAME_CONFIG.TRACK_WIDTH * 0.85, 0.4, 0.4);
         const hitboxMaterial = new THREE.MeshBasicMaterial({
             color: 0xff0000,
             transparent: true,
             opacity: 0,
         });
         const hitbox = new THREE.Mesh(hitboxGeometry, hitboxMaterial);
-        hitbox.position.y = 1.8;
+        hitbox.position.y = 1.4;
         group.add(hitbox);
 
         return hitbox;
     }
 
     createSideBlock(group, tangent, normal, side) {
-        const blockGeometry = new THREE.BoxGeometry(1.5, 2, 1.5);
+        const blockGeometry = new THREE.BoxGeometry(1, 1.5, 1);
         const blockMaterial = new THREE.MeshStandardMaterial({
             color: COLORS.OBSTACLE_SIDE,
             roughness: 0.8,
@@ -118,22 +118,22 @@ export class Obstacles {
 
         const offset = side === 'left' ? -1 : 1;
         block.position.x = offset * GAME_CONFIG.LANE_WIDTH;
-        block.position.y = 1;
+        block.position.y = 0.75;
         block.castShadow = true;
         group.add(block);
 
-        const spikeGeometry = new THREE.ConeGeometry(0.3, 0.8, 4);
+        const spikeGeometry = new THREE.ConeGeometry(0.2, 0.5, 4);
         const spikeMaterial = new THREE.MeshStandardMaterial({
             color: 0x666666,
             roughness: 0.4,
             metalness: 0.7,
         });
 
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 2; i++) {
             const spike = new THREE.Mesh(spikeGeometry, spikeMaterial);
             spike.position.set(
                 offset * GAME_CONFIG.LANE_WIDTH,
-                0.4 + i * 0.8,
+                0.3 + i * 0.6,
                 0
             );
             spike.rotation.z = offset * Math.PI / 2;
@@ -141,14 +141,14 @@ export class Obstacles {
             group.add(spike);
         }
 
-        const hitboxGeometry = new THREE.BoxGeometry(1.6, 2.2, 1.6);
+        const hitboxGeometry = new THREE.BoxGeometry(1.1, 1.6, 1.1);
         const hitboxMaterial = new THREE.MeshBasicMaterial({
             color: 0xff0000,
             transparent: true,
             opacity: 0,
         });
         const hitbox = new THREE.Mesh(hitboxGeometry, hitboxMaterial);
-        hitbox.position.set(offset * GAME_CONFIG.LANE_WIDTH, 1, 0);
+        hitbox.position.set(offset * GAME_CONFIG.LANE_WIDTH, 0.75, 0);
         group.add(hitbox);
 
         return hitbox;
@@ -227,8 +227,8 @@ export class Obstacles {
         }
 
         if (playerProgress > this.spawnProgress) {
-            this.spawnObstacle(this.spawnProgress + 0.7);
-            this.spawnProgress += 0.1;
+            this.spawnObstacle(this.spawnProgress + 0.6);
+            this.spawnProgress += 0.12;
             if (this.spawnProgress >= 1) {
                 this.spawnProgress -= 1;
             }
@@ -240,7 +240,7 @@ export class Obstacles {
     checkCollision(obstacle, playerLane, playerHeight, isJumping, isCrouching) {
         switch (obstacle.type) {
             case OBSTACLE_TYPES.BEAM:
-                return playerHeight > 1.5 && !isCrouching;
+                return playerHeight > 1.2 && !isCrouching;
             case OBSTACLE_TYPES.LEFT_BLOCK:
                 return playerLane < 0;
             case OBSTACLE_TYPES.RIGHT_BLOCK:
