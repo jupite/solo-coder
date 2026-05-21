@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D 拼图游戏</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    }
+    
+    #game-container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+    
+    #ui-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 100;
+    }
+    
+    #timer {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      padding: 12px 30px;
+      border-radius: 30px;
+      font-size: 24px;
+      font-weight: bold;
+      text-shadow: 0 0 10px rgba(100, 200, 255, 0.8);
+      border: 2px solid rgba(100, 200, 255, 0.5);
+      pointer-events: none;
+    }
+    
+    #instructions {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.7);
+      color: #aaa;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+      pointer-events: none;
+    }
+    
+    #victory-screen {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      background: linear-gradient(135deg, rgba(255, 215, 0, 0.95) 0%, rgba(255, 165, 0, 0.95) 100%);
+      color: #1a1a2e;
+      padding: 40px 60px;
+      border-radius: 20px;
+      text-align: center;
+      box-shadow: 0 0 60px rgba(255, 215, 0, 0.8);
+      opacity: 0;
+      transition: all 0.5s ease;
+      pointer-events: auto;
+    }
+    
+    #victory-screen.show {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+    }
+    
+    #victory-screen h1 {
+      font-size: 48px;
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    #victory-screen p {
+      font-size: 24px;
+      margin-bottom: 30px;
+    }
+    
+    #victory-screen button {
+      background: #1a1a2e;
+      color: #fff;
+      border: none;
+      padding: 15px 40px;
+      font-size: 18px;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    #victory-screen button:hover {
+      background: #16213e;
+      transform: scale(1.05);
+    }
+    
+    #piece-counter {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 16px;
+      border: 2px solid rgba(100, 200, 255, 0.5);
+    }
+    
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      font-size: 24px;
+      z-index: 200;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="loading">加载中...</div>
+    <div id="ui-overlay">
+      <div id="timer">00:00</div>
+      <div id="piece-counter">已完成: 0 / 6</div>
+      <div id="instructions">鼠标左键拖拽移动 | R键旋转 | 滚轮缩放</div>
+      <div id="victory-screen">
+        <h1>🎉 恭喜完成！</h1>
+        <p id="final-time">用时: 00:00</p>
+        <button onclick="location.reload()">再玩一次</button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
