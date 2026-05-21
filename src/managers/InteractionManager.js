@@ -20,6 +20,7 @@ class InteractionManager {
 
   init() {
     this.dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    this.dragHeight = 0;
     
     const container = this.sceneManager.renderer.domElement;
     
@@ -48,19 +49,30 @@ class InteractionManager {
       }
       
       if (selectedObject.userData.targetPosition && !selectedObject.userData.isSnapped) {
-        this.selectedPiece = selectedObject;
-        this.isDragging = true;
-        this.sceneManager.controls.enabled = false;
-        
-        const intersectPoint = intersects[0].point;
-        this.dragOffset.copy(this.selectedPiece.position).sub(intersectPoint);
-        
-        this.pieceManager.highlightPiece(this.selectedPiece, true);
-        
-        this.sceneManager.scene.updateMatrixWorld();
-        const planeNormal = new THREE.Vector3(0, 1, 0);
-        const planePoint = this.selectedPiece.position.clone();
-        this.dragPlane.setFromNormalAndCoplanarPoint(planeNormal, planePoint);
+        if (this.rotationMode) {
+          if (this.selectedPieceForRotation) {
+            this.pieceManager.highlightPiece(this.selectedPieceForRotation, false);
+          }
+          this.selectedPieceForRotation = selectedObject;
+          this.pieceManager.highlightPiece(this.selectedPieceForRotation, true);
+        } else {
+          this.selectedPiece = selectedObject;
+          this.isDragging = true;
+          this.sceneManager.controls.enabled = false;
+          
+          const intersectPoint = intersects[0].point;
+          this.dragHeight = this.selectedPiece.position.y;
+          this.dragOffset.set(
+            this.selectedPiece.position.x - intersectPoint.x,
+            0,
+            this.selectedPiece.position.z - intersectPoint.z
+          );
+          
+          this.sceneManager.scene.updateMatrixWorld();
+          const planeNormal = new THREE.Vector3(0, 1, 0);
+          const planePoint = new THREE.Vector3(0, this.dragHeight, 0);
+          this.dragPlane.setFromNormalAndCoplanarPoint(planeNormal, planePoint);
+        }
       }
     }
   }
@@ -74,12 +86,8 @@ class InteractionManager {
       
       const intersection = new THREE.Vector3();
       if (raycaster.ray.intersectPlane(this.dragPlane, intersection)) {
-        const newPosition = intersection.add(this.dragOffset);
-        newPosition.y = Math.max(0.5, newPosition.y);
-        this.selectedPiece.position.copy(newPosition);
-        
-        const isClose = this.snapDetector.checkProximity(this.selectedPiece);
-        this.pieceManager.highlightPiece(this.selectedPiece, isClose);
+        this.selectedPiece.position.x = intersection.x + this.dragOffset.x;
+        this.selectedPiece.position.z = intersection.z + this.dragOffset.z;
       }
     } else {
       const pieces = this.pieceManager.getSnappablePieces();
@@ -93,13 +101,13 @@ class InteractionManager {
     if (this.isDragging && this.selectedPiece) {
       const snapped = this.snapDetector.trySnap(this.selectedPiece);
       
-      if (!snapped) {
-        this.pieceManager.highlightPiece(this.selectedPiece, false);
-      }
-      
       this.isDragging = false;
       this.selectedPiece = null;
       this.sceneManager.controls.enabled = true;
+    }
+    
+    if (this.rotationMode && this.selectedPieceForRotation) {
+      this.snapDetector.trySnap(this.selectedPieceForRotation);
     }
   }
 
@@ -125,13 +133,18 @@ class InteractionManager {
   }
 
   onKeyDown(event) {
-    if (event.code === 'KeyR') {
-      if (!this.rotationMode) {
-        this.rotationMode = true;
+    if (event.code === 'KeyR' && !event.repeat) {
+      this.rotationMode = !this.rotationMode;
+      
+      if (this.rotationMode) {
         this.selectPieceForRotation();
-      } else if (this.selectedPieceForRotation) {
-        this.selectedPieceForRotation.rotation.y += Math.PI / 8;
+      } else {
+        if (this.selectedPieceForRotation) {
+          this.pieceManager.highlightPiece(this.selectedPieceForRotation, false);
+          this.selectedPieceForRotation = null;
+        }
       }
+      return;
     }
     
     if (this.rotationMode && this.selectedPieceForRotation) {
@@ -153,17 +166,22 @@ class InteractionManager {
       if (event.code === 'KeyE') {
         this.selectedPieceForRotation.rotation.z += Math.PI / 12;
       }
+      if (event.code === 'KeyZ') {
+        event.preventDefault();
+        this.selectedPieceForRotation.position.y = Math.max(0.5, this.selectedPieceForRotation.position.y - 0.1);
+      }
+      if (event.code === 'KeyX') {
+        event.preventDefault();
+        this.selectedPieceForRotation.position.y = Math.min(10, this.selectedPieceForRotation.position.y + 0.1);
+      }
+      if (event.code === 'Tab') {
+        event.preventDefault();
+        this.selectNextPieceForRotation();
+      }
     }
   }
 
   onKeyUp(event) {
-    if (event.code === 'KeyR') {
-      if (this.selectedPieceForRotation) {
-        this.pieceManager.highlightPiece(this.selectedPieceForRotation, false);
-      }
-      this.rotationMode = false;
-      this.selectedPieceForRotation = null;
-    }
   }
 
   selectPieceForRotation() {

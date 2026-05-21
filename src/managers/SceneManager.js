@@ -27,7 +27,7 @@ class SceneManager {
       1000
     );
     this.camera.position.set(8, 8, 12);
-    this.camera.lookAt(0, 2, 0);
+    this.camera.lookAt(0, 1.8, 0);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -42,7 +42,7 @@ class SceneManager {
     this.controls.minDistance = 5;
     this.controls.maxDistance = 30;
     this.controls.maxPolarAngle = Math.PI / 2 - 0.1;
-    this.controls.target.set(0, 2, 0);
+    this.controls.target.set(0, 1.8, 0);
 
     this.clock = new THREE.Clock();
 

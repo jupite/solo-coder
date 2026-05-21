@@ -10,6 +10,7 @@ class PieceManager {
     
     this.createStatuePieces();
     this.createTargetMarkers();
+    this.createGhostWireframe();
   }
 
   createStatuePieces() {
@@ -155,7 +156,7 @@ class PieceManager {
   getPieceConfigs() {
     return [
       {
-        targetPosition: new THREE.Vector3(0, 1.2, 0),
+        targetPosition: new THREE.Vector3(0, 2.2, 0),
         targetRotation: new THREE.Euler(0, 0, 0),
         geometries: [
           {
@@ -168,7 +169,7 @@ class PieceManager {
         ]
       },
       {
-        targetPosition: new THREE.Vector3(1.2, 1.2, 0),
+        targetPosition: new THREE.Vector3(1.2, 2.2, 0),
         targetRotation: new THREE.Euler(0, 0, 0),
         geometries: [
           {
@@ -190,7 +191,7 @@ class PieceManager {
         ]
       },
       {
-        targetPosition: new THREE.Vector3(-0.8, 0.2, 0.5),
+        targetPosition: new THREE.Vector3(-0.8, 1.2, 0.5),
         targetRotation: new THREE.Euler(0, 0, 0),
         geometries: [
           {
@@ -212,7 +213,7 @@ class PieceManager {
         ]
       },
       {
-        targetPosition: new THREE.Vector3(0.8, 0.2, 0.5),
+        targetPosition: new THREE.Vector3(0.8, 1.2, 0.5),
         targetRotation: new THREE.Euler(0, 0, 0),
         geometries: [
           {
@@ -234,7 +235,7 @@ class PieceManager {
         ]
       },
       {
-        targetPosition: new THREE.Vector3(-0.8, 0.2, -0.5),
+        targetPosition: new THREE.Vector3(-0.8, 1.2, -0.5),
         targetRotation: new THREE.Euler(0, 0, 0),
         geometries: [
           {
@@ -256,7 +257,7 @@ class PieceManager {
         ]
       },
       {
-        targetPosition: new THREE.Vector3(0.8, 0.2, -0.5),
+        targetPosition: new THREE.Vector3(0.8, 1.2, -0.5),
         targetRotation: new THREE.Euler(0, 0, 0),
         geometries: [
           {
@@ -300,6 +301,45 @@ class PieceManager {
     });
   }
 
+  createGhostWireframe() {
+    this.ghostWireframe = new THREE.Group();
+    
+    const pieceConfigs = this.getPieceConfigs();
+    
+    pieceConfigs.forEach((config, index) => {
+      config.geometries.forEach(geoConfig => {
+        const geometry = this.createGeometry(geoConfig);
+        
+        const edges = new THREE.EdgesGeometry(geometry);
+        const lineMaterial = new THREE.LineDashedMaterial({
+          color: 0x64c8ff,
+          linewidth: 1,
+          scale: 1,
+          dashSize: 0.1,
+          gapSize: 0.05,
+          transparent: true,
+          opacity: 0.6
+        });
+        
+        const line = new THREE.LineSegments(edges, lineMaterial);
+        line.computeLineDistances();
+        
+        line.position.copy(geoConfig.position || new THREE.Vector3());
+        if (geoConfig.rotation) {
+          line.rotation.set(geoConfig.rotation.x, geoConfig.rotation.y, geoConfig.rotation.z);
+        }
+        line.position.add(config.targetPosition);
+        line.rotation.x += config.targetRotation.x;
+        line.rotation.y += config.targetRotation.y;
+        line.rotation.z += config.targetRotation.z;
+        
+        this.ghostWireframe.add(line);
+      });
+    });
+    
+    this.sceneManager.scene.add(this.ghostWireframe);
+  }
+
   getPieces() {
     return this.pieces;
   }
@@ -333,10 +373,16 @@ class PieceManager {
   }
 
   highlightPiece(piece, highlight) {
-    piece.userData.highlightEdges.traverse((child) => {
-      if (child.isLineSegments) {
-        child.material.opacity = highlight ? 0.6 : 0;
-        child.material.color.set(highlight ? 0xffd700 : 0x64c8ff);
+    piece.traverse((child) => {
+      if (child.isMesh && child.material) {
+        if (highlight) {
+          if (!child.userData.originalEmissive) {
+            child.userData.originalEmissive = child.material.emissive.getHex();
+          }
+          child.material.emissive.setHex(0x444422);
+        } else if (child.userData.originalEmissive !== undefined) {
+          child.material.emissive.setHex(child.userData.originalEmissive);
+        }
       }
     });
   }
