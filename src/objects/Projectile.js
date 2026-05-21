@@ -9,6 +9,8 @@ export class Projectile {
     this.isActive = false;
     this.trail = [];
     this.trailMesh = null;
+    this.historyTrails = [];
+    this.maxHistoryTrails = 20;
     
     this.createMesh();
     this.createTrail();
@@ -29,18 +31,44 @@ export class Projectile {
 
   createTrail() {
     const trailGeometry = new THREE.BufferGeometry();
-    const trailPositions = new Float32Array(100 * 3);
+    const trailPositions = new Float32Array(200 * 3);
     trailGeometry.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
     
     const trailMaterial = new THREE.LineBasicMaterial({
       color: COLORS.PROJECTILE,
       transparent: true,
-      opacity: 0.5
+      opacity: 0.6
     });
     
     this.trailMesh = new THREE.Line(trailGeometry, trailMaterial);
     this.trailMesh.visible = false;
     this.scene.add(this.trailMesh);
+  }
+
+  createHistoryTrail(points) {
+    if (points.length < 2) return null;
+    
+    const positions = new Float32Array(points.length * 3);
+    for (let i = 0; i < points.length; i++) {
+      positions[i * 3] = points[i].x;
+      positions[i * 3 + 1] = points[i].y;
+      positions[i * 3 + 2] = points[i].z;
+    }
+    
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setDrawRange(0, points.length);
+    
+    const material = new THREE.LineBasicMaterial({
+      color: COLORS.PROJECTILE,
+      transparent: true,
+      opacity: 0.4
+    });
+    
+    const line = new THREE.Line(geometry, material);
+    this.scene.add(line);
+    
+    return line;
   }
 
   launch(startPosition, velocity) {
@@ -80,16 +108,47 @@ export class Projectile {
     if (this.mesh.position.y < -1 || 
         Math.abs(this.mesh.position.x) > 50 ||
         Math.abs(this.mesh.position.z) > 50) {
-      this.reset();
+      this.saveAndReset();
     }
   }
 
-  reset() {
+  saveAndReset() {
+    if (this.trail.length > 2) {
+      const historyTrail = this.createHistoryTrail([...this.trail]);
+      if (historyTrail) {
+        this.historyTrails.push(historyTrail);
+        
+        if (this.historyTrails.length > this.maxHistoryTrails) {
+          const oldest = this.historyTrails.shift();
+          this.scene.remove(oldest);
+          if (oldest.geometry) oldest.geometry.dispose();
+          if (oldest.material) oldest.material.dispose();
+        }
+      }
+    }
+    
     this.isActive = false;
     this.mesh.visible = false;
+    this.trailMesh.visible = false;
+    this.trail = [];
+    const positions = this.trailMesh.geometry.attributes.position.array;
+    positions.fill(0);
+    this.trailMesh.geometry.setDrawRange(0, 0);
+    this.trailMesh.geometry.attributes.position.needsUpdate = true;
   }
 
-  clearTrail() {
+  reset() {
+    this.saveAndReset();
+  }
+
+  clearAllTrails() {
+    this.historyTrails.forEach(trail => {
+      this.scene.remove(trail);
+      if (trail.geometry) trail.geometry.dispose();
+      if (trail.material) trail.material.dispose();
+    });
+    this.historyTrails = [];
+    
     this.trailMesh.visible = false;
     this.trail = [];
     const positions = this.trailMesh.geometry.attributes.position.array;
@@ -105,6 +164,14 @@ export class Projectile {
   dispose() {
     this.scene.remove(this.mesh);
     this.scene.remove(this.trailMesh);
+    
+    this.historyTrails.forEach(trail => {
+      this.scene.remove(trail);
+      if (trail.geometry) trail.geometry.dispose();
+      if (trail.material) trail.material.dispose();
+    });
+    this.historyTrails = [];
+    
     if (this.mesh.geometry) this.mesh.geometry.dispose();
     if (this.mesh.material) this.mesh.material.dispose();
     if (this.trailMesh.geometry) this.trailMesh.geometry.dispose();
