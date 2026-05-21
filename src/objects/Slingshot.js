@@ -12,6 +12,7 @@ export class Slingshot {
     
     this.leftForkPos = new THREE.Vector3();
     this.rightForkPos = new THREE.Vector3();
+    this.restPos = new THREE.Vector3();
     
     this.createMesh();
   }
@@ -19,43 +20,73 @@ export class Slingshot {
   createMesh() {
     const slingshotGroup = new THREE.Group();
 
-    const handleGeometry = new THREE.CylinderGeometry(0.08, 0.12, 2, 8);
+    const handleGeometry = new THREE.CylinderGeometry(0.1, 0.15, 2.5, 8);
     const handleMaterial = new THREE.MeshStandardMaterial({
       color: COLORS.SLINGSHOT,
       flatShading: true
     });
     const handle = new THREE.Mesh(handleGeometry, handleMaterial);
-    handle.position.y = 1;
+    handle.position.y = 1.25;
     handle.castShadow = true;
     slingshotGroup.add(handle);
 
-    const forkGeometry = new THREE.CylinderGeometry(0.06, 0.06, 1.2, 8);
+    const forkBaseGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.8, 8);
+    const forkBase = new THREE.Mesh(forkBaseGeometry, handleMaterial);
+    forkBase.position.set(0, 2.7, 0);
+    forkBase.rotation.z = Math.PI / 2;
+    forkBase.castShadow = true;
+    slingshotGroup.add(forkBase);
+
+    const forkGeometry = new THREE.CylinderGeometry(0.07, 0.07, 1.5, 8);
     
     const leftFork = new THREE.Mesh(forkGeometry, handleMaterial);
-    leftFork.position.set(0.3, 2.2, 0);
-    leftFork.rotation.z = -0.3;
+    leftFork.position.set(0.4, 3.4, 0);
+    leftFork.rotation.z = -0.4;
     leftFork.castShadow = true;
     slingshotGroup.add(leftFork);
 
     const rightFork = new THREE.Mesh(forkGeometry, handleMaterial);
-    rightFork.position.set(-0.3, 2.2, 0);
-    rightFork.rotation.z = 0.3;
+    rightFork.position.set(-0.4, 3.4, 0);
+    rightFork.rotation.z = 0.4;
     rightFork.castShadow = true;
     slingshotGroup.add(rightFork);
-
-    const forkBaseGeometry = new THREE.CylinderGeometry(0.06, 0.06, 0.7, 8);
-    const forkBase = new THREE.Mesh(forkBaseGeometry, handleMaterial);
-    forkBase.position.set(0, 2, 0);
-    forkBase.rotation.z = Math.PI / 2;
-    forkBase.castShadow = true;
-    slingshotGroup.add(forkBase);
 
     slingshotGroup.position.copy(this.position);
     this.mesh = slingshotGroup;
     this.scene.add(this.mesh);
 
-    this.leftForkPos.set(0.3 + this.position.x, 2.8 + this.position.y, this.position.z);
-    this.rightForkPos.set(-0.3 + this.position.x, 2.8 + this.position.y, this.position.z);
+    const forkLength = 1.5;
+    const forkAngle = 0.4;
+    const forkOffsetX = 0.4;
+    const forkBaseY = 2.7 + 0.4;
+    
+    const leftTipLocal = new THREE.Vector3(
+      forkOffsetX + Math.sin(forkAngle) * forkLength * 0.5,
+      forkBaseY + Math.cos(forkAngle) * forkLength,
+      0
+    );
+    const rightTipLocal = new THREE.Vector3(
+      -forkOffsetX - Math.sin(forkAngle) * forkLength * 0.5,
+      forkBaseY + Math.cos(forkAngle) * forkLength,
+      0
+    );
+    
+    this.leftForkPos.set(
+      this.position.x + leftTipLocal.x,
+      this.position.y + leftTipLocal.y,
+      this.position.z + leftTipLocal.z
+    );
+    this.rightForkPos.set(
+      this.position.x + rightTipLocal.x,
+      this.position.y + rightTipLocal.y,
+      this.position.z + rightTipLocal.z
+    );
+    
+    this.restPos.set(
+      this.position.x,
+      this.position.y + 3.0,
+      this.position.z
+    );
 
     this.createRubberBand();
   }
@@ -63,25 +94,23 @@ export class Slingshot {
   createRubberBand() {
     const rubberMaterial = new THREE.MeshStandardMaterial({
       color: COLORS.RUBBER_BAND,
-      roughness: 0.6,
+      roughness: 0.5,
       metalness: 0.1
     });
 
-    this.rubberTubeMaterial = rubberMaterial;
-
     const leftCurve = new THREE.LineCurve3(
       this.leftForkPos.clone(),
-      this.getRestPosition()
+      this.restPos.clone()
     );
-    const leftGeometry = new THREE.TubeGeometry(leftCurve, 8, 0.03, 6, false);
+    const leftGeometry = new THREE.TubeGeometry(leftCurve, 8, 0.04, 6, false);
     this.rubberBandLeft = new THREE.Mesh(leftGeometry, rubberMaterial);
     this.scene.add(this.rubberBandLeft);
 
     const rightCurve = new THREE.LineCurve3(
       this.rightForkPos.clone(),
-      this.getRestPosition()
+      this.restPos.clone()
     );
-    const rightGeometry = new THREE.TubeGeometry(rightCurve, 8, 0.03, 6, false);
+    const rightGeometry = new THREE.TubeGeometry(rightCurve, 8, 0.04, 6, false);
     this.rubberBandRight = new THREE.Mesh(rightGeometry, rubberMaterial);
     this.scene.add(this.rubberBandRight);
 
@@ -91,16 +120,12 @@ export class Slingshot {
       flatShading: true
     });
     this.pouch = new THREE.Mesh(pouchGeometry, pouchMaterial);
-    this.pouch.position.copy(this.getRestPosition());
+    this.pouch.position.copy(this.restPos);
     this.scene.add(this.pouch);
   }
 
   getRestPosition() {
-    return new THREE.Vector3(
-      this.position.x,
-      this.position.y + 2.5,
-      this.position.z
-    );
+    return this.restPos.clone();
   }
 
   updateRubberBand(pullPosition) {
@@ -120,7 +145,7 @@ export class Slingshot {
       this.leftForkPos.clone(),
       pullPosition.clone()
     );
-    this.rubberBandLeft.geometry = new THREE.TubeGeometry(leftCurve, 8, 0.03, 6, false);
+    this.rubberBandLeft.geometry = new THREE.TubeGeometry(leftCurve, 8, 0.04, 6, false);
 
     if (this.rubberBandRight.geometry) {
       this.rubberBandRight.geometry.dispose();
@@ -129,7 +154,7 @@ export class Slingshot {
       this.rightForkPos.clone(),
       pullPosition.clone()
     );
-    this.rubberBandRight.geometry = new THREE.TubeGeometry(rightCurve, 8, 0.03, 6, false);
+    this.rubberBandRight.geometry = new THREE.TubeGeometry(rightCurve, 8, 0.04, 6, false);
 
     this.pouch.position.copy(pullPosition);
     
@@ -137,8 +162,7 @@ export class Slingshot {
   }
 
   resetRubberBand() {
-    const restPos = this.getRestPosition();
-    this.updateRubberBand(restPos);
+    this.updateRubberBand(this.getRestPosition());
   }
 
   showPouch(show) {

@@ -112,58 +112,70 @@ export class SceneManager {
   createTree() {
     const treeGroup = new THREE.Group();
 
-    const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 7, 6);
+    const trunkHeight = 6 + Math.random() * 2;
+    const trunkGeometry = new THREE.CylinderGeometry(0.25, 0.45, trunkHeight, 6);
     const trunkMaterial = new THREE.MeshStandardMaterial({
       color: COLORS.TREE_TRUNK,
       flatShading: true
     });
     const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-    trunk.position.y = 3.5;
+    trunk.position.y = trunkHeight / 2;
     trunk.castShadow = true;
     treeGroup.add(trunk);
-
-    const branchData = [
-      { y: 4.5, length: 1.4, angle: 0 },
-      { y: 4.5, length: 1.4, angle: Math.PI },
-      { y: 5.5, length: 1.2, angle: 0 },
-      { y: 5.5, length: 1.2, angle: Math.PI },
-      { y: 6.5, length: 0.9, angle: 0 },
-      { y: 6.5, length: 0.9, angle: Math.PI }
-    ];
 
     const branchMaterial = new THREE.MeshStandardMaterial({
       color: COLORS.TREE_TRUNK,
       flatShading: true
     });
 
-    branchData.forEach((data, index) => {
-      const branchGeometry = new THREE.CylinderGeometry(0.08, 0.12, data.length, 5);
-      const branch = new THREE.Mesh(branchGeometry, branchMaterial);
-      
-      const x = Math.cos(data.angle) * data.length * 0.5;
-      const z = Math.sin(data.angle) * data.length * 0.5;
-      
-      branch.position.set(x, data.y, z);
-      branch.rotation.z = Math.cos(data.angle) * Math.PI / 2;
-      branch.rotation.x = Math.sin(data.angle) * Math.PI / 2;
-      
-      branch.castShadow = true;
-      treeGroup.add(branch);
-      
-      const endGeometry = new THREE.SphereGeometry(0.1, 6, 6);
-      const end = new THREE.Mesh(endGeometry, branchMaterial);
-      end.position.set(
-        Math.cos(data.angle) * data.length,
-        data.y,
-        Math.sin(data.angle) * data.length
-      );
-      end.castShadow = true;
-      treeGroup.add(end);
-    });
+    const layerCount = 2 + Math.floor(Math.random() * 2);
+    const baseY = trunkHeight * 0.55;
+    const layerSpacing = (trunkHeight * 0.35) / layerCount;
 
-    const topGeometry = new THREE.SphereGeometry(0.2, 6, 6);
+    for (let layer = 0; layer < layerCount; layer++) {
+      const y = baseY + layer * layerSpacing;
+      const branchesInLayer = 2 + Math.floor(Math.random() * 2);
+      
+      const baseAngle = Math.random() * Math.PI * 2;
+      const angleStep = (Math.PI * 2) / branchesInLayer;
+      
+      for (let i = 0; i < branchesInLayer; i++) {
+        const angle = baseAngle + i * angleStep + (Math.random() - 0.5) * 0.5;
+        const length = 1.0 + Math.random() * 0.8;
+        const tiltAngle = 0.3 + Math.random() * 0.3;
+        
+        const branchGeometry = new THREE.CylinderGeometry(0.06, 0.1, length, 5);
+        const branch = new THREE.Mesh(branchGeometry, branchMaterial);
+        
+        const halfLength = length * 0.5;
+        const x = Math.cos(angle) * halfLength;
+        const z = Math.sin(angle) * halfLength;
+        
+        branch.position.set(x, y, z);
+        
+        const rotationAxis = new THREE.Vector3(Math.sin(angle), 0, -Math.cos(angle));
+        branch.rotateOnAxis(rotationAxis, tiltAngle);
+        
+        branch.castShadow = true;
+        treeGroup.add(branch);
+        
+        const tipGeometry = new THREE.SphereGeometry(0.08, 5, 5);
+        const tip = new THREE.Mesh(tipGeometry, branchMaterial);
+        
+        const tipOffset = length * 0.8;
+        const tipX = Math.cos(angle) * tipOffset;
+        const tipZ = Math.sin(angle) * tipOffset;
+        const tipY = y + Math.sin(tiltAngle) * tipOffset * 0.3;
+        
+        tip.position.set(tipX, tipY, tipZ);
+        tip.castShadow = true;
+        treeGroup.add(tip);
+      }
+    }
+
+    const topGeometry = new THREE.SphereGeometry(0.15, 5, 5);
     const top = new THREE.Mesh(topGeometry, branchMaterial);
-    top.position.set(0, 7.2, 0);
+    top.position.set(0, trunkHeight + 0.3, 0);
     top.castShadow = true;
     treeGroup.add(top);
 
@@ -176,23 +188,20 @@ export class SceneManager {
     tree.getWorldPosition(treeWorldPos);
     const scale = tree.scale.x;
 
-    const branchPositions = [
-      { y: 4.5, offset: 1.4 },
-      { y: 5.5, offset: 1.2 },
-      { y: 6.5, offset: 0.9 }
-    ];
-
-    branchPositions.forEach(branch => {
-      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI) {
-        branches.push({
-          position: new THREE.Vector3(
-            treeWorldPos.x + Math.cos(angle) * branch.offset * scale,
-            treeWorldPos.y + branch.y * scale + 0.2,
-            treeWorldPos.z + Math.sin(angle) * branch.offset * scale
-          )
-        });
-      }
-    });
+    const branchCount = 4 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < branchCount; i++) {
+      const y = (4.5 + Math.random() * 3) * scale;
+      const offset = (1.0 + Math.random() * 0.8) * scale;
+      const angle = Math.random() * Math.PI * 2;
+      
+      branches.push({
+        position: new THREE.Vector3(
+          treeWorldPos.x + Math.cos(angle) * offset,
+          treeWorldPos.y + y,
+          treeWorldPos.z + Math.sin(angle) * offset
+        )
+      });
+    }
 
     return branches;
   }
@@ -203,7 +212,7 @@ export class SceneManager {
 
   setBranchOccupied(position, occupied) {
     const branch = this.treeBranches.find(b => 
-      b.position.distanceTo(position) < 0.5
+      b.position.distanceTo(position) < 0.8
     );
     if (branch) {
       branch.hasBird = occupied;

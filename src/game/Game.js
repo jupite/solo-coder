@@ -152,7 +152,6 @@ export class Game {
   shoot(startPosition, velocity) {
     this.canShoot = false;
     
-    this.projectile.clearAllTrails();
     this.projectile.launch(startPosition, velocity);
     
     this.slingshot.showPouch(false);
