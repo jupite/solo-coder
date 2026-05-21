@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>摩托车特技游戏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+        
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        .score-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 25px;
+            border-radius: 12px;
+            color: white;
+            border: 2px solid rgba(255, 165, 0, 0.5);
+            box-shadow: 0 4px 15px rgba(255, 165, 0, 0.3);
+        }
+        
+        .score-panel h2 {
+            font-size: 14px;
+            color: #ffa500;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .score-panel .score {
+            font-size: 32px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255, 165, 0, 0.8);
+        }
+        
+        .timer-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 25px;
+            border-radius: 12px;
+            color: white;
+            border: 2px solid rgba(0, 200, 255, 0.5);
+            box-shadow: 0 4px 15px rgba(0, 200, 255, 0.3);
+        }
+        
+        .timer-panel h2 {
+            font-size: 14px;
+            color: #00c8ff;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .timer-panel .time {
+            font-size: 28px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(0, 200, 255, 0.8);
+        }
+        
+        .best-time {
+            font-size: 14px;
+            color: #00c8ff;
+            margin-top: 5px;
+        }
+        
+        .checkpoint-panel {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 30px;
+            border-radius: 12px;
+            color: white;
+            border: 2px solid rgba(0, 255, 100, 0.5);
+            box-shadow: 0 4px 15px rgba(0, 255, 100, 0.3);
+            text-align: center;
+        }
+        
+        .checkpoint-panel h2 {
+            font-size: 14px;
+            color: #00ff64;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .checkpoint-panel .checkpoints {
+            font-size: 24px;
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        .combo-panel {
+            position: absolute;
+            bottom: 150px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 48px;
+            font-weight: bold;
+            color: #ff6600;
+            text-shadow: 0 0 20px rgba(255, 102, 0, 0.8),
+                         0 0 40px rgba(255, 102, 0, 0.5);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        
+        .combo-panel.active {
+            opacity: 1;
+        }
+        
+        .controls-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px 20px;
+            border-radius: 10px;
+            color: white;
+            font-size: 13px;
+            line-height: 1.8;
+        }
+        
+        .controls-hint .key {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin: 0 2px;
+            font-weight: bold;
+        }
+        
+        .speed-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 25px;
+            border-radius: 12px;
+            color: white;
+            border: 2px solid rgba(255, 0, 100, 0.5);
+        }
+        
+        .speed-panel h2 {
+            font-size: 14px;
+            color: #ff0064;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .speed-panel .speed {
+            font-size: 28px;
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        .start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            pointer-events: all;
+        }
+        
+        .start-screen h1 {
+            font-size: 48px;
+            color: #ffa500;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(255, 165, 0, 0.8);
+        }
+        
+        .start-screen p {
+            color: white;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .start-screen .instructions {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px 40px;
+            border-radius: 12px;
+            margin: 30px 0;
+            text-align: left;
+        }
+        
+        .start-screen button {
+            padding: 15px 50px;
+            font-size: 20px;
+            background: linear-gradient(135deg, #ffa500, #ff6600);
+            border: none;
+            border-radius: 30px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            pointer-events: all;
+            box-shadow: 0 4px 15px rgba(255, 165, 0, 0.5);
+        }
+        
+        .start-screen button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 25px rgba(255, 165, 0, 0.7);
+        }
+        
+        .game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            pointer-events: all;
+        }
+        
+        .game-over-screen h1 {
+            font-size: 48px;
+            color: #00c8ff;
+            margin-bottom: 20px;
+        }
+        
+        .game-over-screen .final-score {
+            font-size: 64px;
+            color: #ffa500;
+            margin: 20px 0;
+            text-shadow: 0 0 20px rgba(255, 165, 0, 0.8);
+        }
+        
+        .game-over-screen button {
+            padding: 15px 50px;
+            font-size: 20px;
+            background: linear-gradient(135deg, #00c8ff, #0066ff);
+            border: none;
+            border-radius: 30px;
+            color: white;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s;
+        }
+        
+        .game-over-screen button:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="ui">
+        <div class="score-panel">
+            <h2>得分</h2>
+            <div class="score" id="scoreDisplay">0</div>
+        </div>
+        
+        <div class="timer-panel">
+            <h2>时间</h2>
+            <div class="time" id="timeDisplay">00:00.00</div>
+            <div class="best-time" id="bestTimeDisplay">最佳: --:--.---</div>
+        </div>
+        
+        <div class="checkpoint-panel">
+            <h2>检查点</h2>
+            <div class="checkpoints" id="checkpointDisplay">0 / 0</div>
+        </div>
+        
+        <div class="combo-panel" id="comboDisplay">
+            1x 翻转!
+        </div>
+        
+        <div class="speed-panel">
+            <h2>速度</h2>
+            <div class="speed" id="speedDisplay">0 km/h</div>
+        </div>
+        
+        <div class="controls-hint">
+            <div><span class="key">W</span> 加速 | <span class="key">S</span> 减速</div>
+            <div><span class="key">A</span> 左倾 | <span class="key">D</span> 右倾</div>
+            <div><span class="key">Space</span> 跳跃 | <span class="key">Q</span>/<span class="key">E</span> 前后翻转</div>
+        </div>
+        
+        <div class="start-screen" id="startScreen">
+            <h1>🏍️ 摩托车特技</h1>
+            <p>在起伏的山地中挑战极限！</p>
+            <div class="instructions">
+                <p><strong>控制方式：</strong></p>
+                <p>W/S - 加速/减速</p>
+                <p>A/D - 左右倾斜</p>
+                <p>空格 - 跳跃</p>
+                <p>Q/E - 空中翻转</p>
+                <p style="margin-top: 15px;"><strong>目标：</strong></p>
+                <p>收集所有检查点旗帜，完成特技动作获取高分！</p>
+            </div>
+            <button onclick="startGame()">开始游戏</button>
+        </div>
+        
+        <div class="game-over-screen" id="gameOverScreen">
+            <h1>🎉 完成！</h1>
+            <p>你收集了所有检查点！</p>
+            <div class="final-score" id="finalScore">0</div>
+            <p id="finalTime">用时: 00:00.00</p>
+            <button onclick="restartGame()">再来一次</button>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
