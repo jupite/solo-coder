@@ -17,13 +17,13 @@ export class SceneManager {
     this.scene.fog = new THREE.Fog(COLORS.SKY, 30, 80);
 
     this.camera = new THREE.PerspectiveCamera(
-      60,
+      55,
       window.innerWidth / window.innerHeight,
       0.1,
       1000
     );
-    this.camera.position.set(-12, 8, 18);
-    this.camera.lookAt(0, 2, 0);
+    this.camera.position.set(-10, 6, 15);
+    this.camera.lookAt(2, 3, -5);
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
@@ -84,11 +84,11 @@ export class SceneManager {
 
   createTrees() {
     const treePositions = [
-      { x: -8, z: -5 },
+      { x: -5, z: -5 },
       { x: 5, z: -8 },
-      { x: 12, z: -3 },
-      { x: 0, z: -15 },
-      { x: -5, z: -20 }
+      { x: 12, z: -5 },
+      { x: 2, z: -15 },
+      { x: -3, z: -18 }
     ];
 
     treePositions.forEach((pos, index) => {
@@ -112,44 +112,60 @@ export class SceneManager {
   createTree() {
     const treeGroup = new THREE.Group();
 
-    const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 5, 6);
+    const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 7, 6);
     const trunkMaterial = new THREE.MeshStandardMaterial({
       color: COLORS.TREE_TRUNK,
       flatShading: true
     });
     const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-    trunk.position.y = 2.5;
+    trunk.position.y = 3.5;
     trunk.castShadow = true;
     treeGroup.add(trunk);
 
-    const leavesPositions = [
-      { y: 5, scale: 1.8 },
-      { y: 6, scale: 1.5 },
-      { y: 7, scale: 1.2 },
-      { y: 4, scale: 1.4 }
+    const branchData = [
+      { y: 4.5, length: 1.4, angle: 0 },
+      { y: 4.5, length: 1.4, angle: Math.PI },
+      { y: 5.5, length: 1.2, angle: 0 },
+      { y: 5.5, length: 1.2, angle: Math.PI },
+      { y: 6.5, length: 0.9, angle: 0 },
+      { y: 6.5, length: 0.9, angle: Math.PI }
     ];
 
-    const leavesMaterial = new THREE.MeshStandardMaterial({
-      color: COLORS.TREE_LEAVES,
+    const branchMaterial = new THREE.MeshStandardMaterial({
+      color: COLORS.TREE_TRUNK,
       flatShading: true
     });
 
-    leavesPositions.forEach((pos, i) => {
-      const leavesGeometry = new THREE.DodecahedronGeometry(pos.scale, 0);
-      const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
-      leaves.position.set(
-        (Math.random() - 0.5) * 0.5,
-        pos.y,
-        (Math.random() - 0.5) * 0.5
+    branchData.forEach((data, index) => {
+      const branchGeometry = new THREE.CylinderGeometry(0.08, 0.12, data.length, 5);
+      const branch = new THREE.Mesh(branchGeometry, branchMaterial);
+      
+      const x = Math.cos(data.angle) * data.length * 0.5;
+      const z = Math.sin(data.angle) * data.length * 0.5;
+      
+      branch.position.set(x, data.y, z);
+      branch.rotation.z = Math.cos(data.angle) * Math.PI / 2;
+      branch.rotation.x = Math.sin(data.angle) * Math.PI / 2;
+      
+      branch.castShadow = true;
+      treeGroup.add(branch);
+      
+      const endGeometry = new THREE.SphereGeometry(0.1, 6, 6);
+      const end = new THREE.Mesh(endGeometry, branchMaterial);
+      end.position.set(
+        Math.cos(data.angle) * data.length,
+        data.y,
+        Math.sin(data.angle) * data.length
       );
-      leaves.rotation.set(
-        Math.random() * Math.PI,
-        Math.random() * Math.PI,
-        Math.random() * Math.PI
-      );
-      leaves.castShadow = true;
-      treeGroup.add(leaves);
+      end.castShadow = true;
+      treeGroup.add(end);
     });
+
+    const topGeometry = new THREE.SphereGeometry(0.2, 6, 6);
+    const top = new THREE.Mesh(topGeometry, branchMaterial);
+    top.position.set(0, 7.2, 0);
+    top.castShadow = true;
+    treeGroup.add(top);
 
     return treeGroup;
   }
@@ -158,20 +174,21 @@ export class SceneManager {
     const branches = [];
     const treeWorldPos = new THREE.Vector3();
     tree.getWorldPosition(treeWorldPos);
+    const scale = tree.scale.x;
 
     const branchPositions = [
-      { y: 4.5, offset: 1.2 },
-      { y: 5.5, offset: 1.0 },
-      { y: 6.5, offset: 0.8 }
+      { y: 4.5, offset: 1.4 },
+      { y: 5.5, offset: 1.2 },
+      { y: 6.5, offset: 0.9 }
     ];
 
     branchPositions.forEach(branch => {
       for (let angle = 0; angle < Math.PI * 2; angle += Math.PI) {
         branches.push({
           position: new THREE.Vector3(
-            treeWorldPos.x + Math.cos(angle) * branch.offset,
-            treeWorldPos.y + branch.y + Math.random() * 0.3,
-            treeWorldPos.z + Math.sin(angle) * branch.offset
+            treeWorldPos.x + Math.cos(angle) * branch.offset * scale,
+            treeWorldPos.y + branch.y * scale + 0.2,
+            treeWorldPos.z + Math.sin(angle) * branch.offset * scale
           )
         });
       }

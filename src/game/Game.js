@@ -44,7 +44,7 @@ export class Game {
     
     this.slingshot = new Slingshot(
       this.sceneManager.scene,
-      new THREE.Vector3(-10, 0, 8)
+      new THREE.Vector3(-8, 0, 6)
     );
     
     this.projectile = new Projectile(this.sceneManager.scene);
@@ -152,6 +152,7 @@ export class Game {
   shoot(startPosition, velocity) {
     this.canShoot = false;
     
+    this.projectile.clearTrail();
     this.projectile.launch(startPosition, velocity);
     
     this.slingshot.showPouch(false);
@@ -164,6 +165,8 @@ export class Game {
     bird.hit();
     
     this.particleSystem.spawnFeathers(bird.position, bird.colorIndex);
+    
+    this.projectile.clearTrail();
     
     this.score += CONSTANTS.SCORE_PER_HIT;
     this.uiManager.updateScore(this.score);

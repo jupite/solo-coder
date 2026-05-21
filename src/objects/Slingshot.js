@@ -61,22 +61,31 @@ export class Slingshot {
   }
 
   createRubberBand() {
-    const rubberMaterial = new THREE.LineBasicMaterial({
+    const rubberMaterial = new THREE.MeshStandardMaterial({
       color: COLORS.RUBBER_BAND,
-      linewidth: 3
+      roughness: 0.6,
+      metalness: 0.1
     });
 
-    const leftPoints = [this.leftForkPos.clone(), this.leftForkPos.clone()];
-    const leftGeometry = new THREE.BufferGeometry().setFromPoints(leftPoints);
-    this.rubberBandLeft = new THREE.Line(leftGeometry, rubberMaterial);
+    this.rubberTubeMaterial = rubberMaterial;
+
+    const leftCurve = new THREE.LineCurve3(
+      this.leftForkPos.clone(),
+      this.getRestPosition()
+    );
+    const leftGeometry = new THREE.TubeGeometry(leftCurve, 8, 0.03, 6, false);
+    this.rubberBandLeft = new THREE.Mesh(leftGeometry, rubberMaterial);
     this.scene.add(this.rubberBandLeft);
 
-    const rightPoints = [this.rightForkPos.clone(), this.rightForkPos.clone()];
-    const rightGeometry = new THREE.BufferGeometry().setFromPoints(rightPoints);
-    this.rubberBandRight = new THREE.Line(rightGeometry, rubberMaterial);
+    const rightCurve = new THREE.LineCurve3(
+      this.rightForkPos.clone(),
+      this.getRestPosition()
+    );
+    const rightGeometry = new THREE.TubeGeometry(rightCurve, 8, 0.03, 6, false);
+    this.rubberBandRight = new THREE.Mesh(rightGeometry, rubberMaterial);
     this.scene.add(this.rubberBandRight);
 
-    const pouchGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+    const pouchGeometry = new THREE.SphereGeometry(0.12, 8, 8);
     const pouchMaterial = new THREE.MeshStandardMaterial({
       color: 0x654321,
       flatShading: true
@@ -104,15 +113,23 @@ export class Slingshot {
       pullPosition.copy(restPos).add(direction);
     }
 
-    const leftPositions = this.rubberBandLeft.geometry.attributes.position;
-    leftPositions.setXYZ(0, this.leftForkPos.x, this.leftForkPos.y, this.leftForkPos.z);
-    leftPositions.setXYZ(1, pullPosition.x, pullPosition.y, pullPosition.z);
-    leftPositions.needsUpdate = true;
+    if (this.rubberBandLeft.geometry) {
+      this.rubberBandLeft.geometry.dispose();
+    }
+    const leftCurve = new THREE.LineCurve3(
+      this.leftForkPos.clone(),
+      pullPosition.clone()
+    );
+    this.rubberBandLeft.geometry = new THREE.TubeGeometry(leftCurve, 8, 0.03, 6, false);
 
-    const rightPositions = this.rubberBandRight.geometry.attributes.position;
-    rightPositions.setXYZ(0, this.rightForkPos.x, this.rightForkPos.y, this.rightForkPos.z);
-    rightPositions.setXYZ(1, pullPosition.x, pullPosition.y, pullPosition.z);
-    rightPositions.needsUpdate = true;
+    if (this.rubberBandRight.geometry) {
+      this.rubberBandRight.geometry.dispose();
+    }
+    const rightCurve = new THREE.LineCurve3(
+      this.rightForkPos.clone(),
+      pullPosition.clone()
+    );
+    this.rubberBandRight.geometry = new THREE.TubeGeometry(rightCurve, 8, 0.03, 6, false);
 
     this.pouch.position.copy(pullPosition);
     

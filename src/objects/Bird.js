@@ -78,6 +78,7 @@ export class Bird {
     birdGroup.add(this.rightWing);
 
     birdGroup.position.copy(this.position);
+    birdGroup.lookAt(new THREE.Vector3(0, this.position.y, 10));
     this.mesh = birdGroup;
     this.scene.add(this.mesh);
   }
@@ -104,6 +105,7 @@ export class Bird {
     this.position = newPosition.clone();
     this.originalY = newPosition.y;
     this.mesh.position.copy(this.position);
+    this.mesh.lookAt(new THREE.Vector3(0, this.position.y, 10));
     this.isAlive = true;
     this.mesh.visible = true;
     this.animationTime = Math.random() * Math.PI * 2;

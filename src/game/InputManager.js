@@ -11,7 +11,10 @@ export class InputManager {
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
     
-    this.plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+    const restPos = slingshot.getRestPosition();
+    const planeNormal = new THREE.Vector3();
+    planeNormal.subVectors(camera.position, restPos).normalize();
+    this.plane = new THREE.Plane(planeNormal, -planeNormal.dot(restPos));
     
     this.onMouseDown = null;
     this.onMouseMove = null;
@@ -36,18 +39,16 @@ export class InputManager {
     
     const restPos = this.slingshot.getRestPosition();
     const intersectPoint = new THREE.Vector3();
-    this.raycaster.ray.intersectPlane(this.plane, intersectPoint);
+    const intersects = this.raycaster.ray.intersectPlane(this.plane, intersectPoint);
     
-    const distance = intersectPoint.distanceTo(restPos);
+    if (!intersects) return;
     
-    if (distance < 3) {
-      this.isDragging = true;
-      this.dragStartPos.copy(restPos);
-      this.currentDragPos.copy(intersectPoint);
-      
-      if (this.onMouseDown) {
-        this.onMouseDown(intersectPoint);
-      }
+    this.isDragging = true;
+    this.dragStartPos.copy(restPos);
+    this.currentDragPos.copy(intersectPoint);
+    
+    if (this.onMouseDown) {
+      this.onMouseDown(intersectPoint);
     }
   }
 
@@ -60,13 +61,19 @@ export class InputManager {
     this.raycaster.setFromCamera(this.mouse, this.camera);
     
     const intersectPoint = new THREE.Vector3();
-    this.raycaster.ray.intersectPlane(this.plane, intersectPoint);
+    const intersects = this.raycaster.ray.intersectPlane(this.plane, intersectPoint);
+    
+    if (!intersects) return;
     
     const restPos = this.slingshot.getRestPosition();
-    const direction = intersectPoint.clone().sub(restPos);
+    const dragDir = intersectPoint.clone().sub(restPos);
+    const toCamera = this.camera.position.clone().sub(restPos).normalize();
     
-    if (direction.z > 0) {
-      intersectPoint.z = restPos.z;
+    const forwardComponent = dragDir.dot(toCamera);
+    
+    if (forwardComponent < 0) {
+      const correction = toCamera.clone().multiplyScalar(-forwardComponent * 1.5);
+      intersectPoint.add(correction);
     }
     
     this.currentDragPos.copy(intersectPoint);

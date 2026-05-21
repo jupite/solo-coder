@@ -50,6 +50,7 @@ export class Projectile {
     this.mesh.visible = true;
     this.trailMesh.visible = true;
     this.trail = [startPosition.clone()];
+    this.maxTrailLength = 200;
   }
 
   update(delta) {
@@ -63,7 +64,7 @@ export class Projectile {
     this.mesh.rotation.z -= this.velocity.x * delta * 5;
 
     this.trail.push(this.mesh.position.clone());
-    if (this.trail.length > 50) {
+    if (this.trail.length > this.maxTrailLength) {
       this.trail.shift();
     }
 
@@ -86,8 +87,15 @@ export class Projectile {
   reset() {
     this.isActive = false;
     this.mesh.visible = false;
+  }
+
+  clearTrail() {
     this.trailMesh.visible = false;
     this.trail = [];
+    const positions = this.trailMesh.geometry.attributes.position.array;
+    positions.fill(0);
+    this.trailMesh.geometry.setDrawRange(0, 0);
+    this.trailMesh.geometry.attributes.position.needsUpdate = true;
   }
 
   getBoundingBox() {
