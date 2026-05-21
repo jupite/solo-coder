@@ -6,6 +6,7 @@ export class Environment {
         this.fieldSize = 100;
         this.penSize = 15;
         this.penPosition = new THREE.Vector3(-30, 0, -30);
+        this.obstacles = [];
         
         this.createGround();
         this.createPen();
@@ -73,13 +74,6 @@ export class Environment {
         pen.position.set(this.penPosition.x, 0.01, this.penPosition.z);
         pen.receiveShadow = true;
         this.scene.add(pen);
-        
-        const borderGeometry = new THREE.EdgesGeometry(penGeometry);
-        const borderMaterial = new THREE.LineBasicMaterial({ color: 0x654321, linewidth: 3 });
-        const border = new THREE.LineSegments(borderGeometry, borderMaterial);
-        border.rotation.x = -Math.PI / 2;
-        border.position.set(this.penPosition.x, 0.02, this.penPosition.z);
-        this.scene.add(border);
     }
     
     createFences() {
@@ -122,6 +116,7 @@ export class Environment {
                 post.castShadow = true;
                 post.receiveShadow = true;
                 this.scene.add(post);
+                this.obstacles.push({ position: new THREE.Vector3(px, 0, pz), radius: 0.5 });
             }
             
             if (i !== 2) {
@@ -133,7 +128,7 @@ export class Environment {
                     const midZ = (start.z + end.z) / 2;
                     
                     rail.position.set(midX, railY, midZ);
-                    rail.rotation.y = Math.atan2(dx, dz);
+                    rail.rotation.y = Math.atan2(dz, dx);
                     rail.castShadow = true;
                     rail.receiveShadow = true;
                     this.scene.add(rail);
@@ -167,6 +162,7 @@ export class Environment {
         trunk.castShadow = true;
         trunk.receiveShadow = true;
         this.scene.add(trunk);
+        this.obstacles.push({ position: new THREE.Vector3(x, 0, z), radius: 1.0 });
         
         const foliageGeometry = new THREE.SphereGeometry(2.5, 8, 6);
         const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22, roughness: 0.8 });
@@ -197,5 +193,9 @@ export class Environment {
     
     getPenCenter() {
         return this.penPosition.clone();
+    }
+    
+    getObstacles() {
+        return this.obstacles;
     }
 }

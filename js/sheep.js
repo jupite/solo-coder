@@ -212,6 +212,12 @@ export class Sheep {
         this.wanderTimer = 1 + Math.random() * 2;
     }
     
+    forceChangeDirection() {
+        this.changeWanderDirection();
+        this.isScared = false;
+        this.scaredTimer = 0;
+    }
+    
     getPosition() {
         return this.mesh.position.clone();
     }

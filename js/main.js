@@ -4,6 +4,7 @@ import { Environment } from './environment.js';
 import { Sheepdog } from './dog.js';
 import { SheepManager } from './sheep.js';
 import { GameManager, UIManager } from './game.js';
+import { CollisionManager } from './collision.js';
 
 class Game {
     constructor() {
@@ -13,6 +14,12 @@ class Game {
         this.sheepManager = new SheepManager(this.sceneManager.scene, 5, this.environment);
         this.gameManager = new GameManager(this.sheepManager);
         this.uiManager = new UIManager();
+        this.collisionManager = new CollisionManager(this.environment);
+        
+        this.collisionManager.registerEntity(this.dog.mesh, 1.2, false);
+        this.sheepManager.sheepList.forEach(sheep => {
+            this.collisionManager.registerEntity(sheep.mesh, 1.0, true);
+        });
         
         this.clock = new THREE.Clock();
         this.animate();
@@ -32,6 +39,14 @@ class Game {
                 this.dog.isBarkingNow(),
                 this.dog.getBarkRadius()
             );
+            
+            this.collisionManager.resolveAllCollisions();
+            
+            this.sheepManager.sheepList.forEach(sheep => {
+                if (this.collisionManager.didCollide(sheep.mesh.id)) {
+                    sheep.forceChangeDirection();
+                }
+            });
             
             this.gameManager.update(deltaTime);
             
