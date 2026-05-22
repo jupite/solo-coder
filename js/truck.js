@@ -21,7 +21,7 @@ export class Truck {
         this.suspensionVelocity = new THREE.Vector3();
         
         this.cargoBedSize = { width: 3, height: 1.5, length: 5 };
-        this.cargoBedLocalPosition = new THREE.Vector3(0, 1.2, 2);
+        this.cargoBedLocalPosition = new THREE.Vector3(0, 1.2, -2);
         
         this.createTruck();
         
@@ -59,7 +59,7 @@ export class Truck {
             new THREE.BoxGeometry(2.8, 2, 2.5),
             bodyMaterial
         );
-        cabin.position.set(0, 1.75, -2.5);
+        cabin.position.set(0, 1.75, 2.5);
         cabin.castShadow = true;
         this.group.add(cabin);
         
@@ -67,7 +67,7 @@ export class Truck {
             new THREE.BoxGeometry(2.6, 0.3, 2.3),
             darkMaterial
         );
-        roof.position.set(0, 2.9, -2.5);
+        roof.position.set(0, 2.9, 2.5);
         roof.castShadow = true;
         this.group.add(roof);
         
@@ -75,22 +75,22 @@ export class Truck {
             new THREE.BoxGeometry(2.6, 1.2, 0.1),
             glassMaterial
         );
-        windshield.position.set(0, 2.3, -1.3);
-        windshield.rotation.x = -0.2;
+        windshield.position.set(0, 2.3, 3.7);
+        windshield.rotation.x = 0.2;
         this.group.add(windshield);
         
         const rearWindow = new THREE.Mesh(
             new THREE.BoxGeometry(2.6, 1.2, 0.1),
             glassMaterial
         );
-        rearWindow.position.set(0, 2.3, -3.7);
+        rearWindow.position.set(0, 2.3, 1.3);
         this.group.add(rearWindow);
         
         const cargoBed = new THREE.Mesh(
             new THREE.BoxGeometry(3, 0.3, 4.5),
             darkMaterial
         );
-        cargoBed.position.set(0, 0.9, 2);
+        cargoBed.position.set(0, 0.9, -2);
         cargoBed.castShadow = true;
         this.group.add(cargoBed);
         this.cargoBedMesh = cargoBed;
@@ -99,7 +99,7 @@ export class Truck {
             new THREE.BoxGeometry(0.2, 1.2, 4.5),
             bodyMaterial
         );
-        bedLeft.position.set(-1.5, 1.6, 2);
+        bedLeft.position.set(-1.5, 1.6, -2);
         bedLeft.castShadow = true;
         this.group.add(bedLeft);
         
@@ -107,7 +107,7 @@ export class Truck {
             new THREE.BoxGeometry(0.2, 1.2, 4.5),
             bodyMaterial
         );
-        bedRight.position.set(1.5, 1.6, 2);
+        bedRight.position.set(1.5, 1.6, -2);
         bedRight.castShadow = true;
         this.group.add(bedRight);
         
@@ -115,7 +115,7 @@ export class Truck {
             new THREE.BoxGeometry(3, 1.2, 0.2),
             bodyMaterial
         );
-        bedFront.position.set(0, 1.6, 4.2);
+        bedFront.position.set(0, 1.6, 0.2);
         bedFront.castShadow = true;
         this.group.add(bedFront);
         
@@ -123,7 +123,7 @@ export class Truck {
             new THREE.BoxGeometry(3, 1.2, 0.2),
             bodyMaterial
         );
-        bedRear.position.set(0, 1.6, -0.2);
+        bedRear.position.set(0, 1.6, -4.2);
         bedRear.castShadow = true;
         this.group.add(bedRear);
         
@@ -135,7 +135,7 @@ export class Truck {
                 emissiveIntensity: 0.5
             })
         );
-        headlightLeft.position.set(-1, 1.2, -3.9);
+        headlightLeft.position.set(-1, 1.2, 3.9);
         this.group.add(headlightLeft);
         
         const headlightRight = new THREE.Mesh(
@@ -146,7 +146,7 @@ export class Truck {
                 emissiveIntensity: 0.5
             })
         );
-        headlightRight.position.set(1, 1.2, -3.9);
+        headlightRight.position.set(1, 1.2, 3.9);
         this.group.add(headlightRight);
         
         this.createWheels();
@@ -167,12 +167,12 @@ export class Truck {
         this.wheels = [];
         
         const wheelPositions = [
-            { x: -1.4, z: -2.5, front: true },
-            { x: 1.4, z: -2.5, front: true },
-            { x: -1.4, z: 1.5, front: false },
-            { x: 1.4, z: 1.5, front: false },
-            { x: -1.4, z: 2.8, front: false },
-            { x: 1.4, z: 2.8, front: false }
+            { x: -1.4, z: 2.5, front: true },
+            { x: 1.4, z: 2.5, front: true },
+            { x: -1.4, z: -1.5, front: false },
+            { x: 1.4, z: -1.5, front: false },
+            { x: -1.4, z: -2.8, front: false },
+            { x: 1.4, z: -2.8, front: false }
         ];
         
         wheelPositions.forEach((pos, index) => {

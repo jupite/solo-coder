@@ -44,18 +44,51 @@ export class RoadGenerator {
     }
     
     createRoadMesh(curve) {
-        const roadGeometry = new THREE.TubeGeometry(
-            curve,
-            200,
-            this.roadWidth / 2,
-            8,
-            false
-        );
+        const segments = 400;
+        const halfWidth = this.roadWidth / 2;
+        
+        const positions = [];
+        const indices = [];
+        const uvs = [];
+        
+        for (let i = 0; i <= segments; i++) {
+            const t = i / segments;
+            const point = curve.getPointAt(t);
+            const tangent = curve.getTangentAt(t).normalize();
+            
+            const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+            
+            const left = point.clone().add(normal.clone().multiplyScalar(halfWidth));
+            const right = point.clone().add(normal.clone().multiplyScalar(-halfWidth));
+            
+            positions.push(left.x, point.y, left.z);
+            positions.push(right.x, point.y, right.z);
+            
+            uvs.push(0, t * 50);
+            uvs.push(1, t * 50);
+        }
+        
+        for (let i = 0; i < segments; i++) {
+            const a = i * 2;
+            const b = i * 2 + 1;
+            const c = (i + 1) * 2;
+            const d = (i + 1) * 2 + 1;
+            
+            indices.push(a, b, d);
+            indices.push(a, d, c);
+        }
+        
+        const roadGeometry = new THREE.BufferGeometry();
+        roadGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        roadGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+        roadGeometry.setIndex(indices);
+        roadGeometry.computeVertexNormals();
         
         const roadMaterial = new THREE.MeshStandardMaterial({
             color: 0x8B7355,
             roughness: 0.9,
-            metalness: 0.1
+            metalness: 0.1,
+            side: THREE.DoubleSide
         });
         
         const road = new THREE.Mesh(roadGeometry, roadMaterial);
