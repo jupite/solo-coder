@@ -80,28 +80,23 @@ export class CargoSystem {
     }
     
     generateBoxPositions() {
-        const positions = [];
-        const boxW = this.boxSize.width;
         const boxH = this.boxSize.height;
-        const boxL = this.boxSize.length;
-        
-        const bedLeft = -1.3;
-        const bedRight = 1.3;
-        const bedFront = 0;
-        const bedBack = 3.8;
-        
-        const layer1Positions = [
-            new THREE.Vector3((bedLeft + bedRight) / 2, boxH / 2 + 1.2, (bedFront + bedBack) / 2),
-            new THREE.Vector3(bedLeft + boxW / 2, boxH / 2 + 1.2, (bedFront + bedBack) / 2),
-            new THREE.Vector3(bedRight - boxW / 2, boxH / 2 + 1.2, (bedFront + bedBack) / 2),
+
+        const floorTop = 0.65;
+        const boxCenterY = floorTop + boxH / 2;
+
+        const layer1 = [
+            new THREE.Vector3(-0.65, boxCenterY, -1.3),
+            new THREE.Vector3(0.65, boxCenterY, -1.3),
+            new THREE.Vector3(-0.65, boxCenterY, -2.9),
+            new THREE.Vector3(0.65, boxCenterY, -2.9),
         ];
-        
-        const layer2Positions = [
-            new THREE.Vector3((bedLeft + bedRight) / 2, boxH * 1.5 + 1.2, (bedFront + bedBack) / 2),
-            new THREE.Vector3(bedLeft + boxW / 2, boxH * 1.5 + 1.2, (bedFront + bedBack) / 2 + boxL / 2),
+
+        const layer2 = [
+            new THREE.Vector3(0, boxCenterY + boxH, -2.1),
         ];
-        
-        return [...layer1Positions, ...layer2Positions].slice(0, 5);
+
+        return [...layer1, ...layer2];
     }
     
     update(deltaTime, truck, road) {
@@ -115,31 +110,84 @@ export class CargoSystem {
                 this.updateFallenBox(box, deltaTime, road);
             }
         });
+
+        this.resolveBoxCollisions(truck);
     }
     
     updateBoxOnTruck(box, truck, deltaTime) {
         const localPos = box.localPosition.clone();
         const targetWorldPos = truck.group.localToWorld(localPos);
-        
+
         const offset = new THREE.Vector3().subVectors(box.mesh.position, targetWorldPos);
-        
-        const springForce = offset.multiplyScalar(-8);
+        offset.y = 0;
+
+        const springForce = offset.multiplyScalar(-12);
         box.velocity.add(springForce.multiplyScalar(deltaTime));
-        
+
         this.applyForces(box, truck, deltaTime);
-        
-        box.velocity.multiplyScalar(0.9);
-        
-        const maxVel = 2;
+
+        box.velocity.multiplyScalar(0.92);
+
+        const maxVel = 2.5;
         if (box.velocity.length() > maxVel) {
             box.velocity.setLength(maxVel);
         }
-        
+
         box.mesh.position.addScaledVector(box.velocity, deltaTime);
-        
+
+        const boxLocalPos = box.mesh.position.clone();
+        truck.group.worldToLocal(boxLocalPos);
+
+        const halfBox = this.boxSize.width / 2;
+        const bedLeft = -1.4 + halfBox;
+        const bedRight = 1.4 - halfBox;
+        const bedFront = -0.4 - halfBox;
+        const bedRear = -4.0 + halfBox;
+        const bedBottom = 0.65 + halfBox;
+
+        let collided = false;
+        const invQuat = new THREE.Quaternion().setFromEuler(truck.rotation).invert();
+        const localVel = box.velocity.clone().applyQuaternion(invQuat);
+
+        if (boxLocalPos.x < bedLeft) {
+            boxLocalPos.x = bedLeft;
+            localVel.x = Math.max(0, localVel.x);
+            collided = true;
+        }
+        if (boxLocalPos.x > bedRight) {
+            boxLocalPos.x = bedRight;
+            localVel.x = Math.min(0, localVel.x);
+            collided = true;
+        }
+        if (boxLocalPos.z > bedFront) {
+            boxLocalPos.z = bedFront;
+            localVel.z = Math.min(0, localVel.z);
+            collided = true;
+        }
+        if (boxLocalPos.z < bedRear) {
+            boxLocalPos.z = bedRear;
+            localVel.z = Math.max(0, localVel.z);
+            collided = true;
+        }
+        if (boxLocalPos.y < bedBottom) {
+            boxLocalPos.y = bedBottom;
+            localVel.y = Math.max(0, localVel.y);
+            collided = true;
+        }
+
+        if (collided) {
+            localVel.multiplyScalar(0.5);
+        }
+
+        localVel.applyQuaternion(truck.group.quaternion);
+        box.velocity.copy(localVel);
+
+        truck.group.localToWorld(boxLocalPos);
+        box.mesh.position.copy(boxLocalPos);
+
         const targetQuat = new THREE.Quaternion().setFromEuler(truck.rotation);
         box.mesh.quaternion.slerp(targetQuat, 0.3);
-        
+
         this.checkFall(box, truck);
     }
     
@@ -170,15 +218,22 @@ export class CargoSystem {
     }
     
     checkFall(box, truck) {
-        const truckPos = truck.position;
-        const boxPos = box.mesh.position;
-        
-        const horizontalDist = Math.sqrt(
-            Math.pow(boxPos.x - truckPos.x, 2) + 
-            Math.pow(boxPos.z - truckPos.z, 2)
-        );
-        
-        if (horizontalDist > 3.5 || box.velocity.length() > 4) {
+        const boxLocalPos = box.mesh.position.clone();
+        truck.group.worldToLocal(boxLocalPos);
+
+        const halfBox = this.boxSize.width / 2;
+        const wallTop = 3.05 - halfBox;
+        const bedLeft = -1.4 + halfBox;
+        const bedRight = 1.4 - halfBox;
+        const bedFront = -0.4 - halfBox;
+        const bedRear = -4.0 + halfBox;
+
+        const isOutsideX = boxLocalPos.x < bedLeft || boxLocalPos.x > bedRight;
+        const isOutsideZ = boxLocalPos.z > bedFront || boxLocalPos.z < bedRear;
+        const isAboveWalls = boxLocalPos.y > wallTop;
+        const isBelowBed = boxLocalPos.y < 0.3;
+
+        if ((isOutsideX || isOutsideZ) && isAboveWalls || isBelowBed) {
             this.dropBox(box, truck);
         }
     }
@@ -241,6 +296,56 @@ export class CargoSystem {
         }
     }
     
+    resolveBoxCollisions(truck) {
+        const onTruckBoxes = this.boxes.filter(b => b.isOnTruck && !b.hasFallen);
+        if (onTruckBoxes.length < 2) return;
+
+        for (let i = 0; i < onTruckBoxes.length; i++) {
+            for (let j = i + 1; j < onTruckBoxes.length; j++) {
+                const boxA = onTruckBoxes[i];
+                const boxB = onTruckBoxes[j];
+
+                const posA = boxA.mesh.position.clone();
+                const posB = boxB.mesh.position.clone();
+                truck.group.worldToLocal(posA);
+                truck.group.worldToLocal(posB);
+
+                const delta = new THREE.Vector3().subVectors(posA, posB);
+                const overlapX = this.boxSize.width - Math.abs(delta.x);
+                const overlapY = this.boxSize.height - Math.abs(delta.y);
+                const overlapZ = this.boxSize.length - Math.abs(delta.z);
+
+                if (overlapX > 0 && overlapY > 0 && overlapZ > 0) {
+                    if (overlapX <= overlapY && overlapX <= overlapZ) {
+                        const push = overlapX / 2 * Math.sign(delta.x || 1);
+                        posA.x += push;
+                        posB.x -= push;
+                    } else if (overlapZ <= overlapY) {
+                        const push = overlapZ / 2 * Math.sign(delta.z || 1);
+                        posA.z += push;
+                        posB.z -= push;
+                    } else {
+                        const push = overlapY / 2 * Math.sign(delta.y || 1);
+                        posA.y += push;
+                        posB.y -= push;
+                    }
+
+                    const worldA = posA.clone();
+                    const worldB = posB.clone();
+                    truck.group.localToWorld(worldA);
+                    truck.group.localToWorld(worldB);
+
+                    boxA.mesh.position.copy(worldA);
+                    boxB.mesh.position.copy(worldB);
+
+                    const relVel = new THREE.Vector3().subVectors(boxA.velocity, boxB.velocity);
+                    boxA.velocity.sub(relVel.multiplyScalar(0.3));
+                    boxB.velocity.add(relVel.multiplyScalar(0.3));
+                }
+            }
+        }
+    }
+
     deliverCargo() {
         let delivered = 0;
         

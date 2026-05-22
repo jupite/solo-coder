@@ -90,40 +90,40 @@ export class Truck {
             new THREE.BoxGeometry(3, 0.3, 4.5),
             darkMaterial
         );
-        cargoBed.position.set(0, 0.9, -2);
+        cargoBed.position.set(0, 0.5, -2);
         cargoBed.castShadow = true;
         this.group.add(cargoBed);
         this.cargoBedMesh = cargoBed;
         
         const bedLeft = new THREE.Mesh(
-            new THREE.BoxGeometry(0.2, 1.2, 4.5),
+            new THREE.BoxGeometry(0.2, 2.4, 4.5),
             bodyMaterial
         );
-        bedLeft.position.set(-1.5, 1.6, -2);
+        bedLeft.position.set(-1.5, 1.85, -2);
         bedLeft.castShadow = true;
         this.group.add(bedLeft);
         
         const bedRight = new THREE.Mesh(
-            new THREE.BoxGeometry(0.2, 1.2, 4.5),
+            new THREE.BoxGeometry(0.2, 2.4, 4.5),
             bodyMaterial
         );
-        bedRight.position.set(1.5, 1.6, -2);
+        bedRight.position.set(1.5, 1.85, -2);
         bedRight.castShadow = true;
         this.group.add(bedRight);
         
         const bedFront = new THREE.Mesh(
-            new THREE.BoxGeometry(3, 1.2, 0.2),
+            new THREE.BoxGeometry(3, 2.4, 0.2),
             bodyMaterial
         );
-        bedFront.position.set(0, 1.6, 0.2);
+        bedFront.position.set(0, 1.85, 0.2);
         bedFront.castShadow = true;
         this.group.add(bedFront);
         
         const bedRear = new THREE.Mesh(
-            new THREE.BoxGeometry(3, 1.2, 0.2),
+            new THREE.BoxGeometry(3, 2.4, 0.2),
             bodyMaterial
         );
-        bedRear.position.set(0, 1.6, -4.2);
+        bedRear.position.set(0, 1.85, -4.2);
         bedRear.castShadow = true;
         this.group.add(bedRear);
         
@@ -219,7 +219,7 @@ export class Truck {
         
         this.speed = Math.max(-this.maxSpeed * 0.5, Math.min(this.maxSpeed, this.speed));
         
-        this.steering = steering * this.turnSpeed * (this.speed / this.maxSpeed);
+        this.steering = -steering * this.turnSpeed * (this.speed / this.maxSpeed);
         
         this.rotation.y += this.steering * deltaTime;
         
