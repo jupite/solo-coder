@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡车运输游戏</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        
+        <div id="hud">
+            <div id="timer" class="hud-item">时间: 00:00</div>
+            <div id="score-panel" class="hud-item">
+                <div id="score">得分: 0</div>
+                <div id="dropped">掉落: 0</div>
+            </div>
+            <div id="speedometer" class="hud-item">速度: 0 km/h</div>
+            <div id="controls-hint" class="hud-item">
+                <div>W - 前进</div>
+                <div>S - 后退</div>
+                <div>A - 左转</div>
+                <div>D - 右转</div>
+            </div>
+        </div>
+        
+        <div id="game-over" class="hidden">
+            <div class="game-over-content">
+                <h2>任务完成!</h2>
+                <div id="final-score">最终得分: 0</div>
+                <div id="final-time">用时: 00:00</div>
+                <div id="final-dropped">掉落箱子: 0</div>
+                <button id="restart-btn">重新开始</button>
+            </div>
+        </div>
+        
+        <div id="start-screen">
+            <div class="start-content">
+                <h1>卡车运输游戏</h1>
+                <p>驾驶卡车将货物安全运送到目的地</p>
+                <p>注意: 转弯过快或颠簸会导致货物掉落!</p>
+                <button id="start-btn">开始游戏</button>
+            </div>
+        </div>
+    </div>
+    
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+        }
+    }
+    </script>
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

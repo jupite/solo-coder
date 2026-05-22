@@ -1,0 +1,276 @@
+import * as THREE from 'three';
+
+export class CargoSystem {
+    constructor(scene) {
+        this.scene = scene;
+        this.boxes = [];
+        this.droppedCount = 0;
+        this.deliveredCount = 0;
+        this.onBoxDropped = null;
+        this.onBoxDelivered = null;
+        
+        this.boxSize = { width: 1.2, height: 1.2, length: 1.2 };
+        this.boxColors = [0x8B4513, 0xA0522D, 0xD2691E, 0xCD853F, 0xDEB887];
+        
+        this.gravity = -20;
+        this.friction = 0.9;
+        this.bounceFactor = 0.3;
+    }
+    
+    createBox(position, color) {
+        const geometry = new THREE.BoxGeometry(
+            this.boxSize.width,
+            this.boxSize.height,
+            this.boxSize.length
+        );
+        
+        const material = new THREE.MeshStandardMaterial({
+            color: color,
+            roughness: 0.8,
+            metalness: 0.1
+        });
+        
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.copy(position);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        
+        this.addBoxEdges(mesh);
+        
+        return mesh;
+    }
+    
+    addBoxEdges(boxMesh) {
+        const edgesGeometry = new THREE.EdgesGeometry(boxMesh.geometry);
+        const edgesMaterial = new THREE.LineBasicMaterial({ 
+            color: 0x5D4037,
+            linewidth: 2
+        });
+        const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+        boxMesh.add(edges);
+    }
+    
+    setupCargo(truck) {
+        this.boxes.forEach(box => {
+            this.scene.remove(box.mesh);
+        });
+        this.boxes = [];
+        this.droppedCount = 0;
+        this.deliveredCount = 0;
+        
+        const boxPositions = this.generateBoxPositions();
+        
+        boxPositions.forEach((localPos, index) => {
+            const color = this.boxColors[index % this.boxColors.length];
+            const worldPos = truck.group.localToWorld(localPos.clone());
+            const mesh = this.createBox(worldPos, color);
+            
+            this.boxes.push({
+                mesh,
+                localPosition: localPos,
+                velocity: new THREE.Vector3(),
+                angularVelocity: new THREE.Vector3(),
+                isOnTruck: true,
+                hasFallen: false,
+                hasLanded: false
+            });
+            
+            this.scene.add(mesh);
+        });
+    }
+    
+    generateBoxPositions() {
+        const positions = [];
+        const boxW = this.boxSize.width;
+        const boxH = this.boxSize.height;
+        const boxL = this.boxSize.length;
+        
+        const bedLeft = -1.3;
+        const bedRight = 1.3;
+        const bedFront = 0;
+        const bedBack = 3.8;
+        
+        const layer1Positions = [
+            new THREE.Vector3((bedLeft + bedRight) / 2, boxH / 2 + 1.2, (bedFront + bedBack) / 2),
+            new THREE.Vector3(bedLeft + boxW / 2, boxH / 2 + 1.2, (bedFront + bedBack) / 2),
+            new THREE.Vector3(bedRight - boxW / 2, boxH / 2 + 1.2, (bedFront + bedBack) / 2),
+        ];
+        
+        const layer2Positions = [
+            new THREE.Vector3((bedLeft + bedRight) / 2, boxH * 1.5 + 1.2, (bedFront + bedBack) / 2),
+            new THREE.Vector3(bedLeft + boxW / 2, boxH * 1.5 + 1.2, (bedFront + bedBack) / 2 + boxL / 2),
+        ];
+        
+        return [...layer1Positions, ...layer2Positions].slice(0, 5);
+    }
+    
+    update(deltaTime, truck, road) {
+        const truckPos = truck.position;
+        const truckRot = truck.rotation;
+        
+        this.boxes.forEach(box => {
+            if (box.isOnTruck && !box.hasFallen) {
+                this.updateBoxOnTruck(box, truck, deltaTime);
+            } else if (box.hasFallen) {
+                this.updateFallenBox(box, deltaTime, road);
+            }
+        });
+    }
+    
+    updateBoxOnTruck(box, truck, deltaTime) {
+        const localPos = box.localPosition.clone();
+        const targetWorldPos = truck.group.localToWorld(localPos);
+        
+        const offset = new THREE.Vector3().subVectors(box.mesh.position, targetWorldPos);
+        
+        const springForce = offset.multiplyScalar(-8);
+        box.velocity.add(springForce.multiplyScalar(deltaTime));
+        
+        this.applyForces(box, truck, deltaTime);
+        
+        box.velocity.multiplyScalar(0.9);
+        
+        const maxVel = 2;
+        if (box.velocity.length() > maxVel) {
+            box.velocity.setLength(maxVel);
+        }
+        
+        box.mesh.position.addScaledVector(box.velocity, deltaTime);
+        
+        const targetQuat = new THREE.Quaternion().setFromEuler(truck.rotation);
+        box.mesh.quaternion.slerp(targetQuat, 0.3);
+        
+        this.checkFall(box, truck);
+    }
+    
+    applyForces(box, truck, deltaTime) {
+        if (Math.abs(truck.steering) > 0.1 && Math.abs(truck.speed) > 5) {
+            const centripetalDirection = new THREE.Vector3(
+                Math.cos(truck.rotation.y),
+                0,
+                -Math.sin(truck.rotation.y)
+            );
+            
+            const centripetalForce = centripetalDirection.multiplyScalar(
+                truck.steering * truck.speed * 0.3
+            );
+            
+            box.velocity.add(centripetalForce.multiplyScalar(deltaTime));
+        }
+        
+        if (Math.abs(truck.suspensionVelocity.y) > 0.5) {
+            const bumpForce = new THREE.Vector3(
+                (Math.random() - 0.5) * truck.suspensionVelocity.y * 2,
+                Math.abs(truck.suspensionVelocity.y) * 0.5,
+                (Math.random() - 0.5) * truck.suspensionVelocity.y * 2
+            );
+            
+            box.velocity.add(bumpForce.multiplyScalar(deltaTime));
+        }
+    }
+    
+    checkFall(box, truck) {
+        const truckPos = truck.position;
+        const boxPos = box.mesh.position;
+        
+        const horizontalDist = Math.sqrt(
+            Math.pow(boxPos.x - truckPos.x, 2) + 
+            Math.pow(boxPos.z - truckPos.z, 2)
+        );
+        
+        if (horizontalDist > 3.5 || box.velocity.length() > 4) {
+            this.dropBox(box, truck);
+        }
+    }
+    
+    dropBox(box, truck) {
+        box.isOnTruck = false;
+        box.hasFallen = true;
+        
+        box.velocity.set(
+            box.velocity.x * 1.5 + (Math.random() - 0.5) * 3,
+            Math.abs(box.velocity.y) + 3,
+            box.velocity.z * 1.5 + (Math.random() - 0.5) * 3
+        );
+        
+        box.angularVelocity.set(
+            (Math.random() - 0.5) * 5,
+            (Math.random() - 0.5) * 5,
+            (Math.random() - 0.5) * 5
+        );
+        
+        this.droppedCount++;
+        
+        if (this.onBoxDropped) {
+            this.onBoxDropped();
+        }
+    }
+    
+    updateFallenBox(box, deltaTime, road) {
+        if (box.hasLanded) return;
+        
+        box.velocity.y += this.gravity * deltaTime;
+        
+        box.mesh.position.addScaledVector(box.velocity, deltaTime);
+        
+        box.mesh.rotation.x += box.angularVelocity.x * deltaTime;
+        box.mesh.rotation.y += box.angularVelocity.y * deltaTime;
+        box.mesh.rotation.z += box.angularVelocity.z * deltaTime;
+        
+        const groundHeight = road.getRoadHeight(
+            box.mesh.position.x,
+            box.mesh.position.z
+        ) + this.boxSize.height / 2;
+        
+        if (box.mesh.position.y < groundHeight) {
+            box.mesh.position.y = groundHeight;
+            
+            if (box.velocity.y < -1) {
+                box.velocity.y *= -this.bounceFactor;
+                box.velocity.x *= this.friction;
+                box.velocity.z *= this.friction;
+                box.angularVelocity.multiplyScalar(this.friction);
+            } else {
+                box.velocity.multiplyScalar(0.5);
+                box.angularVelocity.multiplyScalar(0.5);
+                
+                if (box.velocity.length() < 0.3) {
+                    box.hasLanded = true;
+                }
+            }
+        }
+    }
+    
+    deliverCargo() {
+        let delivered = 0;
+        
+        this.boxes.forEach(box => {
+            if (box.isOnTruck && !box.hasFallen) {
+                box.hasFallen = true;
+                delivered++;
+                
+                this.scene.remove(box.mesh);
+            }
+        });
+        
+        this.deliveredCount = delivered;
+        
+        if (this.onBoxDelivered) {
+            this.onBoxDelivered(delivered);
+        }
+        
+        return delivered;
+    }
+    
+    getRemainingCargoCount() {
+        return this.boxes.filter(b => b.isOnTruck && !b.hasFallen).length;
+    }
+    
+    getTotalCargoCount() {
+        return this.boxes.length;
+    }
+    
+    getDroppedCount() {
+        return this.droppedCount;
+    }
+}
