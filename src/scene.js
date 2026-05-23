@@ -14,7 +14,15 @@ export class SceneManager {
 
   createSky() {
     this.scene.background = new THREE.Color(CONFIG.COLORS.SKY);
-    this.scene.fog = new THREE.Fog(CONFIG.COLORS.SKY, 50, 150);
+    this.scene.fog = new THREE.Fog(CONFIG.COLORS.SKY, 60, 200);
+
+    const groundGeo = new THREE.PlaneGeometry(200, 200);
+    const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x3d5c3d });
+    const ground = new THREE.Mesh(groundGeo, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -5;
+    ground.receiveShadow = true;
+    this.scene.add(ground);
   }
 
   createCliff() {

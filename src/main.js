@@ -159,6 +159,12 @@ class DivingGame {
   }
 }
 
-window.addEventListener('DOMContentLoaded', () => {
+function initGame() {
   new DivingGame();
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initGame);
+} else {
+  initGame();
+}

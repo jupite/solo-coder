@@ -134,8 +134,8 @@ export class Player {
   setDivingPose() {
     this.leftArm.rotation.z = 0;
     this.rightArm.rotation.z = 0;
-    this.leftArm.rotation.x = -2.5;
-    this.rightArm.rotation.x = -2.5;
+    this.leftArm.rotation.x = Math.PI * 0.6;
+    this.rightArm.rotation.x = Math.PI * 0.6;
     this.leftLeg.rotation.set(0, 0, 0);
     this.rightLeg.rotation.set(0, 0, 0);
   }

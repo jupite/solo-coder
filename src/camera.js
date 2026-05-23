@@ -8,15 +8,19 @@ export class CameraController {
     this.desiredPosition = new THREE.Vector3();
     this.currentLookAt = new THREE.Vector3();
     this.isFollowing = false;
-    this.startPosition = new THREE.Vector3(0, 12, -10);
-    this.startLookAt = new THREE.Vector3(0, 10, 5);
+
+    this.startPosition = new THREE.Vector3(0, 8, 28);
+    this.startLookAt = new THREE.Vector3(0, 14, 3);
+
+    this.followOffset = new THREE.Vector3(0, 6, 18);
 
     this.resetCamera();
   }
 
   resetCamera() {
     this.camera.position.copy(this.startPosition);
-    this.camera.lookAt(this.startLookAt);
+    this.currentLookAt.copy(this.startLookAt);
+    this.camera.lookAt(this.currentLookAt);
     this.isFollowing = false;
   }
 
@@ -31,27 +35,27 @@ export class CameraController {
 
     if (gameState === GAME_STATE.JUMPING || gameState === GAME_STATE.FALLING) {
       this.desiredPosition.set(
-        targetPos.x,
-        targetPos.y + CONFIG.CAMERA_OFFSET_Y,
-        targetPos.z - CONFIG.CAMERA_OFFSET_Z
+        targetPos.x + this.followOffset.x,
+        targetPos.y + this.followOffset.y,
+        targetPos.z + this.followOffset.z
       );
 
-      this.camera.position.lerp(this.desiredPosition, CONFIG.CAMERA_FOLLOW_SPEED * deltaTime);
+      this.camera.position.lerp(this.desiredPosition, 3 * deltaTime);
 
       this.currentLookAt.lerp(
         new THREE.Vector3(
           targetPos.x,
-          targetPos.y + CONFIG.CAMERA_LOOK_AHEAD,
-          targetPos.z + 5
+          targetPos.y + 3,
+          targetPos.z - 5
         ),
-        CONFIG.CAMERA_FOLLOW_SPEED * deltaTime
+        3 * deltaTime
       );
       this.camera.lookAt(this.currentLookAt);
     } else if (gameState === GAME_STATE.ENTERED_WATER || gameState === GAME_STATE.SCORED) {
       this.desiredPosition.set(
         targetPos.x,
-        targetPos.y + 3,
-        targetPos.z - 5
+        targetPos.y + 4,
+        targetPos.z + 12
       );
       this.camera.position.lerp(this.desiredPosition, 2 * deltaTime);
       this.camera.lookAt(targetPos);

@@ -6,7 +6,6 @@ export class InputManager {
     this.keys = {};
     this.power = 0;
     this.isCharging = false;
-    this.previousSpaceState = false;
 
     this.setupEventListeners();
   }
@@ -29,8 +28,11 @@ export class InputManager {
   }
 
   handleKeyDown(e) {
-    if (e.code === 'Space' && this.game.state === GAME_STATE.IDLE) {
-      this.startCharging();
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (this.game.state === GAME_STATE.IDLE) {
+        this.startCharging();
+      }
     }
 
     if (e.code === 'KeyR') {
@@ -81,19 +83,14 @@ export class InputManager {
     if (this.keys['KeyA']) twistAxis = -1;
     if (this.keys['KeyD']) twistAxis = 1;
 
-    if (flipAxis !== 0 || twistAxis !== 0) {
+    if (flipAxis !== 0) {
       this.game.player.angularVelocity.x = flipAxis * CONFIG.FLIP_SPEED;
-      this.game.player.angularVelocity.z = twistAxis * CONFIG.TWIST_SPEED;
-      this.game.player.angularVelocity.multiplyScalar(CONFIG.AIR_CONTROL);
+      this.game.actionLogger.log(flipAxis > 0 ? '前翻' : '后翻');
+    }
 
-      if (flipAxis !== 0) {
-        this.game.actionLogger.log(flipAxis > 0 ? '前翻' : '后翻');
-      }
-      if (twistAxis !== 0) {
-        this.game.actionLogger.log(twistAxis > 0 ? '右翻' : '左翻');
-      }
-    } else {
-      this.game.player.angularVelocity.multiplyScalar(0.98);
+    if (twistAxis !== 0) {
+      this.game.player.angularVelocity.z = twistAxis * CONFIG.TWIST_SPEED;
+      this.game.actionLogger.log(twistAxis > 0 ? '右翻' : '左翻');
     }
   }
 
