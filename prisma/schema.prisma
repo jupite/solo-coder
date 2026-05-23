@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String       @id @default(cuid())
+  name         String
+  email        String       @unique
+  passwordHash String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  gameRecords  GameRecord[]
+}
+
+model Level {
+  id          Int          @id @default(autoincrement())
+  name        String
+  width       Int
+  height      Int
+  mapData     String
+  createdAt   DateTime     @default(now())
+  gameRecords GameRecord[]
+}
+
+model GameRecord {
+  id         String   @id @default(cuid())
+  userId     String
+  levelId    Int
+  bestTime   Float?
+  bestSteps  Int?
+  lastPlayed DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level      Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, levelId])
+}
