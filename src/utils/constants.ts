@@ -21,7 +21,7 @@ export const KICK_POWER = 20;
 export const PASS_POWER = 15;
 export const SHOOT_POWER = 25;
 
-export const BALL_CONTROL_DISTANCE = 2;
+export const BALL_CONTROL_DISTANCE = 3;
 export const PASS_DISTANCE = 25;
 
 export const TEAM_HOME_COLOR = '#3b82f6';

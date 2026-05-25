@@ -23,9 +23,9 @@ export const useKeyboard = () => {
     pause: false,
   });
 
-  const actionPressedRef = useRef(false);
-  const switchPressedRef = useRef(false);
-  const pausePressedRef = useRef(false);
+  const actionQueueRef = useRef(false);
+  const switchQueueRef = useRef(false);
+  const pauseQueueRef = useRef(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -52,23 +52,18 @@ export const useKeyboard = () => {
           stateRef.current.sprint = true;
           break;
         case ' ':
-          if (!actionPressedRef.current) {
-            stateRef.current.action = true;
-            actionPressedRef.current = true;
-          }
+          stateRef.current.action = true;
+          actionQueueRef.current = true;
+          e.preventDefault();
           break;
         case 'tab':
-          if (!switchPressedRef.current) {
-            stateRef.current.switch = true;
-            switchPressedRef.current = true;
-          }
+          stateRef.current.switch = true;
+          switchQueueRef.current = true;
           e.preventDefault();
           break;
         case 'escape':
-          if (!pausePressedRef.current) {
-            stateRef.current.pause = true;
-            pausePressedRef.current = true;
-          }
+          stateRef.current.pause = true;
+          pauseQueueRef.current = true;
           break;
       }
     };
@@ -98,15 +93,12 @@ export const useKeyboard = () => {
           break;
         case ' ':
           stateRef.current.action = false;
-          actionPressedRef.current = false;
           break;
         case 'tab':
           stateRef.current.switch = false;
-          switchPressedRef.current = false;
           break;
         case 'escape':
           stateRef.current.pause = false;
-          pausePressedRef.current = false;
           break;
       }
     };
@@ -121,20 +113,20 @@ export const useKeyboard = () => {
   }, []);
 
   const consumeAction = () => {
-    const wasPressed = stateRef.current.action;
-    stateRef.current.action = false;
+    const wasPressed = actionQueueRef.current;
+    actionQueueRef.current = false;
     return wasPressed;
   };
 
   const consumeSwitch = () => {
-    const wasPressed = stateRef.current.switch;
-    stateRef.current.switch = false;
+    const wasPressed = switchQueueRef.current;
+    switchQueueRef.current = false;
     return wasPressed;
   };
 
   const consumePause = () => {
-    const wasPressed = stateRef.current.pause;
-    stateRef.current.pause = false;
+    const wasPressed = pauseQueueRef.current;
+    pauseQueueRef.current = false;
     return wasPressed;
   };
 

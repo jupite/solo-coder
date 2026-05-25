@@ -86,24 +86,73 @@ export const calculateAIMovement = (
   shouldKick: boolean;
   kickTarget?: THREE.Vector3;
   kickPower?: number;
+  isGoalkeeperKickoff?: boolean;
 } => {
   const isHomeTeam = player.team === 'home';
-  const isAwayTeam = player.team === 'away';
   const isGoalkeeper = player.role === 'goalkeeper';
 
   if (isGoalkeeper) {
-    const goalX = 0;
     const goalZ = isHomeTeam ? -FIELD_LENGTH / 2 + 2 : FIELD_LENGTH / 2 - 2;
+    const goalDir = isHomeTeam ? -1 : 1;
 
-    let targetX = goalX;
+    if (ballOwnedBy === player.id) {
+      const forwardDir = isHomeTeam ? 1 : -1;
+      const kickTarget = new THREE.Vector3(
+        (Math.random() - 0.5) * 30,
+        4,
+        goalZ + forwardDir * 50
+      );
+      return {
+        targetPosition: player.position.clone(),
+        shouldKick: true,
+        kickTarget,
+        kickPower: KICK_POWER * 1.5,
+        isGoalkeeperKickoff: true,
+      };
+    }
+
+    let targetX = 0;
+    let targetZ = goalZ;
+
+    const ballToGoalDist = Math.abs(ballPosition.z - goalZ);
+    
     if (ballOwnedBy) {
       const ballOwner = players.find((p) => p.id === ballOwnedBy);
       if (ballOwner && ballOwner.team !== player.team) {
-        targetX = clamp(ballPosition.x, -GOAL_WIDTH / 3, GOAL_WIDTH / 3);
+        if (ballToGoalDist < 40) {
+          const interceptX = ballPosition.x + (ballOwner.velocity?.x || 0) * ballToGoalDist * 0.05;
+          targetX = clamp(interceptX, -GOAL_WIDTH / 2, GOAL_WIDTH / 2);
+          
+          if (ballToGoalDist < 25) {
+            const advanceDist = Math.min(8, 25 - ballToGoalDist) * 0.3;
+            targetZ = goalZ + goalDir * advanceDist;
+          }
+        }
+      }
+    } else {
+      if (ballToGoalDist < 35) {
+        targetX = clamp(ballPosition.x, -GOAL_WIDTH / 2, GOAL_WIDTH / 2);
+        
+        const ballMovingTowardsGoal = (ballPosition.z - goalZ) * goalDir > 0;
+        if (ballMovingTowardsGoal && ballToGoalDist < 20) {
+          targetZ = clamp(
+            ballPosition.z + (goalZ - ballPosition.z) * 0.4,
+            goalZ - 6,
+            goalZ + 4
+          );
+        }
       }
     }
 
-    const targetPosition = new THREE.Vector3(targetX, 1, goalZ);
+    const distToBall = player.position.distanceTo(ballPosition);
+    if (distToBall < BALL_CONTROL_DISTANCE * 2 && !ballOwnedBy) {
+      return {
+        targetPosition: ballPosition.clone(),
+        shouldKick: false,
+      };
+    }
+
+    const targetPosition = new THREE.Vector3(targetX, 1, targetZ);
     return { targetPosition, shouldKick: false };
   }
 
