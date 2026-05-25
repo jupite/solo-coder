@@ -25,7 +25,7 @@ export async function GET() {
 
   const levelNames = ['初级训练', '小试牛刀', '经典关卡'];
 
-  const result = hardcodedLevels.map((_, idx) => {
+  const officialLevels = hardcodedLevels.map((_, idx) => {
     const id = idx + 1;
     const record = recordMap.get(id);
     return {
@@ -35,8 +35,42 @@ export async function GET() {
       height: hardcodedLevels[idx].grid.length,
       bestTime: record?.bestTime ?? null,
       bestSteps: record?.bestSteps ?? null,
+      isOfficial: true,
     };
   });
 
-  return NextResponse.json({ levels: result });
+  const publishedLevels = await prisma.userLevel.findMany({
+    where: { published: true },
+    select: {
+      id: true,
+      name: true,
+      gridData: true,
+      createdAt: true,
+    },
+  });
+
+  const publishedLevelsData = publishedLevels.map((level) => {
+    let width = 0;
+    let height = 0;
+    try {
+      const grid = JSON.parse(level.gridData);
+      width = grid[0]?.length ?? 0;
+      height = grid.length;
+    } catch {
+      // ignore
+    }
+    return {
+      id: level.id,
+      name: level.name,
+      width,
+      height,
+      bestTime: null,
+      bestSteps: null,
+      isOfficial: false,
+    };
+  });
+
+  return NextResponse.json({
+    levels: [...officialLevels, ...publishedLevelsData],
+  });
 }

@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { LevelCard } from '@/components/levels/LevelCard';
-import { Loader2, LogIn, Crown, Grid3X3, Pencil, Edit2, Trash2, Play, CheckCircle, AlertCircle } from 'lucide-react';
+import { Loader2, LogIn, Crown, Grid3X3, Pencil, Edit2, Trash2, Play, CheckCircle, AlertCircle, Globe, Globe2 } from 'lucide-react';
 
 interface Level {
-  id: number;
+  id: number | string;
   name: string;
   width: number;
   height: number;
@@ -17,12 +17,14 @@ interface Level {
 interface LevelWithRecord extends Level {
   bestTime?: number | null;
   bestSteps?: number | null;
+  isOfficial?: boolean;
 }
 
 interface UserLevel {
   id: string;
   name: string;
   verified: boolean;
+  published: boolean;
   createdAt: string;
 }
 
@@ -33,6 +35,7 @@ export default function LevelsPage() {
   const [userLevels, setUserLevels] = useState<UserLevel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -108,6 +111,32 @@ export default function LevelsPage() {
     router.push(`/editor?edit=${id}`);
   };
 
+  const handlePublishLevel = async (id: string, publish: boolean) => {
+    try {
+      setPublishingId(id);
+      const res = await fetch(`/api/user-levels/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ published: publish }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || '操作失败');
+      }
+      setUserLevels(userLevels.map((l) =>
+        l.id === id ? { ...l, published: publish } : l
+      ));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '操作失败');
+    } finally {
+      setPublishingId(null);
+    }
+  };
+
+  const handlePlayOfficialLevel = (id: number | string) => {
+    router.push(`/game/${id}`);
+  };
+
   if (status === 'loading' || (status === 'authenticated' && loading)) {
     return (
       <main className="min-h-screen flex items-center justify-center px-4">
@@ -171,14 +200,14 @@ export default function LevelsPage() {
 
         <div className="mb-8">
           <h2 className="text-xl font-bold text-white mb-4 font-[var(--font-orbitron)]">
-            官方关卡
+            公开关卡
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {levels.map((level) => (
               <LevelCard
                 key={level.id}
                 level={level}
-                onClick={(id) => router.push(`/game/${id}`)}
+                onClick={handlePlayOfficialLevel}
               />
             ))}
           </div>
@@ -224,13 +253,19 @@ export default function LevelsPage() {
                             未验证
                           </span>
                         )}
+                        {level.published && (
+                          <span className="inline-flex items-center gap-1 text-xs text-cyan-400">
+                            <Globe className="w-3 h-3" />
+                            已公开
+                          </span>
+                        )}
                         <span className="text-xs text-slate-500">
                           {new Date(level.createdAt).toLocaleDateString('zh-CN')}
                         </span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <button
                       onClick={() => handlePlayUserLevel(level.id)}
                       className="btn-primary flex-1 py-2 px-3 text-sm inline-flex items-center justify-center gap-1"
@@ -245,6 +280,24 @@ export default function LevelsPage() {
                       <Edit2 className="w-4 h-4" />
                       编辑
                     </button>
+                    {level.verified && (
+                      <button
+                        onClick={() => handlePublishLevel(level.id, !level.published)}
+                        disabled={publishingId === level.id}
+                        className={`py-2 px-3 text-sm inline-flex items-center justify-center gap-1 transition-all ${
+                          level.published
+                            ? 'btn-ghost text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10'
+                            : 'btn-secondary border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10'
+                        } disabled:opacity-50`}
+                      >
+                        {level.published ? (
+                          <Globe2 className="w-4 h-4" />
+                        ) : (
+                          <Globe className="w-4 h-4" />
+                        )}
+                        {level.published ? '取消公开' : '发布公开'}
+                      </button>
+                    )}
                     <button
                       onClick={() => handleDeleteUserLevel(level.id)}
                       className="btn-ghost py-2 px-3 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 inline-flex items-center justify-center gap-1"

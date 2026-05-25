@@ -86,6 +86,49 @@ export async function PUT(request: Request, { params }: Params) {
   }
 }
 
+export async function PATCH(request: Request, { params }: Params) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const { published } = body;
+
+    if (typeof published !== 'boolean') {
+      return NextResponse.json({ error: '缺少必要字段' }, { status: 400 });
+    }
+
+    const userId = (session.user as { id?: string }).id;
+    if (!userId) {
+      return NextResponse.json({ error: '用户信息错误' }, { status: 400 });
+    }
+
+    const existingLevel = await prisma.userLevel.findUnique({
+      where: { id: params.id, userId },
+    });
+
+    if (!existingLevel) {
+      return NextResponse.json({ error: '关卡不存在' }, { status: 404 });
+    }
+
+    if (published && !existingLevel.verified) {
+      return NextResponse.json({ error: '未验证的关卡不能发布' }, { status: 400 });
+    }
+
+    const level = await prisma.userLevel.update({
+      where: { id: params.id, userId },
+      data: { published },
+    });
+
+    return NextResponse.json({ success: true, level });
+  } catch (error) {
+    console.error('更新关卡发布状态失败:', error);
+    return NextResponse.json({ error: '更新关卡发布状态失败' }, { status: 500 });
+  }
+}
+
 export async function DELETE(request: Request, { params }: Params) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {

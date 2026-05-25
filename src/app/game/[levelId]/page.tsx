@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { GameCanvas } from '@/components/game/GameCanvas';
 import { Controls } from '@/components/game/Controls';
+import { HintPanel } from '@/components/game/HintPanel';
 import {
   RotateCcw,
   LogOut,
@@ -13,10 +14,10 @@ import {
   Hash,
   Trophy,
   Loader2,
+  Lightbulb,
 } from 'lucide-react';
-import { levels, getLevel } from '@/lib/game/levels';
 import { createGameState, movePlayer } from '@/lib/game/engine';
-import type { GameState, Direction } from '@/lib/game/types';
+import type { GameState, Direction, LevelData } from '@/lib/game/types';
 
 const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60);
@@ -27,16 +28,17 @@ const formatTime = (seconds: number) => {
 export default function GamePage() {
   const router = useRouter();
   const params = useParams();
-  const levelId = Number(params.levelId);
+  const levelId = params.levelId;
   const { data: session, status } = useSession();
 
-  const levelIndex = levelId - 1;
-  const levelData = getLevel(levelIndex);
-
+  const [levelData, setLevelData] = useState<LevelData | null>(null);
+  const [levelName, setLevelName] = useState<string>('');
+  const [loadingLevel, setLoadingLevel] = useState(true);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [time, setTime] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [autoSolved, setAutoSolved] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
 
@@ -48,13 +50,53 @@ export default function GamePage() {
 
   useEffect(() => {
     if (status !== 'authenticated') return;
+
+    let cancelled = false;
+
+    const fetchLevelData = async () => {
+      try {
+        setLoadingLevel(true);
+        const res = await fetch(`/api/levels/${levelId}`);
+        if (!res.ok) {
+          throw new Error('关卡不存在');
+        }
+        const data = await res.json();
+        if (!cancelled) {
+          setLevelData({
+            grid: data.grid,
+            player: data.player,
+            boxes: data.boxes,
+            targets: data.targets,
+          });
+          setLevelName(data.name || `关卡 ${levelId}`);
+        }
+      } catch {
+        if (!cancelled) {
+          router.push('/levels');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingLevel(false);
+        }
+      }
+    };
+
+    fetchLevelData();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, levelId, router]);
+
+  useEffect(() => {
+    if (status !== 'authenticated' || !levelData) return;
     const state = createGameState(levelData);
     setGameState(state);
     setTime(0);
     setCompleted(false);
     setSubmitting(false);
+    setAutoSolved(false);
     startTimeRef.current = Date.now();
-  }, [status, levelId]);
+  }, [status, levelData]);
 
   useEffect(() => {
     if (completed || !gameState) {
@@ -91,12 +133,29 @@ export default function GamePage() {
     [gameState, completed],
   );
 
+  const handleHintStep = useCallback(
+    (direction: Direction) => {
+      if (!gameState || completed) return;
+      setGameState((prev) => {
+        if (!prev) return prev;
+        const next = movePlayer(prev, direction);
+        if (next !== prev && next.isWin) {
+          setCompleted(true);
+        }
+        return next;
+      });
+    },
+    [gameState, completed],
+  );
+
   const handleReset = useCallback(() => {
+    if (!levelData) return;
     const state = createGameState(levelData);
     setGameState(state);
     setTime(0);
     setCompleted(false);
     setSubmitting(false);
+    setAutoSolved(false);
     startTimeRef.current = Date.now();
   }, [levelData]);
 
@@ -108,10 +167,16 @@ export default function GamePage() {
     if (submitting) return;
     setSubmitting(true);
     try {
+      const numericLevelId = Number(levelId);
+      const levelIdToSubmit = isNaN(numericLevelId) ? levelId : numericLevelId;
       const res = await fetch('/api/record', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ levelId, time, steps: gameState?.steps ?? 0 }),
+        body: JSON.stringify({
+          levelId: levelIdToSubmit,
+          time,
+          steps: gameState?.steps ?? 0,
+        }),
       });
       const data = await res.json();
       const bestTime = data.bestTime ?? time;
@@ -127,7 +192,11 @@ export default function GamePage() {
     }
   }, [submitting, levelId, time, gameState, router]);
 
-  if (status === 'loading') {
+  const handleAutoSolveComplete = useCallback(() => {
+    setAutoSolved(true);
+  }, []);
+
+  if (status === 'loading' || loadingLevel) {
     return (
       <main className="min-h-screen flex items-center justify-center px-4">
         <div className="glass-card p-8 flex flex-col items-center gap-4">
@@ -138,9 +207,13 @@ export default function GamePage() {
     );
   }
 
-  if (!session || !gameState) {
+  if (!session || !gameState || !levelData) {
     return null;
   }
+
+  const displayLevelId = typeof levelId === 'string' && !isNaN(Number(levelId))
+    ? `#${levelId}`
+    : levelName;
 
   return (
     <main className="relative min-h-screen px-4 py-6 overflow-hidden">
@@ -158,16 +231,27 @@ export default function GamePage() {
               <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm rounded-2xl z-20 p-4">
                 <div className="glass-card p-8 text-center max-w-sm w-full space-y-5">
                   <div className="flex justify-center">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-2xl shadow-yellow-500/50">
-                      <Trophy className="w-8 h-8 text-white" />
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-2xl ${autoSolved ? 'bg-gradient-to-br from-slate-400 to-slate-500 shadow-slate-500/50' : 'bg-gradient-to-br from-yellow-400 to-orange-500 shadow-yellow-500/50'}`}>
+                      {autoSolved ? (
+                        <Lightbulb className="w-8 h-8 text-white" />
+                      ) : (
+                        <Trophy className="w-8 h-8 text-white" />
+                      )}
                     </div>
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-white mb-1">
-                      关卡完成！
+                      {autoSolved ? '自动通关完成' : '关卡完成！'}
                     </h2>
-                    <p className="text-slate-400">第 {levelId} 关</p>
+                    <p className="text-slate-400">{levelName}</p>
                   </div>
+                  {autoSolved && (
+                    <div className="glass-card p-3 bg-amber-500/10 border-amber-500/20">
+                      <p className="text-sm text-amber-300">
+                        这是自动通关结果，不计入成绩
+                      </p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="glass-card p-3">
                       <p className="text-xs text-slate-400 mb-1">用时</p>
@@ -182,14 +266,31 @@ export default function GamePage() {
                       </p>
                     </div>
                   </div>
-                  <button
-                    onClick={handleSubmitResult}
-                    disabled={submitting}
-                    className="btn-primary w-full"
-                  >
-                    {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
-                    查看成绩
-                  </button>
+                  <div className="flex gap-3">
+                    {!autoSolved && (
+                      <button
+                        onClick={handleSubmitResult}
+                        disabled={submitting}
+                        className="btn-primary flex-1"
+                      >
+                        {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
+                        查看成绩
+                      </button>
+                    )}
+                    <button
+                      onClick={handleReset}
+                      className={autoSolved ? 'btn-primary flex-1' : 'btn-secondary flex-1'}
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      再玩一次
+                    </button>
+                    <button
+                      onClick={handleExit}
+                      className="btn-ghost flex-1"
+                    >
+                      返回关卡
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -201,7 +302,7 @@ export default function GamePage() {
                 <Hash className="w-5 h-5 text-indigo-400" />
                 <span className="text-sm text-slate-400">关卡</span>
                 <span className="ml-auto text-lg font-bold text-white font-[var(--font-orbitron)]">
-                  #{levelId}
+                  {displayLevelId}
                 </span>
               </div>
               <div className="h-px bg-white/10" />
@@ -239,6 +340,13 @@ export default function GamePage() {
                 退出关卡
               </button>
             </div>
+
+            <HintPanel
+              levelData={levelData}
+              onStep={handleHintStep}
+              onAutoSolveComplete={handleAutoSolveComplete}
+              disabled={completed}
+            />
 
             <div className="glass-card p-4 text-xs text-slate-400 leading-relaxed">
               <p className="text-slate-300 font-medium mb-2">操作说明</p>

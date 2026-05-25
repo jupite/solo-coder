@@ -62,6 +62,7 @@ export async function GET() {
         name: true,
         createdAt: true,
         verified: true,
+        published: true,
       },
     });
 

@@ -6,6 +6,7 @@ import { OrthographicCamera, RoundedBox } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { CellType, Position, LevelData, GameState, Direction } from '@/lib/game/types';
 import { createGameState, movePlayer } from '@/lib/game/engine';
+import { HintPanel } from '@/components/game/HintPanel';
 import {
   Save,
   Play,
@@ -423,6 +424,20 @@ export function LevelEditor({ editingLevelId }: { editingLevelId?: string | null
     });
   }, [gameState, isPlaying]);
 
+  const handleHintStep = useCallback((direction: Direction) => {
+    if (!gameState || !isPlaying) return;
+    setGameState((prev) => {
+      if (!prev) return prev;
+      const next = movePlayer(prev, direction);
+      if (next.isWin) {
+        setMessage('恭喜！关卡完成！已验证可通关。');
+        setHasCompletedPlaythrough(true);
+        setTimeout(() => setMessage(null), 3000);
+      }
+      return next;
+    });
+  }, [gameState, isPlaying]);
+
   const handleResetPlay = useCallback(() => {
     if (!player || boxes.length === 0 || targets.length === 0) return;
     const levelData: LevelData = {
@@ -669,6 +684,19 @@ export function LevelEditor({ editingLevelId }: { editingLevelId?: string | null
             </div>
           </div>
         </div>
+
+        {isPlaying && player && boxes.length > 0 && targets.length > 0 && (
+          <HintPanel
+            levelData={{
+              grid: grid.map((row) => [...row]),
+              player: { ...player },
+              boxes: boxes.map((b) => ({ ...b })),
+              targets: targets.map((t) => ({ ...t })),
+            }}
+            onStep={handleHintStep}
+            disabled={!isPlaying}
+          />
+        )}
 
         <button
           onClick={handleSave}

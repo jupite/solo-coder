@@ -3,7 +3,7 @@
 import { Lock, Crown, Play } from 'lucide-react';
 
 interface LevelInfo {
-  id: number;
+  id: number | string;
   name: string;
   bestTime?: number | null;
   bestSteps?: number | null;
@@ -12,7 +12,7 @@ interface LevelInfo {
 interface LevelCardProps {
   level: LevelInfo;
   locked?: boolean;
-  onClick?: (levelId: number) => void;
+  onClick?: (levelId: number | string) => void;
 }
 
 function formatTime(seconds?: number | null): string {
@@ -31,6 +31,8 @@ export function LevelCard({ level, locked = false, onClick }: LevelCardProps) {
       onClick(level.id);
     }
   };
+
+  const displayId = typeof level.id === 'number' ? `#${level.id}` : level.name.charAt(0);
 
   return (
     <button
@@ -53,7 +55,7 @@ export function LevelCard({ level, locked = false, onClick }: LevelCardProps) {
                 : 'bg-gradient-to-br from-indigo-500 to-cyan-500 text-white shadow-lg shadow-indigo-500/30'
             }`}
         >
-          {level.id}
+          {displayId}
         </div>
 
         {locked ? (
