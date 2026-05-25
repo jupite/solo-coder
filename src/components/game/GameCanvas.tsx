@@ -41,7 +41,7 @@ export function GameCanvas({ gameState, levelData }: GameCanvasProps) {
   const centerZ = (rows - 1) / 2;
   const size = Math.max(rows, cols);
   const cameraDistance = size * 1.5;
-  const zoom = size + 2;
+  const zoom = Math.max(40, 80 - size * 8);
 
   return (
     <div style={{ width: '100%', height: '100%', minHeight: 450, position: 'relative' }}>
