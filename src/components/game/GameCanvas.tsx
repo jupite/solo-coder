@@ -24,8 +24,8 @@ function CameraSetup({ centerX, centerZ, distance, zoom }: { centerX: number; ce
   const { camera } = useThree();
 
   useEffect(() => {
-    camera.position.set(centerX, distance, centerZ + distance);
-    camera.rotation.set(-Math.PI / 4, 0, 0);
+    camera.position.set(centerX, distance * 2, centerZ);
+    camera.rotation.set(-Math.PI / 2, 0, 0);
     camera.zoom = zoom;
     camera.updateProjectionMatrix();
   }, [camera, centerX, centerZ, distance, zoom]);

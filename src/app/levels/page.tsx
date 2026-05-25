@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { LevelCard } from '@/components/levels/LevelCard';
-import { Loader2, LogIn, Crown, Grid3X3 } from 'lucide-react';
+import { Loader2, LogIn, Crown, Grid3X3, Pencil } from 'lucide-react';
 
 interface Level {
   id: number;
@@ -103,6 +103,13 @@ export default function LevelsPage() {
                 {session.user?.name || '玩家'}
               </span>
             </div>
+            <Link
+              href="/editor"
+              className="btn-primary inline-flex items-center gap-2"
+            >
+              <Pencil className="w-4 h-4" />
+              创建关卡
+            </Link>
             <Link
               href="/profile"
               className="btn-secondary inline-flex items-center gap-2"

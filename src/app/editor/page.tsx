@@ -1,0 +1,69 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { LevelEditor } from '@/components/editor/LevelEditor';
+import { ArrowLeft, Loader2, Pencil } from 'lucide-react';
+
+export default function EditorPage() {
+  const router = useRouter();
+  const { data: session, status } = useSession();
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.replace('/login');
+    }
+  }, [status, router]);
+
+  if (status === 'loading') {
+    return (
+      <main className="min-h-screen flex items-center justify-center px-4">
+        <div className="glass-card p-8 flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
+          <p className="text-slate-300">加载中...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!session) {
+    return null;
+  }
+
+  return (
+    <main className="relative min-h-screen px-4 py-6 overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.push('/levels')}
+              className="btn-ghost inline-flex items-center gap-2"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              返回
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center">
+                <Pencil className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white font-[var(--font-orbitron)] glow-text">
+                  关卡编辑器
+                </h1>
+                <p className="text-sm text-slate-400">创建你自己的推箱子关卡</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <LevelEditor />
+      </div>
+    </main>
+  );
+}
