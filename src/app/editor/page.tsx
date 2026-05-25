@@ -1,20 +1,29 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { LevelEditor } from '@/components/editor/LevelEditor';
 import { ArrowLeft, Loader2, Pencil } from 'lucide-react';
 
-export default function EditorPage() {
+export const dynamic = 'force-dynamic';
+
+function EditorContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
+  const [levelId, setLevelId] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.replace('/login');
     }
   }, [status, router]);
+
+  useEffect(() => {
+    const id = searchParams.get('edit');
+    setLevelId(id);
+  }, [searchParams]);
 
   if (status === 'loading') {
     return (
@@ -56,14 +65,31 @@ export default function EditorPage() {
                 <h1 className="text-2xl font-bold text-white font-[var(--font-orbitron)] glow-text">
                   关卡编辑器
                 </h1>
-                <p className="text-sm text-slate-400">创建你自己的推箱子关卡</p>
+                <p className="text-sm text-slate-400">
+                  {levelId ? '编辑已有' : '创建你自己的'}推箱子关卡
+                </p>
               </div>
             </div>
           </div>
         </div>
 
-        <LevelEditor />
+        <LevelEditor editingLevelId={levelId} />
       </div>
     </main>
+  );
+}
+
+export default function EditorPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen flex items-center justify-center px-4">
+        <div className="glass-card p-8 flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
+          <p className="text-slate-300">加载中...</p>
+        </div>
+      </main>
+    }>
+      <EditorContent />
+    </Suspense>
   );
 }

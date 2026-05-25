@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { LevelCard } from '@/components/levels/LevelCard';
-import { Loader2, LogIn, Crown, Grid3X3, Pencil } from 'lucide-react';
+import { Loader2, LogIn, Crown, Grid3X3, Pencil, Edit2, Trash2, Play, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface Level {
   id: number;
@@ -19,10 +19,18 @@ interface LevelWithRecord extends Level {
   bestSteps?: number | null;
 }
 
+interface UserLevel {
+  id: string;
+  name: string;
+  verified: boolean;
+  createdAt: string;
+}
+
 export default function LevelsPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [levels, setLevels] = useState<LevelWithRecord[]>([]);
+  const [userLevels, setUserLevels] = useState<UserLevel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,16 +45,28 @@ export default function LevelsPage() {
 
     let cancelled = false;
 
-    const fetchLevels = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const res = await fetch('/api/levels');
-        if (!res.ok) {
+
+        const [levelsRes, userLevelsRes] = await Promise.all([
+          fetch('/api/levels'),
+          fetch('/api/user-levels'),
+        ]);
+
+        if (!levelsRes.ok) {
           throw new Error('获取关卡失败');
         }
-        const data = await res.json();
+        if (!userLevelsRes.ok) {
+          throw new Error('获取用户关卡失败');
+        }
+
+        const levelsData = await levelsRes.json();
+        const userLevelsData = await userLevelsRes.json();
+
         if (!cancelled) {
-          setLevels(data.levels || []);
+          setLevels(levelsData.levels || []);
+          setUserLevels(userLevelsData.levels || []);
         }
       } catch (err) {
         if (!cancelled) {
@@ -59,11 +79,34 @@ export default function LevelsPage() {
       }
     };
 
-    fetchLevels();
+    fetchData();
     return () => {
       cancelled = true;
     };
   }, [status]);
+
+  const handleDeleteUserLevel = async (id: string) => {
+    if (!confirm('确定要删除这个关卡吗？')) return;
+    try {
+      const res = await fetch(`/api/user-levels/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        throw new Error('删除失败');
+      }
+      setUserLevels(userLevels.filter((l) => l.id !== id));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '删除失败');
+    }
+  };
+
+  const handleEditUserLevel = (id: string) => {
+    router.push(`/editor?edit=${id}`);
+  };
+
+  const handlePlayUserLevel = (id: string) => {
+    router.push(`/editor?edit=${id}`);
+  };
 
   if (status === 'loading' || (status === 'authenticated' && loading)) {
     return (
@@ -126,20 +169,93 @@ export default function LevelsPage() {
           </div>
         )}
 
-        {!error && levels.length === 0 && !loading && (
-          <div className="glass-card p-12 text-center">
-            <p className="text-slate-300 mb-4">暂无可用关卡</p>
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-white mb-4 font-[var(--font-orbitron)]">
+            官方关卡
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {levels.map((level) => (
+              <LevelCard
+                key={level.id}
+                level={level}
+                onClick={(id) => router.push(`/game/${id}`)}
+              />
+            ))}
           </div>
-        )}
+        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {levels.map((level) => (
-            <LevelCard
-              key={level.id}
-              level={level}
-              onClick={(id) => router.push(`/game/${id}`)}
-            />
-          ))}
+        <div>
+          <h2 className="text-xl font-bold text-white mb-4 font-[var(--font-orbitron)]">
+            我的关卡
+          </h2>
+          {userLevels.length === 0 ? (
+            <div className="glass-card p-12 text-center">
+              <Grid3X3 className="w-12 h-12 text-slate-500 mx-auto mb-4" />
+              <p className="text-slate-400 mb-4">还没有创建任何关卡</p>
+              <Link
+                href="/editor"
+                className="btn-primary inline-flex items-center gap-2"
+              >
+                <Pencil className="w-4 h-4" />
+                创建第一个关卡
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {userLevels.map((level) => (
+                <div
+                  key={level.id}
+                  className="glass-card gradient-border p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-indigo-500/20"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-white mb-1">
+                        {level.name}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        {level.verified ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-green-400">
+                            <CheckCircle className="w-3 h-3" />
+                            已验证
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs text-yellow-400">
+                            <AlertCircle className="w-3 h-3" />
+                            未验证
+                          </span>
+                        )}
+                        <span className="text-xs text-slate-500">
+                          {new Date(level.createdAt).toLocaleDateString('zh-CN')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handlePlayUserLevel(level.id)}
+                      className="btn-primary flex-1 py-2 px-3 text-sm inline-flex items-center justify-center gap-1"
+                    >
+                      <Play className="w-4 h-4" />
+                      试玩
+                    </button>
+                    <button
+                      onClick={() => handleEditUserLevel(level.id)}
+                      className="btn-secondary py-2 px-3 text-sm inline-flex items-center justify-center gap-1"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      编辑
+                    </button>
+                    <button
+                      onClick={() => handleDeleteUserLevel(level.id)}
+                      className="btn-ghost py-2 px-3 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 inline-flex items-center justify-center gap-1"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {levels.length === 0 && !loading && (

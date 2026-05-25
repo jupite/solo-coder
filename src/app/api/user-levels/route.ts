@@ -31,6 +31,7 @@ export async function POST(request: Request) {
         playerY,
         boxes,
         targets,
+        verified: true,
       },
     });
 
@@ -60,6 +61,7 @@ export async function GET() {
         id: true,
         name: true,
         createdAt: true,
+        verified: true,
       },
     });
 

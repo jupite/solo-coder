@@ -227,7 +227,7 @@ function EditorGrid({
   );
 }
 
-export function LevelEditor() {
+export function LevelEditor({ editingLevelId }: { editingLevelId?: string | null }) {
   const [gridSize, setGridSize] = useState({ width: 8, height: 8 });
   const [grid, setGrid] = useState<CellType[][]>(() =>
     Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => CellType.FLOOR as CellType))
@@ -242,8 +242,53 @@ export function LevelEditor() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [selectedArea, setSelectedArea] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
+  const [hasCompletedPlaythrough, setHasCompletedPlaythrough] = useState(false);
+  const [loadingLevel, setLoadingLevel] = useState(false);
   const isSelectingRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!editingLevelId) return;
+
+    let cancelled = false;
+
+    const loadLevel = async () => {
+      setLoadingLevel(true);
+      try {
+        const res = await fetch(`/api/user-levels/${editingLevelId}`);
+        if (!res.ok) {
+          throw new Error('加载关卡失败');
+        }
+        const data = await res.json();
+        if (!cancelled && data.level) {
+          const lv = data.level;
+          const parsedGrid = JSON.parse(lv.gridData);
+          const parsedBoxes = JSON.parse(lv.boxes);
+          const parsedTargets = JSON.parse(lv.targets);
+
+          setGrid(parsedGrid);
+          setBoxes(parsedBoxes);
+          setTargets(parsedTargets);
+          setPlayer({ x: lv.playerX, y: lv.playerY });
+          setLevelName(lv.name);
+          setGridSize({ width: parsedGrid[0]?.length ?? 0, height: parsedGrid.length });
+          setHasCompletedPlaythrough(lv.verified);
+        }
+      } catch (err) {
+        setMessage(err instanceof Error ? err.message : '加载失败');
+        setTimeout(() => setMessage(null), 3000);
+      } finally {
+        if (!cancelled) {
+          setLoadingLevel(false);
+        }
+      }
+    };
+
+    loadLevel();
+    return () => {
+      cancelled = true;
+    };
+  }, [editingLevelId]);
 
   const handleResize = useCallback((width: number, height: number) => {
     const newGrid = Array.from({ length: height }, (_, y) =>
@@ -261,6 +306,7 @@ export function LevelEditor() {
       setPlayer(null);
     }
     setGridSize({ width, height });
+    setHasCompletedPlaythrough(false);
   }, [grid, boxes, targets, player]);
 
   const placeTool = useCallback((x: number, y: number) => {
@@ -275,6 +321,7 @@ export function LevelEditor() {
       const newGrid = grid.map((row) => [...row]);
       newGrid[y][x] = CellType.FLOOR;
       setGrid(newGrid);
+      setHasCompletedPlaythrough(false);
       return;
     }
 
@@ -284,6 +331,7 @@ export function LevelEditor() {
       } else {
         setBoxes([...boxes, { x, y }]);
       }
+      setHasCompletedPlaythrough(false);
       return;
     }
 
@@ -293,6 +341,7 @@ export function LevelEditor() {
       } else {
         setPlayer({ x, y });
       }
+      setHasCompletedPlaythrough(false);
       return;
     }
 
@@ -310,6 +359,7 @@ export function LevelEditor() {
       }
     }
     setGrid(newGrid);
+    setHasCompletedPlaythrough(false);
   }, [grid, boxes, targets, player, selectedTool, isPlaying]);
 
   const handleCellClick = useCallback((x: number, y: number) => {
@@ -333,6 +383,7 @@ export function LevelEditor() {
     setBoxes([]);
     setTargets([]);
     setPlayer(null);
+    setHasCompletedPlaythrough(false);
   }, [isPlaying, gridSize]);
 
   const handlePlay = useCallback(() => {
@@ -364,7 +415,8 @@ export function LevelEditor() {
       if (!prev) return prev;
       const next = movePlayer(prev, direction);
       if (next.isWin) {
-        setMessage('恭喜！关卡完成！');
+        setMessage('恭喜！关卡完成！已验证可通关。');
+        setHasCompletedPlaythrough(true);
         setTimeout(() => setMessage(null), 3000);
       }
       return next;
@@ -411,6 +463,12 @@ export function LevelEditor() {
       return;
     }
 
+    if (!hasCompletedPlaythrough) {
+      setMessage('请先试玩并通关一次，确保关卡可以完成');
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+
     setSaving(true);
     try {
       const levelData = {
@@ -420,20 +478,30 @@ export function LevelEditor() {
         playerY: player.y,
         boxes: JSON.stringify(boxes),
         targets: JSON.stringify(targets),
+        verified: true,
       };
 
-      const res = await fetch('/api/user-levels', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(levelData),
-      });
+      let res;
+      if (editingLevelId) {
+        res = await fetch(`/api/user-levels/${editingLevelId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(levelData),
+        });
+      } else {
+        res = await fetch('/api/user-levels', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(levelData),
+        });
+      }
 
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || '保存失败');
       }
 
-      setMessage('关卡保存成功！');
+      setMessage(editingLevelId ? '关卡更新成功！' : '关卡保存成功！');
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : '保存失败');
@@ -441,7 +509,7 @@ export function LevelEditor() {
     } finally {
       setSaving(false);
     }
-  }, [grid, player, boxes, targets, levelName]);
+  }, [grid, player, boxes, targets, levelName, hasCompletedPlaythrough, editingLevelId]);
 
   const displayGrid = isPlaying && gameState ? gameState.grid : grid;
   const displayBoxes = isPlaying && gameState ? gameState.boxes : boxes;
@@ -591,6 +659,13 @@ export function LevelEditor() {
             <div className="flex justify-between">
               <span className="text-slate-400">角色位置:</span>
               <span className="text-white">{player ? `(${player.x}, ${player.y})` : '未放置'}</span>
+            </div>
+            <div className="h-px bg-white/10 my-2" />
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">通关验证:</span>
+              <span className={`text-sm font-medium ${hasCompletedPlaythrough ? 'text-green-400' : 'text-red-400'}`}>
+                {hasCompletedPlaythrough ? '✓ 已通过' : '✗ 未通过'}
+              </span>
             </div>
           </div>
         </div>
