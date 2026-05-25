@@ -1,6 +1,3 @@
-import { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
-import * as THREE from 'three';
 import type { Position, Direction } from '@/lib/game/types';
 
 interface PlayerProps {
@@ -16,25 +13,8 @@ const DIRECTION_ROTATION: Record<Direction, number> = {
 };
 
 export function Player({ position, direction = 'down' }: PlayerProps) {
-  const groupRef = useRef<THREE.Group>(null);
-  const targetPos = useRef(new THREE.Vector3(position.x, 0, position.y));
-  const targetRot = useRef(new THREE.Euler(0, DIRECTION_ROTATION[direction], 0));
-
-  targetPos.current.set(position.x, 0, position.y);
-  targetRot.current.set(0, DIRECTION_ROTATION[direction], 0);
-
-  useFrame((_, delta) => {
-    if (!groupRef.current) return;
-    groupRef.current.position.lerp(targetPos.current, Math.min(1, delta * 12));
-    groupRef.current.rotation.y = THREE.MathUtils.lerp(
-      groupRef.current.rotation.y,
-      targetRot.current.y,
-      Math.min(1, delta * 10),
-    );
-  });
-
   return (
-    <group ref={groupRef}>
+    <group position={[position.x, 0, position.y]} rotation={[0, DIRECTION_ROTATION[direction], 0]}>
       <mesh position={[0, 0.35, 0]} castShadow>
         <capsuleGeometry args={[0.28, 0.4, 6, 12]} />
         <meshStandardMaterial

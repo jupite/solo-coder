@@ -151,7 +151,7 @@ export default function GamePage() {
 
       <div className="relative z-10 max-w-6xl mx-auto">
         <div className="flex flex-col lg:flex-row gap-6">
-          <div className="flex-1 glass-card gradient-border p-4 md:p-6 aspect-square lg:aspect-auto lg:min-h-[600px] relative">
+          <div className="flex-1 glass-card gradient-border p-4 md:p-6 relative" style={{ minHeight: 500, height: 'calc(100vh - 200px)', maxHeight: 700 }}>
             <GameCanvas gameState={gameState} levelData={levelData} />
 
             {completed && (

@@ -1,7 +1,7 @@
 'use client';
 
-import { Suspense } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Suspense, useEffect } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrthographicCamera } from '@react-three/drei';
 import {
   EffectComposer,
@@ -20,40 +20,56 @@ interface GameCanvasProps {
   levelData: LevelData;
 }
 
+function CameraSetup({ centerX, centerZ, distance, zoom }: { centerX: number; centerZ: number; distance: number; zoom: number }) {
+  const { camera } = useThree();
+
+  useEffect(() => {
+    camera.position.set(centerX, distance, centerZ + distance);
+    camera.rotation.set(-Math.PI / 4, 0, 0);
+    camera.zoom = zoom;
+    camera.updateProjectionMatrix();
+  }, [camera, centerX, centerZ, distance, zoom]);
+
+  return null;
+}
+
 export function GameCanvas({ gameState, levelData }: GameCanvasProps) {
   const { grid } = levelData;
   const rows = grid.length;
   const cols = grid[0]?.length ?? 0;
   const centerX = (cols - 1) / 2;
   const centerZ = (rows - 1) / 2;
-  const distance = Math.max(rows, cols) * 1.1;
+  const size = Math.max(rows, cols);
+  const cameraDistance = size * 1.5;
+  const zoom = size + 2;
 
   return (
-    <div className="w-full h-full">
+    <div style={{ width: '100%', height: '100%', minHeight: 450, position: 'relative' }}>
       <Canvas
         shadows
         gl={{ antialias: true }}
-        style={{ width: '100%', height: '100%' }}
+        style={{ width: '100%', height: '100%', background: '#0a0f1e' }}
       >
         <OrthographicCamera
           makeDefault
-          position={[centerX, distance, centerZ + distance]}
-          zoom={60}
           near={0.1}
-          far={200}
+          far={500}
         />
+        <CameraSetup centerX={centerX} centerZ={centerZ} distance={cameraDistance} zoom={zoom} />
 
-        <color attach="background" args={['#0a0f1e']} />
-        <fog attach="fog" args={['#0a0f1e', distance * 2, distance * 4]} />
-
-        <ambientLight intensity={0.5} color="#a5b4fc" />
+        <ambientLight intensity={0.7} color="#c7d2fe" />
         <directionalLight
           position={[centerX + 5, 10, centerZ + 5]}
-          intensity={1.2}
+          intensity={1.0}
           color="#ffffff"
           castShadow
           shadow-mapSize-width={1024}
           shadow-mapSize-height={1024}
+        />
+        <directionalLight
+          position={[centerX - 4, 6, centerZ - 4]}
+          intensity={0.4}
+          color="#818cf8"
         />
 
         <Suspense fallback={null}>
@@ -83,7 +99,7 @@ export function GameCanvas({ gameState, levelData }: GameCanvasProps) {
 
         <EffectComposer>
           <Bloom
-            intensity={0.6}
+            intensity={0.5}
             luminanceThreshold={0.2}
             luminanceSmoothing={0.9}
             mipmapBlur
