@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  font-family: "Noto Sans SC", system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #05070f;
+  color: #e7ecff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.glass {
+  background: linear-gradient(135deg, rgba(11, 16, 38, 0.78), rgba(19, 26, 59, 0.62));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(142, 202, 230, 0.18);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45);
+}
+
+.title-gradient {
+  background: linear-gradient(90deg, #4cc9f0, #ffb547, #ff4d6d, #4cc9f0);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 6s ease-in-out infinite;
+}
+
+.hud-bar {
+  background: linear-gradient(90deg, #4cc9f0 0%, #ffb547 60%, #ff4d6d 100%);
+}
+
+.btn-primary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #0b1026;
+  background: linear-gradient(135deg, #ffb547, #ff8f3f);
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 8px 32px rgba(255, 181, 71, 0.45);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(255, 181, 71, 0.6);
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1.25rem;
+  color: #e7ecff;
+  background: rgba(76, 201, 240, 0.08);
+  border: 1px solid rgba(76, 201, 240, 0.35);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.btn-ghost:hover {
+  background: rgba(76, 201, 240, 0.18);
+}
+
+.ring-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid rgba(255, 181, 71, 0.6);
+  animation: pulseRing 1.6s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes pulseRing {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
