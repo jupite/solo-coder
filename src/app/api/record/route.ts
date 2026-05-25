@@ -5,7 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 const recordSchema = z.object({
-  levelId: z.number().int().positive(),
+  levelId: z.union([z.string(), z.number()]).transform((v) => String(v)),
   time: z.number().positive(),
   steps: z.number().int().positive(),
 });

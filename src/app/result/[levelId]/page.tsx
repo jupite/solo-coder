@@ -25,7 +25,8 @@ export default function ResultPage() {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
-  const levelId = Number(params.levelId);
+  const levelIdRaw = params.levelId;
+  const levelId = Array.isArray(levelIdRaw) ? levelIdRaw[0] : levelIdRaw;
   const { data: session, status } = useSession();
 
   const time = Number(searchParams.get('time') || '0');
@@ -35,7 +36,13 @@ export default function ResultPage() {
   const isNewRecord = searchParams.get('isNewRecord') === 'true';
 
   const levelNames = ['初级训练', '小试牛刀', '经典关卡'];
-  const levelName = levelNames[levelId - 1] || `关卡 #${levelId}`;
+  const numericLevelId = Number(levelId);
+  let levelName = `关卡 ${levelId}`;
+  if (!isNaN(numericLevelId) && numericLevelId >= 1 && numericLevelId <= levelNames.length) {
+    levelName = levelNames[numericLevelId - 1];
+  }
+
+  const hasNextLevel = !isNaN(numericLevelId) && numericLevelId < levelNames.length;
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -137,13 +144,15 @@ export default function ResultPage() {
               <RotateCcw className="w-4 h-4" />
               再玩一次
             </button>
-            <button
-              onClick={() => router.push(`/game/${levelId + 1}`)}
-              className="btn-primary flex-1 inline-flex items-center justify-center gap-2"
-            >
-              下一关
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            {hasNextLevel && (
+              <button
+                onClick={() => router.push(`/game/${numericLevelId + 1}`)}
+                className="btn-primary flex-1 inline-flex items-center justify-center gap-2"
+              >
+                下一关
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
           <button

@@ -14,18 +14,14 @@ export async function GET(request: Request, { params }: Params) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const id = Number(params.id);
+  const numericId = Number(params.id);
 
-  if (isNaN(id)) {
-    return NextResponse.json({ error: 'Invalid level ID' }, { status: 400 });
-  }
-
-  if (id > 0 && id <= hardcodedLevels.length) {
-    const level = hardcodedLevels[id - 1];
+  if (!isNaN(numericId) && numericId > 0 && numericId <= hardcodedLevels.length) {
+    const level = hardcodedLevels[numericId - 1];
     const levelNames = ['初级训练', '小试牛刀', '经典关卡'];
     return NextResponse.json({
-      id,
-      name: levelNames[id - 1] || `关卡 #${id}`,
+      id: numericId,
+      name: levelNames[numericId - 1] || `关卡 #${numericId}`,
       grid: level.grid,
       player: level.player,
       boxes: level.boxes,

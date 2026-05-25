@@ -28,7 +28,8 @@ const formatTime = (seconds: number) => {
 export default function GamePage() {
   const router = useRouter();
   const params = useParams();
-  const levelId = params.levelId;
+  const levelIdRaw = params.levelId;
+  const levelId = Array.isArray(levelIdRaw) ? levelIdRaw[0] : levelIdRaw;
   const { data: session, status } = useSession();
 
   const [levelData, setLevelData] = useState<LevelData | null>(null);
@@ -167,13 +168,11 @@ export default function GamePage() {
     if (submitting) return;
     setSubmitting(true);
     try {
-      const numericLevelId = Number(levelId);
-      const levelIdToSubmit = isNaN(numericLevelId) ? levelId : numericLevelId;
       const res = await fetch('/api/record', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          levelId: levelIdToSubmit,
+          levelId,
           time,
           steps: gameState?.steps ?? 0,
         }),

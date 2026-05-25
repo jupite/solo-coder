@@ -21,7 +21,7 @@ model User {
 model GameRecord {
   id         String   @id @default(cuid())
   userId     String
-  levelId    Int
+  levelId    String
   bestTime   Float?
   bestSteps  Int?
   lastPlayed DateTime @default(now())

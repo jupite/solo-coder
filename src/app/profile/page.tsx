@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 interface RecordEntry {
-  levelId: number;
+  levelId: number | string;
   levelName: string;
   bestTime?: number | null;
   bestSteps?: number | null;
@@ -223,8 +223,8 @@ export default function ProfilePage() {
                       className="border-b border-white/5 hover:bg-white/5 transition-colors"
                     >
                       <td className="py-3 px-2">
-                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 text-white font-[var(--font-orbitron)] font-bold text-sm">
-                          #{r.levelId}
+                        <span className="inline-flex items-center justify-center px-2 h-8 rounded-lg bg-white/5 text-white font-[var(--font-orbitron)] font-bold text-sm max-w-[80px] truncate" title={`${r.levelId}`}>
+                          #{typeof r.levelId === 'number' ? r.levelId : r.levelId.slice(0, 5)}
                         </span>
                       </td>
                       <td className="py-3 px-2 text-white font-medium">

@@ -27,7 +27,7 @@ export async function GET() {
 
   const officialLevels = hardcodedLevels.map((_, idx) => {
     const id = idx + 1;
-    const record = recordMap.get(id);
+    const record = recordMap.get(String(id));
     return {
       id,
       name: levelNames[idx] || `关卡 #${id}`,
@@ -59,13 +59,14 @@ export async function GET() {
     } catch {
       // ignore
     }
+    const record = recordMap.get(level.id);
     return {
       id: level.id,
       name: level.name,
       width,
       height,
-      bestTime: null,
-      bestSteps: null,
+      bestTime: record?.bestTime ?? null,
+      bestSteps: record?.bestSteps ?? null,
       isOfficial: false,
     };
   });
