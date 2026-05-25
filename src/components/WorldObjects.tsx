@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import * as THREE from "three";
 import { OBJECT_CONFIGS, MAP_RADIUS, randomPosition } from "@/game/config";
 import { WorldObject } from "./WorldObject";
@@ -27,8 +27,39 @@ interface Props {
   register: (handle: WorldObjectsHandle) => void;
 }
 
+type Action =
+  | { type: "absorb"; id: number }
+  | { type: "respawn"; id: number; position: [number, number] }
+  | { type: "reset"; items: Item[] };
+
+function reducer(state: Item[], action: Action): Item[] {
+  switch (action.type) {
+    case "absorb":
+      return state.map((item) =>
+        item.id === action.id
+          ? { ...item, absorbed: true, absorbing: performance.now() }
+          : item
+      );
+    case "respawn":
+      return state.map((item) =>
+        item.id === action.id
+          ? {
+              ...item,
+              absorbed: false,
+              absorbing: undefined,
+              position: action.position,
+              spawnAt: performance.now(),
+            }
+          : item
+      );
+    case "reset":
+      return action.items;
+    default:
+      return state;
+  }
+}
+
 export function WorldObjects({ register }: Props) {
-  const itemsRef = useRef<Item[]>([]);
   const level = useGameStore((s) => s.level);
   const phase = useGameStore((s) => s.phase);
 
@@ -50,8 +81,15 @@ export function WorldObjects({ register }: Props) {
     return arr;
   }, []);
 
+  const [items, dispatch] = useReducer(reducer, initialItems);
+
+  const itemsRef = useRef<Item[]>(initialItems);
   useEffect(() => {
-    itemsRef.current = initialItems.map((i) => ({ ...i }));
+    itemsRef.current = items;
+  }, [items]);
+
+  useEffect(() => {
+    dispatch({ type: "reset", items: initialItems });
   }, [initialItems, phase]);
 
   useEffect(() => {
@@ -61,10 +99,7 @@ export function WorldObjects({ register }: Props) {
       for (const item of itemsRef.current) {
         if (item.absorbed && item.absorbing && now - item.absorbing > RESPAWN_MS) {
           const pos = randomPosition(6, MAP_RADIUS - 2);
-          item.position = pos;
-          item.absorbed = false;
-          item.absorbing = undefined;
-          item.spawnAt = now;
+          dispatch({ type: "respawn", id: item.id, position: pos });
         }
       }
       raf = requestAnimationFrame(loop);
@@ -73,8 +108,11 @@ export function WorldObjects({ register }: Props) {
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  const registerRef = useRef(register);
+  registerRef.current = register;
+
   useEffect(() => {
-    register({
+    const handle: WorldObjectsHandle = {
       checkConsume: (tornadoPos, tornadoRadius) => {
         const currentLevel = useGameStore.getState().level;
         for (const item of itemsRef.current) {
@@ -85,18 +123,18 @@ export function WorldObjects({ register }: Props) {
           const dist = Math.hypot(dx, dz);
           const reach = tornadoRadius + item.config.radius * 0.7;
           if (dist < reach) {
-            item.absorbed = true;
-            item.absorbing = performance.now();
+            dispatch({ type: "absorb", id: item.id });
             useGameStore.getState().addVolume(item.config.volume);
           }
         }
       },
-    });
-  }, [register]);
+    };
+    registerRef.current(handle);
+  }, []);
 
   return (
     <group>
-      {itemsRef.current.map((item) => (
+      {items.map((item) => (
         <WorldObjectEntry key={item.id} item={item} level={level} />
       ))}
     </group>
@@ -110,16 +148,10 @@ function WorldObjectEntry({
   item: Item;
   level: number;
 }) {
-  const ref = useRef<THREE.Group>(null);
   const locked = item.config.minLevel > level;
-
-  useEffect(() => {
-    if (ref.current) ref.current.visible = !item.absorbed;
-  });
 
   return (
     <group
-      ref={ref}
       position={[item.position[0], 0, item.position[1]]}
       visible={!item.absorbed}
     >
