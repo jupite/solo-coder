@@ -7,6 +7,7 @@ interface KeyboardState {
   right: boolean;
   sprint: boolean;
   action: boolean;
+  actionCharging: boolean;
   switch: boolean;
   pause: boolean;
 }
@@ -19,13 +20,14 @@ export const useKeyboard = () => {
     right: false,
     sprint: false,
     action: false,
+    actionCharging: false,
     switch: false,
     pause: false,
   });
 
-  const actionQueueRef = useRef(false);
   const switchQueueRef = useRef(false);
   const pauseQueueRef = useRef(false);
+  const actionReleaseRef = useRef(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -53,7 +55,7 @@ export const useKeyboard = () => {
           break;
         case ' ':
           stateRef.current.action = true;
-          actionQueueRef.current = true;
+          stateRef.current.actionCharging = true;
           e.preventDefault();
           break;
         case 'tab':
@@ -93,6 +95,10 @@ export const useKeyboard = () => {
           break;
         case ' ':
           stateRef.current.action = false;
+          if (stateRef.current.actionCharging) {
+            stateRef.current.actionCharging = false;
+            actionReleaseRef.current = true;
+          }
           break;
         case 'tab':
           stateRef.current.switch = false;
@@ -112,10 +118,10 @@ export const useKeyboard = () => {
     };
   }, []);
 
-  const consumeAction = () => {
-    const wasPressed = actionQueueRef.current;
-    actionQueueRef.current = false;
-    return wasPressed;
+  const consumeActionRelease = () => {
+    const wasReleased = actionReleaseRef.current;
+    actionReleaseRef.current = false;
+    return wasReleased;
   };
 
   const consumeSwitch = () => {
@@ -132,7 +138,7 @@ export const useKeyboard = () => {
 
   return {
     state: stateRef,
-    consumeAction,
+    consumeActionRelease,
     consumeSwitch,
     consumePause,
   };

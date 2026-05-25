@@ -41,6 +41,9 @@ export const updateBallPhysics = (
   const newPosition = position.clone();
   const newVelocity = velocity.clone();
 
+  const gravity = 25;
+  newVelocity.y -= gravity * deltaTime;
+
   newVelocity.multiplyScalar(BALL_FRICTION);
 
   if (newVelocity.length() > BALL_MAX_SPEED) {
@@ -51,39 +54,29 @@ export const updateBallPhysics = (
 
   let scored: 'home' | 'away' | null = null;
 
-  if (newPosition.x > 0) {
-    if (
-      newPosition.z <= -FIELD_LENGTH / 2 &&
-      Math.abs(newPosition.x) <= GOAL_WIDTH / 2 &&
-      newPosition.y <= GOAL_HEIGHT
-    ) {
-      scored = 'away';
-    }
-  }
-
-  if (
-    newPosition.z >= FIELD_LENGTH / 2 &&
+  const inHomeGoalArea = 
+    newPosition.z <= -FIELD_LENGTH / 2 + 1 &&
     Math.abs(newPosition.x) <= GOAL_WIDTH / 2 &&
-    newPosition.y <= GOAL_HEIGHT
-  ) {
+    newPosition.y <= GOAL_HEIGHT;
+
+  const inAwayGoalArea = 
+    newPosition.z >= FIELD_LENGTH / 2 - 1 &&
+    Math.abs(newPosition.x) <= GOAL_WIDTH / 2 &&
+    newPosition.y <= GOAL_HEIGHT;
+
+  if (inHomeGoalArea) {
+    scored = 'away';
+  } else if (inAwayGoalArea) {
     scored = 'home';
   }
 
-  if (newPosition.z <= -FIELD_LENGTH / 2 + BALL_RADIUS) {
-    if (
-      Math.abs(newPosition.x) > GOAL_WIDTH / 2 ||
-      newPosition.y > GOAL_HEIGHT
-    ) {
+  if (!inHomeGoalArea && !inAwayGoalArea) {
+    if (newPosition.z <= -FIELD_LENGTH / 2 + BALL_RADIUS) {
       newPosition.z = -FIELD_LENGTH / 2 + BALL_RADIUS;
       newVelocity.z = -newVelocity.z * BALL_BOUNCE;
     }
-  }
 
-  if (newPosition.z >= FIELD_LENGTH / 2 - BALL_RADIUS) {
-    if (
-      Math.abs(newPosition.x) > GOAL_WIDTH / 2 ||
-      newPosition.y > GOAL_HEIGHT
-    ) {
+    if (newPosition.z >= FIELD_LENGTH / 2 - BALL_RADIUS) {
       newPosition.z = FIELD_LENGTH / 2 - BALL_RADIUS;
       newVelocity.z = -newVelocity.z * BALL_BOUNCE;
     }
@@ -101,10 +94,14 @@ export const updateBallPhysics = (
 
   if (newPosition.y <= BALL_RADIUS) {
     newPosition.y = BALL_RADIUS;
-    newVelocity.y = -newVelocity.y * BALL_BOUNCE;
+    if (Math.abs(newVelocity.y) < 1) {
+      newVelocity.y = 0;
+    } else {
+      newVelocity.y = -newVelocity.y * BALL_BOUNCE * 0.8;
+    }
+    newVelocity.x *= 0.95;
+    newVelocity.z *= 0.95;
   }
-
-  newPosition.y = BALL_RADIUS;
 
   return { position: newPosition, velocity: newVelocity, scored };
 };

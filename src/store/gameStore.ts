@@ -73,6 +73,8 @@ interface GameStore extends GameState {
   setPlayers: (players: Player[]) => void;
   updatePlayer: (id: string, updates: Partial<Player>) => void;
   setControlledPlayerId: (id: string) => void;
+  setChargePower: (power: number) => void;
+  setIsCharging: (isCharging: boolean) => void;
   resetGame: () => void;
   resetPositions: () => void;
 }
@@ -87,6 +89,8 @@ export const useGameStore = create<GameStore>((set) => ({
   ballOwnedBy: null,
   players: createInitialPlayers(),
   controlledPlayerId: 'home-2',
+  chargePower: 0,
+  isCharging: false,
 
   setScore: (team, score) =>
     set((state) => ({ score: { ...state.score, [team]: score } })),
@@ -114,6 +118,10 @@ export const useGameStore = create<GameStore>((set) => ({
 
   setControlledPlayerId: (id) => set({ controlledPlayerId: id }),
 
+  setChargePower: (power) => set({ chargePower: power }),
+
+  setIsCharging: (isCharging) => set({ isCharging }),
+
   resetGame: () =>
     set({
       score: { home: 0, away: 0 },
@@ -125,6 +133,8 @@ export const useGameStore = create<GameStore>((set) => ({
       ballOwnedBy: null,
       players: createInitialPlayers(),
       controlledPlayerId: 'home-2',
+      chargePower: 0,
+      isCharging: false,
     }),
 
   resetPositions: () =>

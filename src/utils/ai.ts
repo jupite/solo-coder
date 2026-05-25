@@ -80,7 +80,8 @@ export const calculateAIMovement = (
   ballPosition: THREE.Vector3,
   ballOwnedBy: string | null,
   players: Player[],
-  deltaTime: number
+  deltaTime: number,
+  randomSeed?: number
 ): {
   targetPosition: THREE.Vector3;
   shouldKick: boolean;
@@ -119,33 +120,55 @@ export const calculateAIMovement = (
     if (ballOwnedBy) {
       const ballOwner = players.find((p) => p.id === ballOwnedBy);
       if (ballOwner && ballOwner.team !== player.team) {
-        if (ballToGoalDist < 40) {
-          const interceptX = ballPosition.x + (ballOwner.velocity?.x || 0) * ballToGoalDist * 0.05;
-          targetX = clamp(interceptX, -GOAL_WIDTH / 2, GOAL_WIDTH / 2);
+        if (ballToGoalDist < 45) {
+          const seed = randomSeed || 0.5;
           
-          if (ballToGoalDist < 25) {
-            const advanceDist = Math.min(8, 25 - ballToGoalDist) * 0.3;
+          if (ballToGoalDist < 20) {
+            targetX = clamp(ballPosition.x, -GOAL_WIDTH / 2, GOAL_WIDTH / 2);
+            const advanceDist = Math.min(10, 20 - ballToGoalDist) * 0.6;
             targetZ = goalZ + goalDir * advanceDist;
+          } else if (ballToGoalDist < 30) {
+            if (seed > 0.6) {
+              targetX = clamp(ballPosition.x, -GOAL_WIDTH / 2, GOAL_WIDTH / 2);
+              const interceptZ = ballPosition.z + (goalZ - ballPosition.z) * 0.3;
+              targetZ = clamp(interceptZ, goalZ - 8, goalZ + 5);
+            } else {
+              targetX = clamp(ballPosition.x * 0.7, -GOAL_WIDTH / 3, GOAL_WIDTH / 3);
+              targetZ = goalZ;
+            }
+          } else {
+            targetX = clamp(ballPosition.x * 0.5, -GOAL_WIDTH / 2, GOAL_WIDTH / 2);
+            targetZ = goalZ;
           }
         }
+      } else if (ballOwner && ballOwner.team === player.team) {
+        if (ballToGoalDist < 50) {
+          targetX = clamp(ballPosition.x * 0.4, -GOAL_WIDTH / 3, GOAL_WIDTH / 3);
+        }
+        targetZ = goalZ;
       }
     } else {
-      if (ballToGoalDist < 35) {
-        targetX = clamp(ballPosition.x, -GOAL_WIDTH / 2, GOAL_WIDTH / 2);
+      if (ballToGoalDist < 40) {
+        targetX = clamp(ballPosition.x * 0.8, -GOAL_WIDTH / 2, GOAL_WIDTH / 2);
         
         const ballMovingTowardsGoal = (ballPosition.z - goalZ) * goalDir > 0;
-        if (ballMovingTowardsGoal && ballToGoalDist < 20) {
-          targetZ = clamp(
-            ballPosition.z + (goalZ - ballPosition.z) * 0.4,
-            goalZ - 6,
-            goalZ + 4
-          );
+        if (ballMovingTowardsGoal && ballToGoalDist < 25) {
+          const seed = randomSeed || 0.5;
+          if (seed > 0.5) {
+            targetZ = clamp(
+              ballPosition.z + (goalZ - ballPosition.z) * 0.5,
+              goalZ - 10,
+              goalZ + 6
+            );
+          } else {
+            targetZ = goalZ;
+          }
         }
       }
     }
 
     const distToBall = player.position.distanceTo(ballPosition);
-    if (distToBall < BALL_CONTROL_DISTANCE * 2 && !ballOwnedBy) {
+    if (distToBall < BALL_CONTROL_DISTANCE * 2.5 && !ballOwnedBy) {
       return {
         targetPosition: ballPosition.clone(),
         shouldKick: false,

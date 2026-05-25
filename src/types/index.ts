@@ -10,6 +10,8 @@ export interface GameState {
   ballOwnedBy: string | null;
   players: Player[];
   controlledPlayerId: string;
+  chargePower: number;
+  isCharging: boolean;
 }
 
 export interface Player {

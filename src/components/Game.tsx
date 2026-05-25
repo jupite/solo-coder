@@ -82,13 +82,16 @@ const GameLogic: React.FC = () => {
     isPaused,
     setIsPaused,
     isPlaying,
+    setChargePower,
+    setIsCharging,
   } = useGameStore();
 
-  const { state: keyboardState, consumeAction, consumeSwitch, consumePause } =
+  const { state: keyboardState, consumeActionRelease, consumeSwitch, consumePause } =
     useKeyboard();
 
   const lastTimeRef = useRef(performance.now());
   const actionCooldownRef = useRef(0);
+  const chargeTimeRef = useRef(0);
   const goalkeeperKickoffRef = useRef<{ active: boolean; timer: number; team: 'home' | 'away' | null }>({
     active: false,
     timer: 0,
@@ -213,6 +216,14 @@ const GameLogic: React.FC = () => {
         } else {
           newPos.z = Math.min(penaltyZ - 2, newPos.z);
         }
+
+        if (player.team !== kickoffTeam) {
+          if (kickoffTeam === 'home') {
+            newPos.z = Math.max(newPos.z, 5);
+          } else {
+            newPos.z = Math.min(newPos.z, -5);
+          }
+        }
       }
       
       player.position.copy(newPos);
@@ -231,13 +242,24 @@ const GameLogic: React.FC = () => {
       });
     }
 
-    if (consumeAction() && actionCooldownRef.current <= 0) {
+    if (keyboardState.current.actionCharging && !goalkeeperKickoffRef.current.active) {
+      chargeTimeRef.current += deltaTime;
+      setIsCharging(true);
+      setChargePower(Math.min(chargeTimeRef.current, 2) / 2);
+    } else {
+      setIsCharging(false);
+    }
+
+    if (consumeActionRelease() && actionCooldownRef.current <= 0 && !goalkeeperKickoffRef.current.active) {
       const controlledPlayer = newPlayers.find((p) => p.id === controlledPlayerId);
       if (controlledPlayer) {
         const distToBall = controlledPlayer.position.distanceTo(newBallPos);
         const hasBall = newBallOwnedBy === controlledPlayer.id;
 
         if (distToBall < BALL_CONTROL_DISTANCE || hasBall) {
+          const chargeTime = Math.min(chargeTimeRef.current, 2);
+          const powerMultiplier = 0.5 + chargeTime * 0.5;
+
           const nearestTeammate = findNearestTeammate(
             controlledPlayer.position,
             controlledPlayer.team,
@@ -245,25 +267,26 @@ const GameLogic: React.FC = () => {
             controlledPlayer.id
           );
 
-          if (nearestTeammate) {
+          if (nearestTeammate && chargeTime < 0.8) {
             const kickDir = nearestTeammate.position
               .clone()
               .sub(controlledPlayer.position)
               .normalize();
-            newBallVel = kickDir.multiplyScalar(PASS_POWER);
-            newBallVel.y = 2;
+            newBallVel = kickDir.multiplyScalar(PASS_POWER * powerMultiplier);
+            newBallVel.y = 2 + chargeTime * 2;
             newBallOwnedBy = null;
           } else {
             const goalPos = getGoalPosition(controlledPlayer.team === 'home' ? 'away' : 'home');
             const kickDir = goalPos.clone().sub(controlledPlayer.position).normalize();
-            newBallVel = kickDir.multiplyScalar(SHOOT_POWER);
-            newBallVel.y = 5;
+            newBallVel = kickDir.multiplyScalar(SHOOT_POWER * powerMultiplier);
+            newBallVel.y = 5 + chargeTime * 3;
             newBallOwnedBy = null;
           }
 
-          actionCooldownRef.current = 0.5;
+          actionCooldownRef.current = 0.3;
         }
       }
+      chargeTimeRef.current = 0;
     }
 
     const goalkeeperWithBall = newPlayers.find(
@@ -309,12 +332,23 @@ const GameLogic: React.FC = () => {
           }
         }
 
+        if (player.team !== kickoffTeam) {
+          const centerZ = 0;
+          if (kickoffTeam === 'home' && player.position.z < 0) {
+            targetZ = Math.max(player.position.z, 5);
+          } else if (kickoffTeam === 'away' && player.position.z > 0) {
+            targetZ = Math.min(player.position.z, -5);
+          }
+        }
+
+        const randomSeed = Math.random();
         const aiResult = calculateAIMovement(
           player,
           newBallPos,
           newBallOwnedBy,
           newPlayers,
-          deltaTime
+          deltaTime,
+          randomSeed
         );
 
         const moveDir = new THREE.Vector3(
@@ -341,12 +375,14 @@ const GameLogic: React.FC = () => {
         return;
       }
 
+      const randomSeed = Math.random();
       const aiResult = calculateAIMovement(
         player,
         newBallPos,
         newBallOwnedBy,
         newPlayers,
-        deltaTime
+        deltaTime,
+        randomSeed
       );
 
       player.targetPosition = aiResult.targetPosition;
@@ -412,6 +448,7 @@ const GameLogic: React.FC = () => {
 
     newPlayers.forEach((player) => {
       const distToBall = player.position.distanceTo(newBallPos);
+      const ballIsLow = newBallPos.y < 2;
 
       if (goalkeeperKickoffRef.current.active) {
         if (player.role !== 'goalkeeper') {
@@ -419,7 +456,7 @@ const GameLogic: React.FC = () => {
         }
       }
 
-      if (distToBall < BALL_CONTROL_DISTANCE && newBallVel.length() < 5) {
+      if (distToBall < BALL_CONTROL_DISTANCE && newBallVel.length() < 5 && ballIsLow) {
         if (newBallOwnedBy === player.id) {
           const ballOffset = player.velocity.clone().normalize().multiplyScalar(1.5);
           if (player.velocity.length() > 0.1) {

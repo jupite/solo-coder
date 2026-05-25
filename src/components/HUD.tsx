@@ -2,7 +2,7 @@ import React from 'react';
 import { useGameStore } from '../store/gameStore';
 
 export const HUD: React.FC = () => {
-  const { score, time, isPaused } = useGameStore();
+  const { score, time, isPaused, isCharging, chargePower } = useGameStore();
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -25,6 +25,20 @@ export const HUD: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {isCharging && (
+        <div className="flex justify-center items-center mt-4">
+          <div className="bg-black/50 backdrop-blur-sm rounded-lg px-4 py-2">
+            <div className="text-yellow-400 text-sm mb-1 text-center">蓄力中</div>
+            <div className="w-32 h-3 bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-yellow-400 to-red-500 transition-all duration-100"
+                style={{ width: `${chargePower * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {isPaused && (
         <div className="flex justify-center items-center mt-4">
