@@ -1,4 +1,6 @@
 import { Canvas } from '@react-three/fiber'
+import { useEffect } from 'react'
+import { useGameStore } from '../store/gameStore'
 import { GameScene } from '../components/GameScene'
 import { Crosshair } from '../components/Crosshair'
 import { ChargeBar } from '../components/ChargeBar'
@@ -6,6 +8,16 @@ import { ScoreDisplay } from '../components/ScoreDisplay'
 import { Timer } from '../components/Timer'
 
 export function GamePage() {
+  const isPlaying = useGameStore((state) => state.isPlaying)
+  const isGameOver = useGameStore((state) => state.isGameOver)
+  const resetGame = useGameStore((state) => state.resetGame)
+
+  useEffect(() => {
+    if (!isPlaying && !isGameOver) {
+      resetGame()
+    }
+  }, [isPlaying, isGameOver, resetGame])
+
   return (
     <div className="w-screen h-screen relative overflow-hidden bg-sky-400">
       <Canvas

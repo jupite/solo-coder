@@ -58,12 +58,14 @@ interface GameState {
 }
 
 const initialTargets: Target[] = [
-  { id: 'target1', position: new THREE.Vector3(0, 2, -30), type: 'static', moveRange: 0, moveSpeed: 0, initialX: 0, isHit: false },
-  { id: 'target2', position: new THREE.Vector3(-5, 2, -45), type: 'moving', moveRange: 4, moveSpeed: 1.5, initialX: -5, isHit: false },
-  { id: 'target3', position: new THREE.Vector3(5, 2.5, -60), type: 'static', moveRange: 0, moveSpeed: 0, initialX: 5, isHit: false },
-  { id: 'target4', position: new THREE.Vector3(-3, 1.8, -75), type: 'moving', moveRange: 5, moveSpeed: 2, initialX: -3, isHit: false },
-  { id: 'target5', position: new THREE.Vector3(4, 2.2, -90), type: 'static', moveRange: 0, moveSpeed: 0, initialX: 4, isHit: false },
-  { id: 'target6', position: new THREE.Vector3(-6, 2, -105), type: 'moving', moveRange: 6, moveSpeed: 2.5, initialX: -6, isHit: false },
+  { id: 'target1', position: new THREE.Vector3(8, 2, -25), type: 'static', moveRange: 0, moveSpeed: 0, initialX: 8, isHit: false },
+  { id: 'target2', position: new THREE.Vector3(-8, 2.5, -40), type: 'moving', moveRange: 3, moveSpeed: 1.5, initialX: -8, isHit: false },
+  { id: 'target3', position: new THREE.Vector3(10, 2.2, -55), type: 'static', moveRange: 0, moveSpeed: 0, initialX: 10, isHit: false },
+  { id: 'target4', position: new THREE.Vector3(-10, 1.8, -70), type: 'moving', moveRange: 4, moveSpeed: 2, initialX: -10, isHit: false },
+  { id: 'target5', position: new THREE.Vector3(9, 2.5, -85), type: 'static', moveRange: 0, moveSpeed: 0, initialX: 9, isHit: false },
+  { id: 'target6', position: new THREE.Vector3(-9, 2, -100), type: 'moving', moveRange: 5, moveSpeed: 2.5, initialX: -9, isHit: false },
+  { id: 'target7', position: new THREE.Vector3(11, 2.3, -115), type: 'static', moveRange: 0, moveSpeed: 0, initialX: 11, isHit: false },
+  { id: 'target8', position: new THREE.Vector3(-11, 2.6, -130), type: 'moving', moveRange: 4, moveSpeed: 2, initialX: -11, isHit: false },
 ]
 
 export const useGameStore = create<GameState>((set, get) => ({

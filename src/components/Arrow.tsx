@@ -11,7 +11,7 @@ interface ArrowProps {
 }
 
 export function Arrow({ id, initialPosition, initialVelocity }: ArrowProps) {
-  const meshRef = useRef<THREE.Mesh>(null)
+  const groupRef = useRef<THREE.Group>(null)
   const positionRef = useRef(new THREE.Vector3().copy(initialPosition))
   const velocityRef = useRef(new THREE.Vector3().copy(initialVelocity))
 
@@ -22,7 +22,7 @@ export function Arrow({ id, initialPosition, initialVelocity }: ArrowProps) {
   const addScore = useGameStore((state) => state.addScore)
 
   useFrame((state, delta) => {
-    if (!meshRef.current) return
+    if (!groupRef.current) return
 
     const arrow = arrows.find((a) => a.id === id)
     if (!arrow || !arrow.isActive) return
@@ -30,13 +30,17 @@ export function Arrow({ id, initialPosition, initialVelocity }: ArrowProps) {
     velocityRef.current.y -= GRAVITY * delta
     positionRef.current.add(velocityRef.current.clone().multiplyScalar(delta))
 
-    meshRef.current.position.copy(positionRef.current)
+    groupRef.current.position.copy(positionRef.current)
 
     const speed = velocityRef.current.length()
     if (speed > 0.1) {
       const direction = velocityRef.current.clone().normalize()
-      const angle = Math.atan2(direction.y, direction.z)
-      meshRef.current.rotation.x = angle
+
+      const up = new THREE.Vector3(0, 1, 0)
+      const arrowQuaternion = new THREE.Quaternion()
+      arrowQuaternion.setFromUnitVectors(up, direction)
+
+      groupRef.current.quaternion.copy(arrowQuaternion)
     }
 
     for (const target of targets) {
@@ -61,15 +65,29 @@ export function Arrow({ id, initialPosition, initialVelocity }: ArrowProps) {
       }
     }
 
-    if (positionRef.current.y < 0 || positionRef.current.z > 50 || positionRef.current.z < -200) {
+    if (positionRef.current.y < 0 || positionRef.current.z > 50 || positionRef.current.z < -300 || positionRef.current.x > 50 || positionRef.current.x < -50) {
       deactivateArrow(id)
     }
   })
 
   return (
-    <mesh ref={meshRef} position={initialPosition.toArray()} castShadow>
-      <coneGeometry args={[0.05, 0.8, 8]} />
-      <meshStandardMaterial color="#8B4513" />
-    </mesh>
+    <group ref={groupRef} position={initialPosition.toArray()}>
+      <mesh castShadow>
+        <coneGeometry args={[0.06, 0.3, 8]} />
+        <meshStandardMaterial color="#666" metalness={0.8} roughness={0.2} />
+      </mesh>
+      <mesh position={[0, -0.4, 0]} castShadow>
+        <cylinderGeometry args={[0.02, 0.02, 0.6, 8]} />
+        <meshStandardMaterial color="#8B4513" />
+      </mesh>
+      <mesh position={[0, -0.8, 0]} castShadow>
+        <coneGeometry args={[0.08, 0.15, 4]} />
+        <meshStandardMaterial color="#F5F5DC" />
+      </mesh>
+      <mesh position={[0.1, -0.8, 0]} castShadow rotation={[0, 0, Math.PI / 2]}>
+        <coneGeometry args={[0.08, 0.15, 4]} />
+        <meshStandardMaterial color="#F5F5DC" />
+      </mesh>
+    </group>
   )
 }
