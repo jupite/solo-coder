@@ -12,6 +12,8 @@ import {
   Footprints,
   Grid3X3,
   Calendar,
+  Gamepad2,
+  Users,
 } from 'lucide-react';
 
 interface RecordEntry {
@@ -21,6 +23,8 @@ interface RecordEntry {
   bestSteps?: number | null;
   lastPlayed?: string | null;
 }
+
+interface DuoRecordEntry extends RecordEntry {}
 
 const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60);
@@ -42,7 +46,9 @@ export default function ProfilePage() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [records, setRecords] = useState<RecordEntry[]>([]);
+  const [duoRecords, setDuoRecords] = useState<DuoRecordEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'solo' | 'duo'>('solo');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -58,17 +64,29 @@ export default function ProfilePage() {
     const fetchRecords = async () => {
       try {
         setLoading(true);
-        const res = await fetch('/api/records');
-        if (!res.ok) {
+        const [soloRes, duoRes] = await Promise.all([
+          fetch('/api/records'),
+          fetch('/api/duo-records'),
+        ]);
+
+        if (!soloRes.ok) {
           throw new Error('获取记录失败');
         }
-        const data = await res.json();
+        if (!duoRes.ok) {
+          throw new Error('获取双人记录失败');
+        }
+
+        const soloData = await soloRes.json();
+        const duoData = await duoRes.json();
+
         if (!cancelled) {
-          setRecords(data.records || []);
+          setRecords(soloData.records || []);
+          setDuoRecords(duoData.records || []);
         }
       } catch {
         if (!cancelled) {
           setRecords([]);
+          setDuoRecords([]);
         }
       } finally {
         if (!cancelled) {
@@ -103,6 +121,13 @@ export default function ProfilePage() {
   const completedCount = records.filter(
     (r) => r.bestTime != null || r.bestSteps != null
   ).length;
+
+  const duoCompletedCount = duoRecords.filter(
+    (r) => r.bestTime != null || r.bestSteps != null
+  ).length;
+
+  const currentRecords = activeTab === 'solo' ? records : duoRecords;
+  const currentCompletedCount = activeTab === 'solo' ? completedCount : duoCompletedCount;
 
   return (
     <main className="relative min-h-screen px-4 py-10 md:py-16 overflow-hidden">
@@ -146,43 +171,74 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 mt-6">
+          <div className="grid grid-cols-4 gap-3 mt-6">
             <div className="glass-card p-4 text-center">
               <Trophy className="w-5 h-5 text-yellow-400 mx-auto mb-1" />
-              <p className="text-xs text-slate-400 mb-1">完成关卡</p>
+              <p className="text-xs text-slate-400 mb-1">单人完成</p>
               <p className="text-xl font-bold text-white font-[var(--font-orbitron)]">
                 {completedCount}
               </p>
             </div>
             <div className="glass-card p-4 text-center">
               <Clock className="w-5 h-5 text-cyan-400 mx-auto mb-1" />
-              <p className="text-xs text-slate-400 mb-1">总记录</p>
+              <p className="text-xs text-slate-400 mb-1">单人记录</p>
               <p className="text-xl font-bold text-white font-[var(--font-orbitron)]">
                 {records.length}
               </p>
             </div>
             <div className="glass-card p-4 text-center">
-              <Footprints className="w-5 h-5 text-purple-400 mx-auto mb-1" />
-              <p className="text-xs text-slate-400 mb-1">挑战中</p>
+              <Users className="w-5 h-5 text-red-400 mx-auto mb-1" />
+              <p className="text-xs text-slate-400 mb-1">双人完成</p>
               <p className="text-xl font-bold text-white font-[var(--font-orbitron)]">
-                {records.length - completedCount}
+                {duoCompletedCount}
+              </p>
+            </div>
+            <div className="glass-card p-4 text-center">
+              <Gamepad2 className="w-5 h-5 text-purple-400 mx-auto mb-1" />
+              <p className="text-xs text-slate-400 mb-1">双人记录</p>
+              <p className="text-xl font-bold text-white font-[var(--font-orbitron)]">
+                {duoRecords.length}
               </p>
             </div>
           </div>
         </div>
 
         <div className="glass-card p-6 md:p-8">
-          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-yellow-400" />
-            最佳成绩
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-yellow-400" />
+              最佳成绩
+            </h2>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setActiveTab('solo')}
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${activeTab === 'solo'
+                  ? 'bg-indigo-500/30 text-indigo-300 border border-indigo-500/50'
+                  : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                单人
+              </button>
+              <button
+                onClick={() => setActiveTab('duo')}
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${activeTab === 'duo'
+                  ? 'bg-red-500/30 text-red-300 border border-red-500/50'
+                  : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                双人
+              </button>
+            </div>
+          </div>
 
-          {records.length === 0 ? (
+          {currentRecords.length === 0 ? (
             <div className="text-center py-12">
               <Trophy className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-              <p className="text-slate-400 mb-4">暂无游戏记录</p>
+              <p className="text-slate-400 mb-4">
+                {activeTab === 'solo' ? '暂无单人游戏记录' : '暂无双人游戏记录'}
+              </p>
               <button
-                onClick={() => router.push('/levels')}
+                onClick={() => router.push(activeTab === 'solo' ? '/solo-levels' : '/duo-levels')}
                 className="btn-primary inline-flex items-center gap-2"
               >
                 <Grid3X3 className="w-4 h-4" />
@@ -217,7 +273,7 @@ export default function ProfilePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {records.map((r) => (
+                  {currentRecords.map((r) => (
                     <tr
                       key={r.levelId}
                       className="border-b border-white/5 hover:bg-white/5 transition-colors"

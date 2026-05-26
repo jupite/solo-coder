@@ -34,15 +34,23 @@ export default function ResultPage() {
   const bestTime = Number(searchParams.get('bestTime') || String(time));
   const bestSteps = Number(searchParams.get('bestSteps') || String(steps));
   const isNewRecord = searchParams.get('isNewRecord') === 'true';
+  const mode = searchParams.get('mode') || 'solo';
 
   const levelNames = ['初级训练', '小试牛刀', '经典关卡'];
+  const duoLevelNames = ['双人入门', '机关挑战', '合作闯关'];
   const numericLevelId = Number(levelId);
   let levelName = `关卡 ${levelId}`;
-  if (!isNaN(numericLevelId) && numericLevelId >= 1 && numericLevelId <= levelNames.length) {
-    levelName = levelNames[numericLevelId - 1];
+  if (mode === 'duo') {
+    if (!isNaN(numericLevelId) && numericLevelId >= 1 && numericLevelId <= duoLevelNames.length) {
+      levelName = duoLevelNames[numericLevelId - 1];
+    }
+  } else {
+    if (!isNaN(numericLevelId) && numericLevelId >= 1 && numericLevelId <= levelNames.length) {
+      levelName = levelNames[numericLevelId - 1];
+    }
   }
 
-  const hasNextLevel = !isNaN(numericLevelId) && numericLevelId < levelNames.length;
+  const hasNextLevel = !isNaN(numericLevelId) && numericLevelId < (mode === 'duo' ? duoLevelNames.length : levelNames.length);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -138,7 +146,7 @@ export default function ResultPage() {
 
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <button
-              onClick={() => router.push(`/game/${levelId}`)}
+              onClick={() => router.push(mode === 'duo' ? `/duo-game/${levelId}` : `/game/${levelId}`)}
               className="btn-secondary flex-1 inline-flex items-center justify-center gap-2"
             >
               <RotateCcw className="w-4 h-4" />
@@ -146,7 +154,7 @@ export default function ResultPage() {
             </button>
             {hasNextLevel && (
               <button
-                onClick={() => router.push(`/game/${numericLevelId + 1}`)}
+                onClick={() => router.push(mode === 'duo' ? `/duo-game/${numericLevelId + 1}` : `/game/${numericLevelId + 1}`)}
                 className="btn-primary flex-1 inline-flex items-center justify-center gap-2"
               >
                 下一关
@@ -156,7 +164,7 @@ export default function ResultPage() {
           </div>
 
           <button
-            onClick={() => router.push('/levels')}
+            onClick={() => router.push(mode === 'duo' ? '/duo-levels' : '/solo-levels')}
             className="btn-ghost w-full inline-flex items-center justify-center gap-2"
           >
             <Grid3X3 className="w-4 h-4" />
