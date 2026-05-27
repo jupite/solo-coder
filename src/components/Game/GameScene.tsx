@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -7,32 +7,66 @@ import { CurlingStone } from './CurlingStone';
 import { useGameStore } from '@/store/useGameStore';
 import { RINK_DIMENSIONS } from '@/types/game';
 
+const NEAR_HOUSE_Z = RINK_DIMENSIONS.length / 2 - 6;
+const SERVE_Z = NEAR_HOUSE_Z;
+
 interface CameraControllerProps {
   targetStoneId: string | null;
 }
 
 const CameraController: React.FC<CameraControllerProps> = ({ targetStoneId }) => {
   const { camera } = useThree();
-  const { stones } = useGameStore();
+  const { stones, gamePhase } = useGameStore();
   const controlsRef = useRef<any>(null);
+  const hasFollowedRef = useRef(false);
 
   useFrame(() => {
-    if (!targetStoneId || !controlsRef.current) return;
+    if (!controlsRef.current) return;
 
-    const stone = stones.find((s) => s.id === targetStoneId);
-    if (!stone || !stone.isMoving) return;
+    if (gamePhase === 'ready' || gamePhase === 'aiming') {
+      hasFollowedRef.current = false;
+      const targetPos = new THREE.Vector3(0, 10, SERVE_Z + 8);
+      const targetLookAt = new THREE.Vector3(0, 0, SERVE_Z - 4);
 
-    const targetPosition = new THREE.Vector3(
-      stone.position.x,
-      8,
-      stone.position.z + 10
-    );
+      camera.position.lerp(targetPos, 0.05);
+      controlsRef.current.target.lerp(targetLookAt, 0.05);
+      controlsRef.current.update();
+      return;
+    }
 
-    camera.position.lerp(targetPosition, 0.05);
-    controlsRef.current.target.lerp(
-      new THREE.Vector3(stone.position.x, 0, stone.position.z),
-      0.05
-    );
+    if (gamePhase === 'thrown' && targetStoneId) {
+      const stone = stones.find((s) => s.id === targetStoneId);
+      if (stone && stone.isMoving) {
+        hasFollowedRef.current = true;
+        const targetPos = new THREE.Vector3(
+          stone.position.x * 0.5,
+          8,
+          stone.position.z + 10
+        );
+        const targetLookAt = new THREE.Vector3(
+          stone.position.x * 0.5,
+          0,
+          stone.position.z
+        );
+
+        camera.position.lerp(targetPos, 0.05);
+        controlsRef.current.target.lerp(targetLookAt, 0.05);
+        controlsRef.current.update();
+        return;
+      }
+    }
+
+    if (gamePhase === 'thrown' && hasFollowedRef.current) {
+      const stone = stones.find((s) => s.id === targetStoneId);
+      if (stone && !stone.isMoving) {
+        const targetPos = new THREE.Vector3(0, 10, SERVE_Z + 8);
+        const targetLookAt = new THREE.Vector3(0, 0, SERVE_Z - 4);
+
+        camera.position.lerp(targetPos, 0.03);
+        controlsRef.current.target.lerp(targetLookAt, 0.03);
+        controlsRef.current.update();
+      }
+    }
   });
 
   return (
@@ -43,6 +77,7 @@ const CameraController: React.FC<CameraControllerProps> = ({ targetStoneId }) =>
       maxDistance={30}
       minPolarAngle={0.2}
       maxPolarAngle={Math.PI / 2.5}
+      target={[0, 0, SERVE_Z - 4]}
     />
   );
 };
@@ -61,8 +96,8 @@ const AimLine: React.FC<AimLineProps> = ({ direction, power, visible }) => {
   const endZ = -Math.cos(direction) * lineLength;
 
   const points = [
-    new THREE.Vector3(0, 0.1, RINK_DIMENSIONS.length / 2 - 1),
-    new THREE.Vector3(endX, 0.1, RINK_DIMENSIONS.length / 2 - 1 + endZ),
+    new THREE.Vector3(0, 0.1, SERVE_Z),
+    new THREE.Vector3(endX, 0.1, SERVE_Z + endZ),
   ];
 
   return (
@@ -166,7 +201,7 @@ export const GameScene: React.FC = () => {
   return (
     <Canvas
       shadows
-      camera={{ position: [0, 12, RINK_DIMENSIONS.length / 2 + 5], fov: 50 }}
+      camera={{ position: [0, 10, SERVE_Z + 8], fov: 50 }}
       gl={{ antialias: true }}
       style={{ width: '100%', height: '100%' }}
     >

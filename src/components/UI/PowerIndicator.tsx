@@ -10,7 +10,7 @@ export const PowerIndicator: React.FC = () => {
   const directionDegrees = (throwParams.direction * 180) / Math.PI;
 
   return (
-    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-sm rounded-xl p-4 shadow-2xl border border-slate-700">
+    <div className="absolute bottom-6 left-4 bg-slate-900/90 backdrop-blur-sm rounded-xl p-4 shadow-2xl border border-slate-700">
       <div className="text-white text-sm font-medium mb-3 text-center">
         力度 & 方向
       </div>

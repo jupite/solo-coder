@@ -40,7 +40,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const newStone: Stone = {
       id: generateId(),
       player: currentPlayer,
-      position: { x: 0, z: RINK_DIMENSIONS.length / 2 - 1 },
+      position: { x: 0, z: RINK_DIMENSIONS.length / 2 - 6 },
       velocity: { x: 0, z: 0 },
       isMoving: false,
     };
