@@ -4,6 +4,7 @@ import {
   DuoGameState,
   DuoLevelData,
   DuoPlayerState,
+  MoveHistoryEntry,
   PlayerColor,
   Position,
   RedGate,
@@ -17,6 +18,13 @@ const DIRS: Record<Direction, Position> = {
   right: { x: 1, y: 0 },
 };
 
+const ADJACENT_DIRS: Position[] = [
+  { x: 0, y: -1 },
+  { x: 0, y: 1 },
+  { x: -1, y: 0 },
+  { x: 1, y: 0 },
+];
+
 export function createDuoGameState(level: DuoLevelData): DuoGameState {
   const grid = level.grid.map((row) => row.slice());
   const blueOrigin = { ...level.bluePlayer };
@@ -27,6 +35,8 @@ export function createDuoGameState(level: DuoLevelData): DuoGameState {
     origin: blueOrigin,
     stepsRemaining: level.blueMaxSteps,
     maxSteps: level.blueMaxSteps,
+    path: [{ ...level.bluePlayer }],
+    isGone: false,
   };
 
   const redPlayer: DuoPlayerState = {
@@ -34,6 +44,8 @@ export function createDuoGameState(level: DuoLevelData): DuoGameState {
     origin: redOrigin,
     stepsRemaining: level.redMaxSteps,
     maxSteps: level.redMaxSteps,
+    path: [{ ...level.redPlayer }],
+    isGone: false,
   };
 
   return {
@@ -48,6 +60,7 @@ export function createDuoGameState(level: DuoLevelData): DuoGameState {
     currentTurn: 'blue',
     steps: 0,
     isWin: false,
+    history: [],
   };
 }
 
@@ -83,8 +96,68 @@ function isGateOpen(
   return activeSwitches.has(gate.switchId);
 }
 
-function manhattanDistance(a: Position, b: Position): number {
-  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+function isGateBlocked(
+  x: number,
+  y: number,
+  redGates: RedGate[],
+  activeSwitches: Set<string>,
+): boolean {
+  const gate = findGateAt(redGates, x, y);
+  if (!gate) return false;
+  return !isGateOpen(gate, activeSwitches);
+}
+
+function isPositionInPath(path: Position[], x: number, y: number): boolean {
+  return path.some((p) => p.x === x && p.y === y);
+}
+
+function isAdjacentToSwitch(
+  playerPos: Position,
+  switchPos: Position,
+): boolean {
+  return ADJACENT_DIRS.some(
+    (d) => playerPos.x + d.x === switchPos.x && playerPos.y + d.y === switchPos.y,
+  );
+}
+
+export function isSwitchClickable(
+  state: DuoGameState,
+  switchX: number,
+  switchY: number,
+  playerColor: PlayerColor,
+): boolean {
+  const player = playerColor === 'blue' ? state.bluePlayer : state.redPlayer;
+  if (player.isGone) return false;
+
+  const sw = findSwitchAt(state.switches, switchX, switchY);
+  if (!sw) return false;
+
+  return isAdjacentToSwitch(player.position, { x: switchX, y: switchY });
+}
+
+export function toggleSwitch(
+  state: DuoGameState,
+  switchX: number,
+  switchY: number,
+  playerColor: PlayerColor,
+): DuoGameState {
+  if (state.isWin) return state;
+  if (!isSwitchClickable(state, switchX, switchY, playerColor)) return state;
+
+  const sw = findSwitchAt(state.switches, switchX, switchY);
+  if (!sw) return state;
+
+  const newActiveSwitches = new Set(state.activeSwitches);
+  if (newActiveSwitches.has(sw.gateId)) {
+    newActiveSwitches.delete(sw.gateId);
+  } else {
+    newActiveSwitches.add(sw.gateId);
+  }
+
+  return {
+    ...state,
+    activeSwitches: newActiveSwitches,
+  };
 }
 
 export function moveDuoPlayer(
@@ -97,26 +170,45 @@ export function moveDuoPlayer(
   const player = color === 'blue' ? state.bluePlayer : state.redPlayer;
   const otherPlayer = color === 'blue' ? state.redPlayer : state.bluePlayer;
 
+  if (player.isGone) return state;
+  if (player.stepsRemaining <= 0) return state;
+
   const dir = DIRS[direction];
   const nx = player.position.x + dir.x;
   const ny = player.position.y + dir.y;
 
   if (isWall(state.grid, nx, ny)) return state;
 
-  if (otherPlayer.position.x === nx && otherPlayer.position.y === ny) {
+  if (findSwitchAt(state.switches, nx, ny)) {
     return state;
   }
 
-  const gate = findGateAt(state.redGates, nx, ny);
-  if (gate) {
-    if (color === 'red') {
-      if (!isGateOpen(gate, state.activeSwitches)) return state;
-    }
+  if (!otherPlayer.isGone && otherPlayer.position.x === nx && otherPlayer.position.y === ny) {
+    return state;
+  }
+
+  if (isGateBlocked(nx, ny, state.redGates, state.activeSwitches)) {
+    return state;
+  }
+
+  const target = state.targets[0];
+  const reachedTarget = target && nx === target.x && ny === target.y;
+
+  const isBacktracking =
+    player.path.length >= 2 &&
+    player.path[player.path.length - 2].x === nx &&
+    player.path[player.path.length - 2].y === ny;
+
+  if (!isBacktracking && !reachedTarget && isPositionInPath(player.path, nx, ny)) {
+    return state;
+  }
+
+  if (!isBacktracking && !reachedTarget && isPositionInPath(otherPlayer.path, nx, ny) && !otherPlayer.isGone) {
+    return state;
   }
 
   const boxIdx = findBoxIndex(state.boxes, nx, ny);
   const newBoxes = state.boxes.map((b) => ({ ...b }));
-  const newActiveSwitches = new Set(state.activeSwitches);
 
   if (boxIdx !== -1) {
     const bx = nx + dir.x;
@@ -124,84 +216,119 @@ export function moveDuoPlayer(
 
     if (isWall(state.grid, bx, by)) return state;
     if (findBoxIndex(newBoxes, bx, by) !== -1) return state;
-
-    const pushedIntoGate = findGateAt(state.redGates, bx, by);
-    if (pushedIntoGate) {
-      if (color === 'red') {
-        if (!isGateOpen(pushedIntoGate, newActiveSwitches)) return state;
-      }
+    if (findSwitchAt(state.switches, bx, by)) return state;
+    if (isGateBlocked(bx, by, state.redGates, state.activeSwitches)) {
+      return state;
     }
 
     newBoxes[boxIdx] = { x: bx, y: by };
-
-    const pressedSwitch = findSwitchAt(state.switches, bx, by);
-    if (pressedSwitch) {
-      newActiveSwitches.add(pressedSwitch.gateId);
-    }
-
-    const leftSwitch = findSwitchAt(state.switches, nx, ny);
-    if (leftSwitch) {
-      const stillPressed = newBoxes.some(
-        (b) => b.x === leftSwitch.x && b.y === leftSwitch.y,
-      );
-      if (!stillPressed) {
-        newActiveSwitches.delete(leftSwitch.gateId);
-      }
-    }
   }
 
-  const newStepsRemaining = player.stepsRemaining - 1;
-  if (newStepsRemaining < 0) return state;
+  let newStepsRemaining = player.stepsRemaining;
+  let newPath: Position[];
+  let pathTruncated = false;
+
+  if (isBacktracking) {
+    newStepsRemaining = Math.min(player.maxSteps, player.stepsRemaining + 1);
+    newPath = player.path.slice(0, -1);
+    pathTruncated = true;
+  } else {
+    newStepsRemaining = player.stepsRemaining - 1;
+    newPath = [...player.path, { x: nx, y: ny }];
+  }
 
   const newPlayer: DuoPlayerState = {
     ...player,
     position: { x: nx, y: ny },
     stepsRemaining: newStepsRemaining,
+    path: newPath,
+    isGone: reachedTarget,
   };
 
-  const distToOrigin = manhattanDistance(newPlayer.position, newPlayer.origin);
-  const recoverableSteps = Math.max(0, newPlayer.maxSteps - distToOrigin);
-  newPlayer.stepsRemaining = Math.max(
-    newPlayer.stepsRemaining,
-    recoverableSteps,
-  );
+  const newHistory: MoveHistoryEntry = {
+    color,
+    from: { ...player.position },
+    to: { x: nx, y: ny },
+    boxPushed: boxIdx !== -1 ? { from: { x: nx, y: ny }, to: newBoxes[boxIdx] } : undefined,
+    switchesToggledOn: [],
+    switchesToggledOff: [],
+    wasGone: player.isGone,
+    pathTruncated,
+  };
 
   const newState: DuoGameState = {
     ...state,
     bluePlayer: color === 'blue' ? newPlayer : state.bluePlayer,
     redPlayer: color === 'red' ? newPlayer : state.redPlayer,
     boxes: newBoxes,
-    activeSwitches: newActiveSwitches,
     currentTurn: color === 'blue' ? 'red' : 'blue',
     steps: state.steps + 1,
     isWin: false,
+    history: [...state.history, newHistory],
   };
 
   newState.isWin = checkDuoWin(newState);
   return newState;
 }
 
+export function undoDuoMove(state: DuoGameState): DuoGameState {
+  if (state.history.length === 0 || state.isWin) return state;
+
+  const lastMove = state.history[state.history.length - 1];
+  const newHistory = state.history.slice(0, -1);
+
+  const color = lastMove.color;
+  const player = color === 'blue' ? state.bluePlayer : state.redPlayer;
+
+  const newPath = lastMove.pathTruncated
+    ? [...player.path, lastMove.to]
+    : player.path.slice(0, -1);
+
+  const newStepsRemaining = lastMove.pathTruncated
+    ? Math.max(0, player.stepsRemaining - 1)
+    : Math.min(player.maxSteps, player.stepsRemaining + 1);
+
+  const newPlayer: DuoPlayerState = {
+    ...player,
+    position: { ...lastMove.from },
+    stepsRemaining: newStepsRemaining,
+    path: newPath,
+    isGone: lastMove.wasGone,
+  };
+
+  let newBoxes = state.boxes.map((b) => ({ ...b }));
+  if (lastMove.boxPushed) {
+    const boxIdx = findBoxIndex(newBoxes, lastMove.boxPushed.to.x, lastMove.boxPushed.to.y);
+    if (boxIdx !== -1) {
+      newBoxes[boxIdx] = { ...lastMove.boxPushed.from };
+    }
+  }
+
+  const newActiveSwitches = new Set(state.activeSwitches);
+  for (const gateId of lastMove.switchesToggledOn) {
+    newActiveSwitches.delete(gateId);
+  }
+  for (const gateId of lastMove.switchesToggledOff) {
+    newActiveSwitches.add(gateId);
+  }
+
+  const otherColor: PlayerColor = color === 'blue' ? 'red' : 'blue';
+
+  return {
+    ...state,
+    bluePlayer: color === 'blue' ? newPlayer : state.bluePlayer,
+    redPlayer: color === 'red' ? newPlayer : state.redPlayer,
+    boxes: newBoxes,
+    activeSwitches: newActiveSwitches,
+    currentTurn: otherColor,
+    steps: state.steps - 1,
+    isWin: false,
+    history: newHistory,
+  };
+}
+
 export function checkDuoWin(state: DuoGameState): boolean {
-  if (state.boxes.length !== state.targets.length) return false;
-
-  const allBoxesOnTargets = state.targets.every((t) =>
-    state.boxes.some((b) => b.x === t.x && b.y === t.y),
-  );
-
-  if (!allBoxesOnTargets) return false;
-
-  const blueOnTarget = state.targets.some(
-    (t) =>
-      t.x === state.bluePlayer.position.x &&
-      t.y === state.bluePlayer.position.y,
-  );
-  const redOnTarget = state.targets.some(
-    (t) =>
-      t.x === state.redPlayer.position.x &&
-      t.y === state.redPlayer.position.y,
-  );
-
-  return blueOnTarget && redOnTarget;
+  return state.bluePlayer.isGone && state.redPlayer.isGone;
 }
 
 export function getDuoCellAt(
@@ -232,9 +359,13 @@ export function getDuoCellAt(
   }
 
   const hasBlue =
-    state.bluePlayer.position.x === x && state.bluePlayer.position.y === y;
+    !state.bluePlayer.isGone &&
+    state.bluePlayer.position.x === x &&
+    state.bluePlayer.position.y === y;
   const hasRed =
-    state.redPlayer.position.x === x && state.redPlayer.position.y === y;
+    !state.redPlayer.isGone &&
+    state.redPlayer.position.x === x &&
+    state.redPlayer.position.y === y;
   const hasBox = state.boxes.some((b) => b.x === x && b.y === y);
 
   if (hasBlue || hasRed) {

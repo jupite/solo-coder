@@ -8,6 +8,7 @@ import {
   ArrowRight,
   RotateCcw,
   LogOut,
+  Undo2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import type { Direction } from '@/lib/game/types';
@@ -16,6 +17,7 @@ interface ControlsProps {
   onMove: (direction: Direction) => void;
   onReset: () => void;
   onExit: () => void;
+  onUndo?: () => void;
 }
 
 const KEY_DIRECTION: Record<string, Direction> = {
@@ -33,7 +35,7 @@ const KEY_DIRECTION: Record<string, Direction> = {
   D: 'right',
 };
 
-export function Controls({ onMove, onReset, onExit }: ControlsProps) {
+export function Controls({ onMove, onReset, onExit, onUndo }: ControlsProps) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       const direction = KEY_DIRECTION[e.key];
@@ -46,12 +48,16 @@ export function Controls({ onMove, onReset, onExit }: ControlsProps) {
         e.preventDefault();
         onReset();
       }
+      if (e.key === 'z' || e.key === 'Z') {
+        e.preventDefault();
+        onUndo?.();
+      }
       if (e.key === 'Escape') {
         e.preventDefault();
         onExit();
       }
     },
-    [onMove, onReset, onExit],
+    [onMove, onReset, onExit, onUndo],
   );
 
   useEffect(() => {
@@ -105,7 +111,13 @@ export function Controls({ onMove, onReset, onExit }: ControlsProps) {
         <div />
       </div>
 
-      <div className="flex gap-3 justify-center">
+      <div className="flex gap-2 justify-center">
+        {onUndo && (
+          <Button type="button" variant="secondary" onClick={onUndo}>
+            <Undo2 className="w-5 h-5" />
+            撤销
+          </Button>
+        )}
         <Button type="button" variant="secondary" onClick={onReset}>
           <RotateCcw className="w-5 h-5" />
           重置

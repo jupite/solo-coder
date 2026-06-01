@@ -65,6 +65,19 @@ export interface DuoPlayerState {
   origin: Position;
   stepsRemaining: number;
   maxSteps: number;
+  path: Position[];
+  isGone: boolean;
+}
+
+export interface MoveHistoryEntry {
+  color: PlayerColor;
+  from: Position;
+  to: Position;
+  boxPushed?: { from: Position; to: Position };
+  switchesToggledOn: string[];
+  switchesToggledOff: string[];
+  wasGone: boolean;
+  pathTruncated?: boolean;
 }
 
 export interface DuoGameState {
@@ -79,4 +92,5 @@ export interface DuoGameState {
   currentTurn: PlayerColor;
   steps: number;
   isWin: boolean;
+  history: MoveHistoryEntry[];
 }

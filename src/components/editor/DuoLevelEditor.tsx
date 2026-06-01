@@ -5,7 +5,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { OrthographicCamera, RoundedBox } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { CellType, Position, DuoLevelData, DuoGameState, Direction, PlayerColor, RedGate, SwitchItem } from '@/lib/game/types';
-import { createDuoGameState, moveDuoPlayer } from '@/lib/game/duo-engine';
+import { createDuoGameState, moveDuoPlayer, undoDuoMove, toggleSwitch } from '@/lib/game/duo-engine';
 import {
   Save,
   Play,
@@ -516,8 +516,8 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
   }, [isPlaying, gridSize]);
 
   const handlePlay = useCallback(() => {
-    if (!bluePlayer || !redPlayer || boxes.length === 0 || targets.length === 0) {
-      setMessage('需要放置红蓝角色、至少一个箱子和一个目标点才能试玩');
+    if (!bluePlayer || !redPlayer || targets.length === 0) {
+      setMessage('需要放置红蓝角色和至少一个目标点才能试玩');
       setTimeout(() => setMessage(null), 3000);
       return;
     }
@@ -596,8 +596,8 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
   }, [isPlaying, handleMove, handleResetPlay, handleStopPlay]);
 
   const handleSave = useCallback(async () => {
-    if (!bluePlayer || !redPlayer || boxes.length === 0 || targets.length === 0) {
-      setMessage('需要放置红蓝角色、至少一个箱子和一个目标点才能保存');
+    if (!bluePlayer || !redPlayer || targets.length === 0) {
+      setMessage('需要放置红蓝角色和至少一个目标点才能保存');
       setTimeout(() => setMessage(null), 3000);
       return;
     }
@@ -886,8 +886,8 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
           <p className="text-slate-300 font-medium mb-2">操作说明</p>
           <p>• 选择工具后点击地图放置物品</p>
           <p>• 拖动可以连续绘制墙壁和地板</p>
-          <p>• 红色角色不能通过红色机关</p>
-          <p>• 推箱子压在开关上打开机关</p>
+          <p>• 红色机关阻止所有角色和箱子</p>
+          <p>• 角色站到开关上打开机关</p>
           <p>• 试玩模式: WASD/方向键移动</p>
           <p>• Tab 切换红蓝角色</p>
           <p>• R 重置，Esc 退出试玩</p>

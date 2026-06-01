@@ -17,10 +17,13 @@ import {
   Users,
   Droplets,
   Flame,
+  Undo2,
 } from 'lucide-react';
 import {
   createDuoGameState,
   moveDuoPlayer,
+  undoDuoMove,
+  toggleSwitch,
 } from '@/lib/game/duo-engine';
 import type {
   DuoGameState,
@@ -137,9 +140,17 @@ export default function DuoGamePage() {
   const handleMove = useCallback(
     (direction: Direction) => {
       if (!gameState || completed) return;
+
+      let actualPlayer = selectedPlayer;
+      if (selectedPlayer === 'blue' && gameState.bluePlayer.isGone) {
+        actualPlayer = 'red';
+      } else if (selectedPlayer === 'red' && gameState.redPlayer.isGone) {
+        actualPlayer = 'blue';
+      }
+
       setGameState((prev) => {
         if (!prev) return prev;
-        const next = moveDuoPlayer(prev, selectedPlayer, direction);
+        const next = moveDuoPlayer(prev, actualPlayer, direction);
         if (next !== prev && next.isWin) {
           setCompleted(true);
         }
@@ -159,6 +170,25 @@ export default function DuoGamePage() {
     setSelectedPlayer('blue');
     startTimeRef.current = Date.now();
   }, [levelData]);
+
+  const handleUndo = useCallback(() => {
+    if (!gameState || completed) return;
+    setGameState((prev) => {
+      if (!prev) return prev;
+      return undoDuoMove(prev);
+    });
+  }, [gameState, completed]);
+
+  const handleSwitchClick = useCallback(
+    (switchX: number, switchY: number) => {
+      if (!gameState || completed) return;
+      setGameState((prev) => {
+        if (!prev) return prev;
+        return toggleSwitch(prev, switchX, switchY, selectedPlayer);
+      });
+    },
+    [gameState, completed, selectedPlayer],
+  );
 
   const handleExit = useCallback(() => {
     router.push('/levels');
@@ -220,7 +250,12 @@ export default function DuoGamePage() {
       <div className="relative z-10 max-w-6xl mx-auto">
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1 glass-card gradient-border p-4 md:p-6 relative" style={{ minHeight: 500, height: 'calc(100vh - 200px)', maxHeight: 700 }}>
-            <DuoGameCanvas gameState={gameState} levelData={levelData} />
+            <DuoGameCanvas
+              gameState={gameState}
+              levelData={levelData}
+              onSwitchClick={handleSwitchClick}
+              activePlayerColor={selectedPlayer}
+            />
 
             {completed && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm rounded-2xl z-20 p-4">
@@ -313,28 +348,42 @@ export default function DuoGamePage() {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setSelectedPlayer('blue')}
-                  className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${selectedPlayer === 'blue' ? 'bg-blue-500/30 border-2 border-blue-500' : 'bg-white/5 border-2 border-transparent hover:bg-white/10'}`}
+                  disabled={gameState.bluePlayer.isGone}
+                  className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${selectedPlayer === 'blue' ? 'bg-blue-500/30 border-2 border-blue-500' : 'bg-white/5 border-2 border-transparent hover:bg-white/10'} ${gameState.bluePlayer.isGone ? 'opacity-40' : ''}`}
                 >
                   <Droplets className="w-5 h-5 text-blue-400" />
-                  <span className="text-xs text-slate-300">蓝色</span>
-                  <span className="text-xs text-blue-300">
-                    {gameState.bluePlayer.stepsRemaining}/{gameState.bluePlayer.maxSteps}
-                  </span>
+                  <span className="text-xs text-slate-300">{gameState.bluePlayer.isGone ? '已通关' : '蓝色'}</span>
+                  {!gameState.bluePlayer.isGone && (
+                    <span className="text-xs text-blue-300">
+                      {gameState.bluePlayer.stepsRemaining}/{gameState.bluePlayer.maxSteps}
+                    </span>
+                  )}
                 </button>
                 <button
                   onClick={() => setSelectedPlayer('red')}
-                  className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${selectedPlayer === 'red' ? 'bg-red-500/30 border-2 border-red-500' : 'bg-white/5 border-2 border-transparent hover:bg-white/10'}`}
+                  disabled={gameState.redPlayer.isGone}
+                  className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${selectedPlayer === 'red' ? 'bg-red-500/30 border-2 border-red-500' : 'bg-white/5 border-2 border-transparent hover:bg-white/10'} ${gameState.redPlayer.isGone ? 'opacity-40' : ''}`}
                 >
                   <Flame className="w-5 h-5 text-red-400" />
-                  <span className="text-xs text-slate-300">红色</span>
-                  <span className="text-xs text-red-300">
-                    {gameState.redPlayer.stepsRemaining}/{gameState.redPlayer.maxSteps}
-                  </span>
+                  <span className="text-xs text-slate-300">{gameState.redPlayer.isGone ? '已通关' : '红色'}</span>
+                  {!gameState.redPlayer.isGone && (
+                    <span className="text-xs text-red-300">
+                      {gameState.redPlayer.stepsRemaining}/{gameState.redPlayer.maxSteps}
+                    </span>
+                  )}
                 </button>
               </div>
             </div>
 
             <div className="glass-card p-3 space-y-3">
+              <button
+                onClick={handleUndo}
+                disabled={completed || gameState.history.length === 0}
+                className="btn-secondary w-full inline-flex items-center justify-center gap-2"
+              >
+                <Undo2 className="w-4 h-4" />
+                撤销一步
+              </button>
               <button
                 onClick={handleReset}
                 disabled={completed}
@@ -356,9 +405,11 @@ export default function DuoGamePage() {
               <p className="text-slate-300 font-medium mb-2">操作说明</p>
               <p>点击上方按钮切换角色</p>
               <p>WASD 或 方向键：移动角色</p>
-              <p>走一格消耗一点，返回原点恢复</p>
-              <p>推箱子压开关打开红色机关</p>
-              <p>红蓝都到目标点才算通关</p>
+              <p>走一格消耗一点，原路返回恢复</p>
+              <p>角色走到开关旁边时可点击切换</p>
+              <p>角色到达目标点后消失</p>
+              <p>两个角色都消失即为通关</p>
+              <p>Z：撤销一步</p>
               <p>R：重置关卡</p>
               <p>Esc：退出关卡</p>
             </div>
@@ -366,7 +417,7 @@ export default function DuoGamePage() {
         </div>
       </div>
 
-      <Controls onMove={handleMove} onReset={handleReset} onExit={handleExit} />
+      <Controls onMove={handleMove} onReset={handleReset} onExit={handleExit} onUndo={handleUndo} />
     </main>
   );
 }
