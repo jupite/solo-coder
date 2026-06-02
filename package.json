@@ -2,7 +2,9 @@
   "name": "solo-coder",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@8.15.0",
   "scripts": {
+    "predev": "corepack enable && corepack prepare pnpm@8.15.0 --activate",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
