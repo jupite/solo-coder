@@ -12,7 +12,7 @@ import { Player } from './Player';
 import { RedPlayer } from './RedPlayer';
 import { Target } from './Target';
 import { RedGate } from './RedGate';
-import type { DuoGameState, DuoLevelData, Position } from '@/lib/game/types';
+import type { DuoGameState, DuoLevelData, OneWayBarrier, Position } from '@/lib/game/types';
 import * as THREE from 'three';
 
 interface DuoGameCanvasProps {
@@ -35,33 +35,31 @@ function CameraSetup({ centerX, centerZ, distance, zoom }: { centerX: number; ce
   return null;
 }
 
-function PathMarker({ position, color, index, total }: { position: Position; color: string; index: number; total: number }) {
-  const opacity = 0.25 + (index / total) * 0.35;
-  return (
-    <group position={[position.x, 0, position.y]}>
-      <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[0.9, 0.9]} />
-        <meshBasicMaterial color={color} transparent opacity={opacity} />
-      </mesh>
-      <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.35, 0.42, 24]} />
-        <meshBasicMaterial color={color} transparent opacity={opacity + 0.2} side={THREE.DoubleSide} />
-      </mesh>
-    </group>
-  );
-}
+function OneWayBarrierMarker({ barrier }: { barrier: OneWayBarrier }) {
+  const color = barrier.color === 'blue' ? '#60a5fa' : '#f87171';
+  const rotation = {
+    up: 0,
+    right: Math.PI / 2,
+    down: Math.PI,
+    left: -Math.PI / 2,
+  }[barrier.exitDirection];
 
-function VisitedMarker({ position, color }: { position: Position; color: string }) {
   return (
-    <group position={[position.x, 0, position.y]}>
+    <group position={[barrier.x, 0, barrier.y]}>
       <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[0.85, 0.85]} />
-        <meshBasicMaterial color={color} transparent opacity={0.1} />
+        <planeGeometry args={[0.88, 0.88]} />
+        <meshBasicMaterial color={color} transparent opacity={0.2} />
       </mesh>
       <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.15, 0.2, 16]} />
-        <meshBasicMaterial color={color} transparent opacity={0.25} side={THREE.DoubleSide} />
+        <ringGeometry args={[0.3, 0.38, 24]} />
+        <meshBasicMaterial color={color} transparent opacity={0.4} side={THREE.DoubleSide} />
       </mesh>
+      <group position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, rotation]}>
+        <mesh position={[0, 0, 0]} rotation={[0, 0, 0]}>
+          <coneGeometry args={[0.12, 0.2, 3]} />
+          <meshBasicMaterial color={color} transparent opacity={0.6} />
+        </mesh>
+      </group>
     </group>
   );
 }
@@ -195,20 +193,6 @@ function InnerCanvas({
     [onSwitchClick],
   );
 
-  const bluePath = gameState.bluePlayer.isGone ? [] : gameState.bluePlayer.path.slice(0, -1);
-  const redPath = gameState.redPlayer.isGone ? [] : gameState.redPlayer.path.slice(0, -1);
-
-  const blueVisitedOnly = gameState.bluePlayer.isGone
-    ? []
-    : gameState.bluePlayer.visited.filter(
-        (v) => !gameState.bluePlayer.path.some((p) => p.x === v.x && p.y === v.y),
-      );
-  const redVisitedOnly = gameState.redPlayer.isGone
-    ? []
-    : gameState.redPlayer.visited.filter(
-        (v) => !gameState.redPlayer.path.some((p) => p.x === v.x && p.y === v.y),
-      );
-
   return (
     <>
       <OrthographicCamera makeDefault near={0.1} far={500} />
@@ -232,18 +216,8 @@ function InnerCanvas({
       <Suspense fallback={null}>
         <Board grid={levelData.grid} />
 
-        {bluePath.map((pos, idx) => (
-          <PathMarker key={`blue-path-${idx}`} position={pos} color="#3b82f6" index={idx} total={bluePath.length || 1} />
-        ))}
-        {redPath.map((pos, idx) => (
-          <PathMarker key={`red-path-${idx}`} position={pos} color="#ef4444" index={idx} total={redPath.length || 1} />
-        ))}
-
-        {blueVisitedOnly.map((pos, idx) => (
-          <VisitedMarker key={`blue-visited-${idx}`} position={pos} color="#3b82f6" />
-        ))}
-        {redVisitedOnly.map((pos, idx) => (
-          <VisitedMarker key={`red-visited-${idx}`} position={pos} color="#ef4444" />
+        {gameState.oneWayBarriers.map((barrier, idx) => (
+          <OneWayBarrierMarker key={`barrier-${idx}`} barrier={barrier} />
         ))}
 
         {gameState.redGates.map((gate, idx) => (

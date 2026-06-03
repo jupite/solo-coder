@@ -48,6 +48,13 @@ export interface SwitchItem {
   gateId: string;
 }
 
+export interface OneWayBarrier {
+  x: number;
+  y: number;
+  color: PlayerColor;
+  exitDirection: Direction;
+}
+
 export interface DuoLevelData {
   grid: CellType[][];
   bluePlayer: Position;
@@ -66,7 +73,6 @@ export interface DuoPlayerState {
   stepsRemaining: number;
   maxSteps: number;
   path: Position[];
-  visited: Position[];
   isGone: boolean;
 }
 
@@ -79,6 +85,8 @@ export interface MoveHistoryEntry {
   switchesToggledOff: string[];
   wasGone: boolean;
   pathTruncated?: boolean;
+  barrierCreated?: OneWayBarrier;
+  barrierRemoved?: OneWayBarrier;
 }
 
 export interface DuoGameState {
@@ -89,6 +97,7 @@ export interface DuoGameState {
   targets: Position[];
   redGates: RedGate[];
   switches: SwitchItem[];
+  oneWayBarriers: OneWayBarrier[];
   activeSwitches: Set<string>;
   currentTurn: PlayerColor;
   steps: number;

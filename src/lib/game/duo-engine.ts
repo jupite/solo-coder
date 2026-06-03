@@ -5,6 +5,7 @@ import {
   DuoLevelData,
   DuoPlayerState,
   MoveHistoryEntry,
+  OneWayBarrier,
   PlayerColor,
   Position,
   RedGate,
@@ -36,7 +37,6 @@ export function createDuoGameState(level: DuoLevelData): DuoGameState {
     stepsRemaining: level.blueMaxSteps,
     maxSteps: level.blueMaxSteps,
     path: [{ ...level.bluePlayer }],
-    visited: [{ ...level.bluePlayer }],
     isGone: false,
   };
 
@@ -46,7 +46,6 @@ export function createDuoGameState(level: DuoLevelData): DuoGameState {
     stepsRemaining: level.redMaxSteps,
     maxSteps: level.redMaxSteps,
     path: [{ ...level.redPlayer }],
-    visited: [{ ...level.redPlayer }],
     isGone: false,
   };
 
@@ -58,6 +57,7 @@ export function createDuoGameState(level: DuoLevelData): DuoGameState {
     targets: level.targets.map((t) => ({ ...t })),
     redGates: level.redGates.map((g) => ({ ...g })),
     switches: level.switches.map((s) => ({ ...s })),
+    oneWayBarriers: [],
     activeSwitches: new Set<string>(),
     currentTurn: 'blue',
     steps: 0,
@@ -113,8 +113,34 @@ function isPositionInPath(path: Position[], x: number, y: number): boolean {
   return path.some((p) => p.x === x && p.y === y);
 }
 
-function isPositionVisited(visited: Position[], x: number, y: number): boolean {
-  return visited.some((p) => p.x === x && p.y === y);
+function getOppositeDirection(dir: Direction): Direction {
+  switch (dir) {
+    case 'up': return 'down';
+    case 'down': return 'up';
+    case 'left': return 'right';
+    case 'right': return 'left';
+  }
+}
+
+function findBarrierAt(
+  barriers: OneWayBarrier[],
+  x: number,
+  y: number,
+): OneWayBarrier | undefined {
+  return barriers.find((b) => b.x === x && b.y === y);
+}
+
+function canEnterCell(
+  barriers: OneWayBarrier[],
+  x: number,
+  y: number,
+  enterFrom: Direction,
+  playerColor: PlayerColor,
+): boolean {
+  const barrier = findBarrierAt(barriers, x, y);
+  if (!barrier) return true;
+  if (barrier.color !== playerColor) return false;
+  return barrier.exitDirection === enterFrom;
 }
 
 function isAdjacentToSwitch(
@@ -177,7 +203,6 @@ export function moveDuoPlayer(
   const otherPlayer = color === 'blue' ? state.redPlayer : state.bluePlayer;
 
   if (player.isGone) return state;
-  if (player.stepsRemaining <= 0) return state;
 
   const dir = DIRS[direction];
   const nx = player.position.x + dir.x;
@@ -197,6 +222,11 @@ export function moveDuoPlayer(
     return state;
   }
 
+  const enterFrom = getOppositeDirection(direction);
+  if (!canEnterCell(state.oneWayBarriers, nx, ny, enterFrom, color)) {
+    return state;
+  }
+
   const target = state.targets[0];
   const reachedTarget = target && nx === target.x && ny === target.y;
 
@@ -205,7 +235,10 @@ export function moveDuoPlayer(
     player.path[player.path.length - 2].x === nx &&
     player.path[player.path.length - 2].y === ny;
 
-  if (!isBacktracking && !reachedTarget && isPositionVisited(player.visited, nx, ny)) {
+  const playerBarriers = state.oneWayBarriers.filter((b) => b.color === color);
+  const canCreateNewBarrier = player.stepsRemaining > 0;
+
+  if (!isBacktracking && !reachedTarget && !canCreateNewBarrier) {
     return state;
   }
 
@@ -232,18 +265,37 @@ export function moveDuoPlayer(
 
   let newStepsRemaining = player.stepsRemaining;
   let newPath: Position[];
-  let newVisited: Position[];
   let pathTruncated = false;
+  let newBarriers = [...state.oneWayBarriers];
+  let barrierCreated: OneWayBarrier | undefined;
+  let barrierRemoved: OneWayBarrier | undefined;
 
   if (isBacktracking) {
     newStepsRemaining = Math.min(player.maxSteps, player.stepsRemaining + 1);
     newPath = player.path.slice(0, -1);
-    newVisited = player.visited;
     pathTruncated = true;
+
+    const barrierToRemove = findBarrierAt(newBarriers, nx, ny);
+    if (barrierToRemove) {
+      newBarriers = newBarriers.filter(
+        (b) => !(b.x === barrierToRemove.x && b.y === barrierToRemove.y),
+      );
+      barrierRemoved = barrierToRemove;
+    }
   } else {
     newStepsRemaining = player.stepsRemaining - 1;
     newPath = [...player.path, { x: nx, y: ny }];
-    newVisited = [...player.visited, { x: nx, y: ny }];
+
+    if (!reachedTarget) {
+      const newBarrier: OneWayBarrier = {
+        x: player.position.x,
+        y: player.position.y,
+        color,
+        exitDirection: direction,
+      };
+      newBarriers = [...newBarriers, newBarrier];
+      barrierCreated = newBarrier;
+    }
   }
 
   const newPlayer: DuoPlayerState = {
@@ -251,7 +303,6 @@ export function moveDuoPlayer(
     position: { x: nx, y: ny },
     stepsRemaining: newStepsRemaining,
     path: newPath,
-    visited: newVisited,
     isGone: reachedTarget,
   };
 
@@ -264,6 +315,8 @@ export function moveDuoPlayer(
     switchesToggledOff: [],
     wasGone: player.isGone,
     pathTruncated,
+    barrierCreated,
+    barrierRemoved,
   };
 
   const newState: DuoGameState = {
@@ -271,6 +324,7 @@ export function moveDuoPlayer(
     bluePlayer: color === 'blue' ? newPlayer : state.bluePlayer,
     redPlayer: color === 'red' ? newPlayer : state.redPlayer,
     boxes: newBoxes,
+    oneWayBarriers: newBarriers,
     currentTurn: color === 'blue' ? 'red' : 'blue',
     steps: state.steps + 1,
     isWin: false,
@@ -298,16 +352,21 @@ export function undoDuoMove(state: DuoGameState): DuoGameState {
     ? Math.max(0, player.stepsRemaining - 1)
     : Math.min(player.maxSteps, player.stepsRemaining + 1);
 
-  const newVisited = lastMove.pathTruncated
-    ? player.visited
-    : player.visited.slice(0, -1);
+  let newBarriers = [...state.oneWayBarriers];
+  if (lastMove.barrierCreated) {
+    newBarriers = newBarriers.filter(
+      (b) => !(b.x === lastMove.barrierCreated!.x && b.y === lastMove.barrierCreated!.y),
+    );
+  }
+  if (lastMove.barrierRemoved) {
+    newBarriers = [...newBarriers, lastMove.barrierRemoved];
+  }
 
   const newPlayer: DuoPlayerState = {
     ...player,
     position: { ...lastMove.from },
     stepsRemaining: newStepsRemaining,
     path: newPath,
-    visited: newVisited,
     isGone: lastMove.wasGone,
   };
 
@@ -334,6 +393,7 @@ export function undoDuoMove(state: DuoGameState): DuoGameState {
     bluePlayer: color === 'blue' ? newPlayer : state.bluePlayer,
     redPlayer: color === 'red' ? newPlayer : state.redPlayer,
     boxes: newBoxes,
+    oneWayBarriers: newBarriers,
     activeSwitches: newActiveSwitches,
     currentTurn: otherColor,
     steps: state.steps - 1,
