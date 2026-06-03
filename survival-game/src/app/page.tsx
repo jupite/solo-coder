@@ -6,6 +6,7 @@ import { StatusBar } from '@/components/ui/StatusBar'
 import { InventoryBar } from '@/components/ui/InventoryBar'
 import { MapButton, MapOverlay } from '@/components/ui/MapButton'
 import { ControlsHint } from '@/components/ui/ControlsHint'
+import { MessageDisplay } from '@/components/ui/MessageDisplay'
 
 const GameScene = dynamic(() => import('@/components/game/GameScene').then((mod) => mod.GameScene), {
   ssr: false,
@@ -32,6 +33,7 @@ export default function Home() {
         <div className="pointer-events-auto">
           <MapButton />
         </div>
+        <MessageDisplay />
       </div>
       
       <MapOverlay />

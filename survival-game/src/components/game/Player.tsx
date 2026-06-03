@@ -7,6 +7,7 @@ import { useGameStore } from '@/store/gameStore'
 
 const MOVE_SPEED = 0.15
 const MAP_SIZE = 100
+const INTERACTION_RANGE = 3
 
 export function Player() {
   const meshRef = useRef<THREE.Group>(null)
@@ -18,48 +19,55 @@ export function Player() {
   const {
     playerPosition,
     setPlayerPosition,
-    damageResource,
+    gatherResource,
+    attack,
     resources,
     equippedTool,
+    showMessage,
   } = useGameStore()
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      keys.current.add(e.key.toLowerCase())
+      const key = e.key.toLowerCase()
+      keys.current.add(key)
       
-      if (e.key.toLowerCase() === 'f' && !isAttacking) {
+      if (key === 'f' && !isAttacking) {
+        e.preventDefault()
         setIsAttacking(true)
+        attack()
         setTimeout(() => setIsAttacking(false), 300)
-        
-        const damage = equippedTool === 'axe' || equippedTool === 'pickaxe' ? 15 : 5
-        resources.forEach((resource) => {
-          const dist = Math.sqrt(
-            Math.pow(resource.position[0] - playerPosition[0], 2) +
-            Math.pow(resource.position[2] - playerPosition[2], 2)
-          )
-          if (dist < 3) {
-            damageResource(resource.id, damage)
-          }
-        })
+        showMessage('⚔️ 攻击！', 'info')
       }
       
       if (e.key === ' ' && !isGathering) {
         e.preventDefault()
         setIsGathering(true)
-        setTimeout(() => setIsGathering(false), 500)
         
-        resources.forEach((resource) => {
+        let nearestId: string | null = null
+        let nearestDist = Infinity
+        
+        for (const resource of resources) {
           const dist = Math.sqrt(
             Math.pow(resource.position[0] - playerPosition[0], 2) +
             Math.pow(resource.position[2] - playerPosition[2], 2)
           )
-          if (dist < 3) {
-            damageResource(resource.id, 10)
+          if (dist < INTERACTION_RANGE && dist < nearestDist) {
+            nearestId = resource.id
+            nearestDist = dist
           }
-        })
+        }
+
+        if (nearestId) {
+          const result = gatherResource(nearestId, equippedTool)
+          showMessage(result.message, result.success ? 'success' : 'error')
+        } else {
+          showMessage('❌ 附近没有可采集的资源', 'error')
+        }
+        
+        setTimeout(() => setIsGathering(false), 500)
       }
       
-      if (e.key.toLowerCase() === 'm') {
+      if (key === 'm') {
         useGameStore.getState().toggleMap()
       }
     }
@@ -75,7 +83,7 @@ export function Player() {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [isAttacking, isGathering, damageResource, resources, playerPosition, equippedTool])
+  }, [isAttacking, isGathering, gatherResource, attack, resources, playerPosition, equippedTool, showMessage])
 
   useFrame(() => {
     if (!meshRef.current) return
@@ -98,7 +106,7 @@ export function Player() {
 
     meshRef.current.position.set(newX, 1, newZ)
 
-    camera.position.set(newX - 10, 12, newZ + 10)
+    camera.position.set(newX - 12, 14, newZ + 12)
     camera.lookAt(newX, 0, newZ)
   })
 
@@ -123,37 +131,78 @@ export function Player() {
       </mesh>
       
       {equippedTool && (
-        <mesh
-          position={[0.6, 0.7, isAttacking ? -0.3 : 0.3]}
-          rotation={[isAttacking ? -Math.PI / 3 : 0, 0, Math.PI / 6]}
+        <group
+          position={[0.6, 0.7, isGathering ? -0.3 : 0.3]}
+          rotation={[isGathering ? -Math.PI / 3 : 0, 0, Math.PI / 6]}
         >
           {equippedTool === 'axe' && (
             <>
-              <boxGeometry args={[0.08, 0.08, 0.6]} />
-              <meshStandardMaterial color="#8b4513" />
+              <mesh position={[0, 0, -0.1]}>
+                <boxGeometry args={[0.08, 0.08, 0.5]} />
+                <meshStandardMaterial color="#8b4513" />
+              </mesh>
+              <mesh position={[0, 0.1, -0.35]}>
+                <boxGeometry args={[0.25, 0.15, 0.05]} />
+                <meshStandardMaterial color="#708090" metalness={0.8} />
+              </mesh>
             </>
           )}
           {equippedTool === 'pickaxe' && (
             <>
-              <boxGeometry args={[0.08, 0.08, 0.6]} />
-              <meshStandardMaterial color="#8b4513" />
+              <mesh position={[0, 0, -0.1]}>
+                <boxGeometry args={[0.08, 0.08, 0.5]} />
+                <meshStandardMaterial color="#8b4513" />
+              </mesh>
+              <mesh position={[0, 0.12, -0.35]} rotation={[0, 0, Math.PI / 2]}>
+                <boxGeometry args={[0.3, 0.08, 0.05]} />
+                <meshStandardMaterial color="#708090" metalness={0.8} />
+              </mesh>
             </>
           )}
           {equippedTool === 'torch' && (
             <>
-              <cylinderGeometry args={[0.03, 0.03, 0.4]} />
-              <meshStandardMaterial color="#8b4513" />
+              <mesh position={[0, 0, -0.1]}>
+                <cylinderGeometry args={[0.03, 0.03, 0.5]} />
+                <meshStandardMaterial color="#8b4513" />
+              </mesh>
+              <mesh position={[0, 0.35, -0.3]}>
+                <sphereGeometry args={[0.1, 8, 8]} />
+                <meshBasicMaterial color="#ff6600" transparent opacity={0.8} />
+              </mesh>
+              <pointLight position={[0, 0.35, -0.3]} color="#ff6600" intensity={1} distance={8} />
             </>
           )}
-        </mesh>
+        </group>
       )}
       
       {isGathering && (
-        <mesh position={[0, 2, 0]}>
+        <mesh position={[0, 2.5, 0]}>
           <sphereGeometry args={[0.3, 8, 8]} />
-          <meshBasicMaterial color="yellow" transparent opacity={0.5} />
+          <meshBasicMaterial color="yellow" transparent opacity={0.6} />
         </mesh>
       )}
+
+      {resources.map((resource) => {
+        const dist = Math.sqrt(
+          Math.pow(resource.position[0] - playerPosition[0], 2) +
+          Math.pow(resource.position[2] - playerPosition[2], 2)
+        )
+        if (dist >= INTERACTION_RANGE) return null
+        
+        return (
+          <mesh
+            key={`indicator-${resource.id}`}
+            position={[
+              resource.position[0],
+              resource.type === 'wood' ? 6 : resource.type === 'stone' ? 1.5 : 0.8,
+              resource.position[2],
+            ]}
+          >
+            <sphereGeometry args={[0.15, 8, 8]} />
+            <meshBasicMaterial color="#00ff00" transparent opacity={0.8} />
+          </mesh>
+        )
+      })}
     </group>
   )
 }

@@ -1,57 +1,35 @@
 'use client'
 
-import { useGameStore, ResourceType, ToolType } from '@/store/gameStore'
-
-const ITEM_ICONS: Record<string, string> = {
-  wood: '🪵',
-  stone: '🪨',
-  flint: '🔥',
-  twig: '🌿',
-  grass: '🌱',
-  axe: '🪓',
-  pickaxe: '⛏️',
-  torch: '🔦',
-  campfire: '🔥',
-}
-
-const ITEM_NAMES: Record<string, string> = {
-  wood: '木材',
-  stone: '石头',
-  flint: '燧石',
-  twig: '树枝',
-  grass: '草',
-  axe: '斧头',
-  pickaxe: '稿子',
-  torch: '火把',
-  campfire: '火堆',
-}
+import { useGameStore, ResourceType, ToolType, ITEM_ICONS } from '@/store/gameStore'
 
 export function InventoryBar() {
   const { inventory, equippedTool, setEquippedTool } = useGameStore()
 
   const slots = Array.from({ length: 8 }, (_, i) => inventory[i] || null)
 
+  const isTool = (type: string) => ['axe', 'pickaxe', 'torch', 'campfire'].includes(type)
+
   return (
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
       {slots.map((slot, index) => (
         <div
           key={index}
-          className={`w-14 h-14 bg-gray-900/80 rounded-lg flex items-center justify-center relative border-2 ${
+          className={`w-16 h-16 bg-gray-900/80 rounded-lg flex items-center justify-center relative border-2 transition-all ${
             slot && equippedTool === slot.type
-              ? 'border-green-500'
-              : 'border-gray-700'
+              ? 'border-green-500 bg-green-900/30'
+              : 'border-gray-700 hover:border-gray-500'
           }`}
         >
           {slot && (
             <>
               <button
                 onClick={() => {
-                  if (['axe', 'pickaxe', 'torch', 'campfire'].includes(slot.type)) {
+                  if (isTool(slot.type)) {
                     setEquippedTool(equippedTool === slot.type ? null : slot.type as ToolType)
                   }
                 }}
-                className="text-2xl hover:scale-110 transition-transform"
-                title={ITEM_NAMES[slot.type] || slot.type}
+                className="text-3xl hover:scale-110 transition-transform"
+                title={isTool(slot.type) ? '点击装备/卸下' : ''}
               >
                 {ITEM_ICONS[slot.type] || '📦'}
               </button>
@@ -60,7 +38,7 @@ export function InventoryBar() {
               </span>
             </>
           )}
-          <span className="absolute top-0.5 left-1.5 text-xs text-gray-500">
+          <span className="absolute top-0.5 left-1.5 text-xs text-gray-500 font-mono">
             {index + 1}
           </span>
         </div>
