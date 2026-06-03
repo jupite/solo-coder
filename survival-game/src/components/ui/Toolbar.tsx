@@ -131,9 +131,9 @@ export function Toolbar() {
       <div className="mt-3 p-2 bg-blue-900/30 rounded border border-blue-700/50">
         <div className="text-xs text-blue-300">
           <div className="font-semibold mb-1">💡 采集指南：</div>
-          <div>• 基础资源（燧石、树枝、草）：可直接用手采集</div>
-          <div>• 木材：需要装备斧头</div>
-          <div>• 石头：需要装备稿子</div>
+          <div>• 燧石、树枝、草 → 徒手采集</div>
+          <div>• 木材 → 装备斧头</div>
+          <div>• 石头 → 装备稿子</div>
         </div>
       </div>
     </div>

@@ -56,10 +56,10 @@ export interface GameState {
 }
 
 export const RECIPES: Record<ToolType, Partial<Record<ResourceType, number>>> = {
-  axe: { twig: 3, flint: 2, grass: 1 },
-  pickaxe: { twig: 2, stone: 3, flint: 1 },
-  torch: { twig: 3, grass: 2 },
-  campfire: { wood: 3, stone: 2, twig: 2 },
+  axe: { twig: 4, flint: 3, grass: 2 },
+  pickaxe: { twig: 3, flint: 4, grass: 2 },
+  torch: { twig: 3, grass: 2, flint: 1 },
+  campfire: { wood: 4, twig: 3, grass: 2, flint: 2 },
 }
 
 export const TOOL_NAMES: Record<ToolType, string> = {
