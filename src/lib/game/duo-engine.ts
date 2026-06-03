@@ -227,8 +227,7 @@ export function moveDuoPlayer(
     return state;
   }
 
-  const target = state.targets[0];
-  const reachedTarget = target && nx === target.x && ny === target.y;
+  const reachedTarget = state.targets.some((t) => nx === t.x && ny === t.y);
 
   const isBacktracking =
     player.path.length >= 2 &&

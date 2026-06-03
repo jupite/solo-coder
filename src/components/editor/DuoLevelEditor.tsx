@@ -100,23 +100,33 @@ function DuoEditorWallTile({ col, row, onClick, onDragOver }: { col: number; row
 
 function DuoEditorTargetTile({ col, row, onClick, onDragOver }: { col: number; row: number; onClick: () => void; onDragOver: () => void }) {
   return (
-    <group position={[col, 0, row]}>
-      <mesh
-        onClick={(e) => { e.stopPropagation(); onClick(); }}
-        onPointerOver={(e) => { if (e.buttons === 1) { e.stopPropagation(); onDragOver(); } }}
-        receiveShadow
-      >
+    <group position={[col, 0, row]} onClick={(e) => { e.stopPropagation(); onClick(); }} onPointerOver={(e) => { if (e.buttons === 1) { e.stopPropagation(); onDragOver(); } }}>
+      <mesh position={[0, 0.04, 0]} receiveShadow>
         <boxGeometry args={[0.92, 0.08, 0.92]} />
         <meshStandardMaterial color="#3a2a0a" metalness={0.3} roughness={0.6} />
       </mesh>
-      <mesh position={[0, 0.06, 0]}>
-        <boxGeometry args={[0.7, 0.06, 0.7]} />
+      <mesh position={[0, 0.14, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.28, 0.42, 32]} />
         <meshStandardMaterial
           color="#fbbf24"
           emissive="#f59e0b"
-          emissiveIntensity={0.8}
-          metalness={0.5}
+          emissiveIntensity={1.0}
+          metalness={0.6}
           roughness={0.3}
+          toneMapped={false}
+          side={2}
+          transparent
+          opacity={0.95}
+        />
+      </mesh>
+      <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.22, 32]} />
+        <meshStandardMaterial
+          color="#fde68a"
+          emissive="#fbbf24"
+          emissiveIntensity={0.5}
+          transparent
+          opacity={0.6}
           toneMapped={false}
         />
       </mesh>
@@ -168,7 +178,37 @@ function DuoEditorRedPlayer({ position }: { position: Position }) {
   );
 }
 
-function DuoEditorRedGate({ position }: { position: Position }) {
+function DuoEditorRedGate({ position, isOpen }: { position: Position; isOpen?: boolean }) {
+  if (isOpen) {
+    return (
+      <group position={[position.x, 0, position.y]}>
+        <mesh position={[0, 0.04, 0]} receiveShadow>
+          <boxGeometry args={[0.92, 0.08, 0.92]} />
+          <meshStandardMaterial
+            color="#1e3a5f"
+            metalness={0.2}
+            roughness={0.8}
+            emissive="#0b1f3a"
+            emissiveIntensity={0.3}
+            transparent
+            opacity={0.6}
+          />
+        </mesh>
+        <mesh position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.3, 0.42, 32]} />
+          <meshStandardMaterial
+            color="#fca5a5"
+            emissive="#ef4444"
+            emissiveIntensity={0.3}
+            transparent
+            opacity={0.4}
+            toneMapped={false}
+          />
+        </mesh>
+      </group>
+    );
+  }
+
   return (
     <group position={[position.x, 0, position.y]}>
       <RoundedBox
@@ -189,21 +229,56 @@ function DuoEditorRedGate({ position }: { position: Position }) {
   );
 }
 
-function DuoEditorSwitch({ position }: { position: Position }) {
+function DuoEditorSwitch({
+  position,
+  isActive,
+  isClickable,
+  onClick,
+}: {
+  position: Position;
+  isActive?: boolean;
+  isClickable?: boolean;
+  onClick?: () => void;
+}) {
+  const handleClick = (e: any) => {
+    e.stopPropagation();
+    if (isClickable && onClick) {
+      onClick();
+    }
+  };
+
   return (
-    <group position={[position.x, 0, position.y]}>
+    <group position={[position.x, 0, position.y]} onClick={handleClick}>
       <mesh position={[0, 0.04, 0]} receiveShadow>
         <boxGeometry args={[0.92, 0.08, 0.92]} />
         <meshStandardMaterial color="#3a2a0a" metalness={0.3} roughness={0.6} />
       </mesh>
       <mesh position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.32, 32]} />
-        <meshStandardMaterial color="#64748b" emissive="#475569" emissiveIntensity={0.4} metalness={0.6} roughness={0.3} toneMapped={false} />
+        <circleGeometry args={[0.35, 32]} />
+        <meshStandardMaterial
+          color={isClickable ? (isActive ? '#22c55e' : '#eab308') : (isActive ? '#64748b' : '#475569')}
+          emissive={isClickable ? (isActive ? '#22c55e' : '#eab308') : '#1e293b'}
+          emissiveIntensity={isClickable ? 0.8 : 0.3}
+          metalness={0.6}
+          roughness={0.3}
+          toneMapped={false}
+        />
       </mesh>
       <mesh position={[0, 0.12, 0]}>
         <boxGeometry args={[0.28, 0.04, 0.06]} />
-        <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.6} toneMapped={false} />
+        <meshStandardMaterial
+          color={isActive ? '#22c55e' : '#ef4444'}
+          emissive={isActive ? '#22c55e' : '#ef4444'}
+          emissiveIntensity={0.6}
+          toneMapped={false}
+        />
       </mesh>
+      {isClickable && (
+        <mesh position={[0, 0.06, 0]}>
+          <ringGeometry args={[0.38, 0.42, 32]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.8} side={2} />
+        </mesh>
+      )}
     </group>
   );
 }
@@ -243,24 +318,36 @@ function DuoEditorGrid({
   targets,
   bluePlayer,
   redPlayer,
+  bluePlayerGone,
+  redPlayerGone,
   redGates,
   switches,
+  activeSwitches,
+  activePlayerColor,
   oneWayBarriers,
   selectedArea,
   onCellClick,
   onCellDrag,
+  onSwitchClick,
+  isPlaying,
 }: {
   grid: CellType[][];
   boxes: Position[];
   targets: Position[];
   bluePlayer: Position | null;
   redPlayer: Position | null;
+  bluePlayerGone?: boolean;
+  redPlayerGone?: boolean;
   redGates: RedGate[];
   switches: SwitchItem[];
+  activeSwitches?: Set<string>;
+  activePlayerColor?: PlayerColor;
   oneWayBarriers?: OneWayBarrier[];
   selectedArea: { startX: number; startY: number; endX: number; endY: number } | null;
   onCellClick: (x: number, y: number) => void;
   onCellDrag: (x: number, y: number) => void;
+  onSwitchClick?: (x: number, y: number) => void;
+  isPlaying?: boolean;
 }) {
   const rows = grid.length;
   const cols = grid[0]?.length ?? 0;
@@ -277,6 +364,26 @@ function DuoEditorGrid({
     const minY = Math.min(selectedArea.startY, selectedArea.endY);
     const maxY = Math.max(selectedArea.startY, selectedArea.endY);
     return x >= minX && x <= maxX && y >= minY && y <= maxY;
+  };
+
+  const isSwitchActive = (sw: SwitchItem) => {
+    if (!activeSwitches) return false;
+    return activeSwitches.has(sw.gateId);
+  };
+
+  const isGateOpen = (gate: RedGate) => {
+    if (!activeSwitches) return false;
+    return activeSwitches.has(gate.switchId);
+  };
+
+  const isSwitchClickable = (sw: SwitchItem) => {
+    if (!isPlaying || !activePlayerColor) return false;
+    const player = activePlayerColor === 'blue' ? bluePlayer : redPlayer;
+    const playerGone = activePlayerColor === 'blue' ? bluePlayerGone : redPlayerGone;
+    if (!player || playerGone) return false;
+    const dx = Math.abs(player.x - sw.x);
+    const dy = Math.abs(player.y - sw.y);
+    return (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
   };
 
   return (
@@ -313,11 +420,17 @@ function DuoEditorGrid({
       )}
 
       {redGates.map((gate, idx) => (
-        <DuoEditorRedGate key={`gate-${idx}`} position={{ x: gate.x, y: gate.y }} />
+        <DuoEditorRedGate key={`gate-${idx}`} position={{ x: gate.x, y: gate.y }} isOpen={isGateOpen(gate)} />
       ))}
 
       {switches.map((sw, idx) => (
-        <DuoEditorSwitch key={`sw-${idx}`} position={{ x: sw.x, y: sw.y }} />
+        <DuoEditorSwitch
+          key={`sw-${idx}`}
+          position={{ x: sw.x, y: sw.y }}
+          isActive={isSwitchActive(sw)}
+          isClickable={isSwitchClickable(sw)}
+          onClick={() => onSwitchClick?.(sw.x, sw.y)}
+        />
       ))}
 
       {oneWayBarriers?.map((barrier, idx) => (
@@ -329,8 +442,8 @@ function DuoEditorGrid({
         return <DuoEditorBox key={`box-${idx}`} position={pos} isOnTarget={isOnTarget} />;
       })}
 
-      {bluePlayer && <DuoEditorBluePlayer position={bluePlayer} />}
-      {redPlayer && <DuoEditorRedPlayer position={redPlayer} />}
+      {bluePlayer && !bluePlayerGone && <DuoEditorBluePlayer position={bluePlayer} />}
+      {redPlayer && !redPlayerGone && <DuoEditorRedPlayer position={redPlayer} />}
 
       <EffectComposer>
         <Bloom intensity={0.5} luminanceThreshold={0.2} luminanceSmoothing={0.9} mipmapBlur />
@@ -362,6 +475,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
   const [hasCompletedPlaythrough, setHasCompletedPlaythrough] = useState(false);
   const [loadingLevel, setLoadingLevel] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const nextPairIdRef = useRef(0);
 
   useEffect(() => {
     if (!editingLevelId) return;
@@ -396,6 +510,17 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
           setLevelName(lv.name);
           setGridSize({ width: parsedGrid[0]?.length ?? 0, height: parsedGrid.length });
           setHasCompletedPlaythrough(lv.verified);
+
+          let maxId = 0;
+          parsedRedGates.forEach((g: RedGate) => {
+            const match = g.switchId.match(/pair-(\d+)/);
+            if (match) maxId = Math.max(maxId, parseInt(match[1]) + 1);
+          });
+          parsedSwitches.forEach((s: SwitchItem) => {
+            const match = s.gateId.match(/pair-(\d+)/);
+            if (match) maxId = Math.max(maxId, parseInt(match[1]) + 1);
+          });
+          nextPairIdRef.current = maxId;
         }
       } catch (err) {
         setMessage(err instanceof Error ? err.message : '加载失败');
@@ -492,7 +617,8 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
       if (redGates.some((g) => g.x === x && g.y === y)) {
         setRedGates(redGates.filter((g) => !(g.x === x && g.y === y)));
       } else {
-        setRedGates([...redGates, { x, y, switchId: `sw-${redGates.length}` }]);
+        const pairId = `pair-${nextPairIdRef.current++}`;
+        setRedGates([...redGates, { x, y, switchId: pairId }]);
       }
       setHasCompletedPlaythrough(false);
       return;
@@ -502,7 +628,9 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
       if (switches.some((s) => s.x === x && s.y === y)) {
         setSwitches(switches.filter((s) => !(s.x === x && s.y === y)));
       } else {
-        setSwitches([...switches, { x, y, gateId: `sw-${switches.length}` }]);
+        const lastGate = redGates[redGates.length - 1];
+        const gateId = lastGate ? lastGate.switchId : `pair-${nextPairIdRef.current++}`;
+        setSwitches([...switches, { x, y, gateId }]);
       }
       setHasCompletedPlaythrough(false);
       return;
@@ -579,11 +707,28 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
     setGameState(null);
   }, []);
 
+  useEffect(() => {
+    if (!gameState?.isWin || !isPlaying) return;
+    const timer = setTimeout(() => {
+      setIsPlaying(false);
+      setGameState(null);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [gameState?.isWin, isPlaying]);
+
   const handleMove = useCallback((direction: Direction) => {
     if (!gameState || !isPlaying) return;
+
+    let actualPlayer = activePlayer;
+    if (activePlayer === 'blue' && gameState.bluePlayer.isGone) {
+      actualPlayer = 'red';
+    } else if (activePlayer === 'red' && gameState.redPlayer.isGone) {
+      actualPlayer = 'blue';
+    }
+
     setGameState((prev) => {
       if (!prev) return prev;
-      const next = moveDuoPlayer(prev, activePlayer, direction);
+      const next = moveDuoPlayer(prev, actualPlayer, direction);
       if (next.isWin) {
         setMessage('恭喜！双人关卡完成！已验证可通关。');
         setHasCompletedPlaythrough(true);
@@ -594,7 +739,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
   }, [gameState, isPlaying, activePlayer]);
 
   const handleResetPlay = useCallback(() => {
-    if (!bluePlayer || !redPlayer || boxes.length === 0 || targets.length === 0) return;
+    if (!bluePlayer || !redPlayer || targets.length === 0) return;
     const levelData: DuoLevelData = {
       grid: grid.map((row) => [...row]),
       bluePlayer: { ...bluePlayer },
@@ -711,9 +856,28 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
   const displayTargets = isPlaying && gameState ? gameState.targets : targets;
   const displayBlue = isPlaying && gameState ? gameState.bluePlayer.position : bluePlayer;
   const displayRed = isPlaying && gameState ? gameState.redPlayer.position : redPlayer;
+  const displayBlueGone = isPlaying && gameState ? gameState.bluePlayer.isGone : false;
+  const displayRedGone = isPlaying && gameState ? gameState.redPlayer.isGone : false;
   const displayRedGates = isPlaying && gameState ? gameState.redGates : redGates;
   const displaySwitches = isPlaying && gameState ? gameState.switches : switches;
+  const displayActiveSwitches = isPlaying && gameState ? gameState.activeSwitches : new Set<string>();
   const displayBarriers = isPlaying && gameState ? gameState.oneWayBarriers : [];
+
+  const handleSwitchClick = useCallback((swX: number, swY: number) => {
+    if (!gameState || !isPlaying) return;
+
+    let actualPlayer = activePlayer;
+    if (activePlayer === 'blue' && gameState.bluePlayer.isGone) {
+      actualPlayer = 'red';
+    } else if (activePlayer === 'red' && gameState.redPlayer.isGone) {
+      actualPlayer = 'blue';
+    }
+
+    setGameState((prev) => {
+      if (!prev) return prev;
+      return toggleSwitch(prev, swX, swY, actualPlayer);
+    });
+  }, [gameState, isPlaying, activePlayer]);
 
   return (
     <div ref={containerRef} className="flex flex-col lg:flex-row h-full gap-4">
@@ -784,12 +948,18 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
             targets={displayTargets}
             bluePlayer={displayBlue}
             redPlayer={displayRed}
+            bluePlayerGone={displayBlueGone}
+            redPlayerGone={displayRedGone}
             redGates={displayRedGates}
             switches={displaySwitches}
+            activeSwitches={displayActiveSwitches}
+            activePlayerColor={activePlayer}
             oneWayBarriers={displayBarriers}
             selectedArea={null}
             onCellClick={handleCellClick}
             onCellDrag={handleCellDrag}
+            onSwitchClick={handleSwitchClick}
+            isPlaying={isPlaying}
           />
 
           {isPlaying && (

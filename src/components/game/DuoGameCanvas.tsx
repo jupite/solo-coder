@@ -252,11 +252,11 @@ function InnerCanvas({
           <RedPlayer position={gameState.redPlayer.position} direction="down" />
         )}
 
-        {gameState.bluePlayer.isGone && gameState.targets[0] && (
-          <DisappearEffect position={gameState.targets[0]} color="#3b82f6" />
+        {gameState.bluePlayer.isGone && (
+          <DisappearEffect position={gameState.bluePlayer.position} color="#3b82f6" />
         )}
-        {gameState.redPlayer.isGone && gameState.targets[0] && (
-          <DisappearEffect position={gameState.targets[0]} color="#ef4444" />
+        {gameState.redPlayer.isGone && (
+          <DisappearEffect position={gameState.redPlayer.position} color="#ef4444" />
         )}
 
         <StepsDisplay
