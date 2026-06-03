@@ -51,6 +51,21 @@ function PathMarker({ position, color, index, total }: { position: Position; col
   );
 }
 
+function VisitedMarker({ position, color }: { position: Position; color: string }) {
+  return (
+    <group position={[position.x, 0, position.y]}>
+      <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[0.85, 0.85]} />
+        <meshBasicMaterial color={color} transparent opacity={0.1} />
+      </mesh>
+      <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.15, 0.2, 16]} />
+        <meshBasicMaterial color={color} transparent opacity={0.25} side={THREE.DoubleSide} />
+      </mesh>
+    </group>
+  );
+}
+
 function StepsDisplay({ position, steps, maxSteps, color, isGone }: { position: Position; steps: number; maxSteps: number; color: string; isGone: boolean }) {
   if (isGone) return null;
   const textColor = steps <= 3 ? '#ef4444' : steps <= maxSteps * 0.3 ? '#f59e0b' : color;
@@ -183,6 +198,17 @@ function InnerCanvas({
   const bluePath = gameState.bluePlayer.isGone ? [] : gameState.bluePlayer.path.slice(0, -1);
   const redPath = gameState.redPlayer.isGone ? [] : gameState.redPlayer.path.slice(0, -1);
 
+  const blueVisitedOnly = gameState.bluePlayer.isGone
+    ? []
+    : gameState.bluePlayer.visited.filter(
+        (v) => !gameState.bluePlayer.path.some((p) => p.x === v.x && p.y === v.y),
+      );
+  const redVisitedOnly = gameState.redPlayer.isGone
+    ? []
+    : gameState.redPlayer.visited.filter(
+        (v) => !gameState.redPlayer.path.some((p) => p.x === v.x && p.y === v.y),
+      );
+
   return (
     <>
       <OrthographicCamera makeDefault near={0.1} far={500} />
@@ -211,6 +237,13 @@ function InnerCanvas({
         ))}
         {redPath.map((pos, idx) => (
           <PathMarker key={`red-path-${idx}`} position={pos} color="#ef4444" index={idx} total={redPath.length || 1} />
+        ))}
+
+        {blueVisitedOnly.map((pos, idx) => (
+          <VisitedMarker key={`blue-visited-${idx}`} position={pos} color="#3b82f6" />
+        ))}
+        {redVisitedOnly.map((pos, idx) => (
+          <VisitedMarker key={`red-visited-${idx}`} position={pos} color="#ef4444" />
         ))}
 
         {gameState.redGates.map((gate, idx) => (

@@ -66,6 +66,7 @@ export interface DuoPlayerState {
   stepsRemaining: number;
   maxSteps: number;
   path: Position[];
+  visited: Position[];
   isGone: boolean;
 }
 

@@ -36,6 +36,7 @@ export function createDuoGameState(level: DuoLevelData): DuoGameState {
     stepsRemaining: level.blueMaxSteps,
     maxSteps: level.blueMaxSteps,
     path: [{ ...level.bluePlayer }],
+    visited: [{ ...level.bluePlayer }],
     isGone: false,
   };
 
@@ -45,6 +46,7 @@ export function createDuoGameState(level: DuoLevelData): DuoGameState {
     stepsRemaining: level.redMaxSteps,
     maxSteps: level.redMaxSteps,
     path: [{ ...level.redPlayer }],
+    visited: [{ ...level.redPlayer }],
     isGone: false,
   };
 
@@ -109,6 +111,10 @@ function isGateBlocked(
 
 function isPositionInPath(path: Position[], x: number, y: number): boolean {
   return path.some((p) => p.x === x && p.y === y);
+}
+
+function isPositionVisited(visited: Position[], x: number, y: number): boolean {
+  return visited.some((p) => p.x === x && p.y === y);
 }
 
 function isAdjacentToSwitch(
@@ -199,7 +205,7 @@ export function moveDuoPlayer(
     player.path[player.path.length - 2].x === nx &&
     player.path[player.path.length - 2].y === ny;
 
-  if (!isBacktracking && !reachedTarget && isPositionInPath(player.path, nx, ny)) {
+  if (!isBacktracking && !reachedTarget && isPositionVisited(player.visited, nx, ny)) {
     return state;
   }
 
@@ -226,15 +232,18 @@ export function moveDuoPlayer(
 
   let newStepsRemaining = player.stepsRemaining;
   let newPath: Position[];
+  let newVisited: Position[];
   let pathTruncated = false;
 
   if (isBacktracking) {
     newStepsRemaining = Math.min(player.maxSteps, player.stepsRemaining + 1);
     newPath = player.path.slice(0, -1);
+    newVisited = player.visited;
     pathTruncated = true;
   } else {
     newStepsRemaining = player.stepsRemaining - 1;
     newPath = [...player.path, { x: nx, y: ny }];
+    newVisited = [...player.visited, { x: nx, y: ny }];
   }
 
   const newPlayer: DuoPlayerState = {
@@ -242,6 +251,7 @@ export function moveDuoPlayer(
     position: { x: nx, y: ny },
     stepsRemaining: newStepsRemaining,
     path: newPath,
+    visited: newVisited,
     isGone: reachedTarget,
   };
 
@@ -288,11 +298,16 @@ export function undoDuoMove(state: DuoGameState): DuoGameState {
     ? Math.max(0, player.stepsRemaining - 1)
     : Math.min(player.maxSteps, player.stepsRemaining + 1);
 
+  const newVisited = lastMove.pathTruncated
+    ? player.visited
+    : player.visited.slice(0, -1);
+
   const newPlayer: DuoPlayerState = {
     ...player,
     position: { ...lastMove.from },
     stepsRemaining: newStepsRemaining,
     path: newPath,
+    visited: newVisited,
     isGone: lastMove.wasGone,
   };
 
