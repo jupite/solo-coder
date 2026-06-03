@@ -20,7 +20,10 @@ export async function GET() {
     : [];
 
   const recordMap = new Map(
-    records.map((r) => [r.levelId, { bestTime: r.bestTime, bestSteps: r.bestSteps }]),
+    records.map((r: { levelId: string; bestTime: number | null; bestSteps: number | null }) => [
+      r.levelId,
+      { bestTime: r.bestTime, bestSteps: r.bestSteps },
+    ]),
   );
 
   const levelNames = ['双人入门', '机关挑战', '合作闯关'];
