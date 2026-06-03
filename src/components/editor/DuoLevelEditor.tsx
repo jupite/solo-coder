@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrthographicCamera, RoundedBox } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
-import { CellType, Position, DuoLevelData, DuoGameState, Direction, PlayerColor, RedGate, SwitchItem } from '@/lib/game/types';
+import { CellType, Position, DuoLevelData, DuoGameState, Direction, PlayerColor, RedGate, SwitchItem, OneWayBarrier } from '@/lib/game/types';
 import { createDuoGameState, moveDuoPlayer, undoDuoMove, toggleSwitch } from '@/lib/game/duo-engine';
 import {
   Save,
@@ -208,6 +208,35 @@ function DuoEditorSwitch({ position }: { position: Position }) {
   );
 }
 
+function DuoEditorOneWayBarrier({ barrier }: { barrier: OneWayBarrier }) {
+  const color = barrier.color === 'blue' ? '#60a5fa' : '#f87171';
+  const rotation = {
+    up: 0,
+    right: Math.PI / 2,
+    down: Math.PI,
+    left: -Math.PI / 2,
+  }[barrier.exitDirection];
+
+  return (
+    <group position={[barrier.x, 0, barrier.y]}>
+      <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[0.88, 0.88]} />
+        <meshBasicMaterial color={color} transparent opacity={0.2} />
+      </mesh>
+      <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.3, 0.38, 24]} />
+        <meshBasicMaterial color={color} transparent opacity={0.4} side={2} />
+      </mesh>
+      <group position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, rotation]}>
+        <mesh position={[0, 0, 0]} rotation={[0, 0, 0]}>
+          <coneGeometry args={[0.12, 0.2, 3]} />
+          <meshBasicMaterial color={color} transparent opacity={0.6} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
 function DuoEditorGrid({
   grid,
   boxes,
@@ -216,6 +245,7 @@ function DuoEditorGrid({
   redPlayer,
   redGates,
   switches,
+  oneWayBarriers,
   selectedArea,
   onCellClick,
   onCellDrag,
@@ -227,6 +257,7 @@ function DuoEditorGrid({
   redPlayer: Position | null;
   redGates: RedGate[];
   switches: SwitchItem[];
+  oneWayBarriers?: OneWayBarrier[];
   selectedArea: { startX: number; startY: number; endX: number; endY: number } | null;
   onCellClick: (x: number, y: number) => void;
   onCellDrag: (x: number, y: number) => void;
@@ -287,6 +318,10 @@ function DuoEditorGrid({
 
       {switches.map((sw, idx) => (
         <DuoEditorSwitch key={`sw-${idx}`} position={{ x: sw.x, y: sw.y }} />
+      ))}
+
+      {oneWayBarriers?.map((barrier, idx) => (
+        <DuoEditorOneWayBarrier key={`barrier-${idx}`} barrier={barrier} />
       ))}
 
       {boxes.map((pos, idx) => {
@@ -575,6 +610,14 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
     setActivePlayer('blue');
   }, [grid, bluePlayer, redPlayer, blueMaxSteps, redMaxSteps, boxes, targets, redGates, switches]);
 
+  const handleUndoPlay = useCallback(() => {
+    if (!gameState || !isPlaying) return;
+    setGameState((prev) => {
+      if (!prev) return prev;
+      return undoDuoMove(prev);
+    });
+  }, [gameState, isPlaying]);
+
   useEffect(() => {
     if (!isPlaying) return;
 
@@ -583,6 +626,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
       if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') handleMove('down');
       if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') handleMove('left');
       if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') handleMove('right');
+      if (e.key === 'z' || e.key === 'Z') handleUndoPlay();
       if (e.key === 'r' || e.key === 'R') handleResetPlay();
       if (e.key === 'Escape') handleStopPlay();
       if (e.key === 'Tab') {
@@ -593,7 +637,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, handleMove, handleResetPlay, handleStopPlay]);
+  }, [isPlaying, handleMove, handleUndoPlay, handleResetPlay, handleStopPlay]);
 
   const handleSave = useCallback(async () => {
     if (!bluePlayer || !redPlayer || targets.length === 0) {
@@ -669,6 +713,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
   const displayRed = isPlaying && gameState ? gameState.redPlayer.position : redPlayer;
   const displayRedGates = isPlaying && gameState ? gameState.redGates : redGates;
   const displaySwitches = isPlaying && gameState ? gameState.switches : switches;
+  const displayBarriers = isPlaying && gameState ? gameState.oneWayBarriers : [];
 
   return (
     <div ref={containerRef} className="flex flex-col lg:flex-row h-full gap-4">
@@ -741,6 +786,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
             redPlayer={displayRed}
             redGates={displayRedGates}
             switches={displaySwitches}
+            oneWayBarriers={displayBarriers}
             selectedArea={null}
             onCellClick={handleCellClick}
             onCellDrag={handleCellDrag}
@@ -887,10 +933,13 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
           <p>• 选择工具后点击地图放置物品</p>
           <p>• 拖动可以连续绘制墙壁和地板</p>
           <p>• 红色机关阻止所有角色和箱子</p>
-          <p>• 角色站到开关上打开机关</p>
+          <p>• 角色走到开关旁可点击切换机关</p>
+          <p>• 角色离开格子后生成单向障碍</p>
+          <p>• 只能从离开方向原路返回</p>
+          <p>• 障碍数量限制等于角色最大步数</p>
           <p>• 试玩模式: WASD/方向键移动</p>
           <p>• Tab 切换红蓝角色</p>
-          <p>• R 重置，Esc 退出试玩</p>
+          <p>• Z 撤销一步，R 重置，Esc 退出试玩</p>
         </div>
       </div>
     </div>

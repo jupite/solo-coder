@@ -286,16 +286,14 @@ export function moveDuoPlayer(
     newStepsRemaining = player.stepsRemaining - 1;
     newPath = [...player.path, { x: nx, y: ny }];
 
-    if (!reachedTarget) {
-      const newBarrier: OneWayBarrier = {
-        x: player.position.x,
-        y: player.position.y,
-        color,
-        exitDirection: direction,
-      };
-      newBarriers = [...newBarriers, newBarrier];
-      barrierCreated = newBarrier;
-    }
+    const newBarrier: OneWayBarrier = {
+      x: player.position.x,
+      y: player.position.y,
+      color,
+      exitDirection: direction,
+    };
+    newBarriers = [...newBarriers, newBarrier];
+    barrierCreated = newBarrier;
   }
 
   const newPlayer: DuoPlayerState = {
