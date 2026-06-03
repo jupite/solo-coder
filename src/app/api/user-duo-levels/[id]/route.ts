@@ -101,6 +101,9 @@ export async function PUT(request: Request, { params }: Params) {
 
     if (typeof verified === 'boolean') {
       updatedData.verified = verified;
+      if (!verified) {
+        updatedData.published = false;
+      }
     }
 
     const level = await prisma.duoLevel.update({

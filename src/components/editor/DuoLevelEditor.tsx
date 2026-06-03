@@ -797,12 +797,6 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
       return;
     }
 
-    if (!hasCompletedPlaythrough) {
-      setMessage('请先试玩并通关一次，确保关卡可以完成');
-      setTimeout(() => setMessage(null), 3000);
-      return;
-    }
-
     setSaving(true);
     try {
       const levelData = {
@@ -818,7 +812,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
         targets: JSON.stringify(targets),
         redGates: JSON.stringify(redGates),
         switches: JSON.stringify(switches),
-        verified: true,
+        verified: hasCompletedPlaythrough,
       };
 
       let res;
@@ -1091,7 +1085,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
 
         <button
           onClick={handleSave}
-          disabled={isPlaying || saving}
+          disabled={saving}
           className="btn-primary w-full inline-flex items-center justify-center gap-2 py-3 disabled:opacity-50"
         >
           <Save className="w-5 h-5" />

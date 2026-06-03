@@ -55,6 +55,7 @@ export async function POST(request: Request) {
       targets,
       redGates,
       switches,
+      verified,
     } = body;
 
     if (
@@ -90,7 +91,7 @@ export async function POST(request: Request) {
         targets,
         redGates: redGates || '[]',
         switches: switches || '[]',
-        verified: true,
+        verified: verified === true,
       },
     });
 
