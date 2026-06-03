@@ -6,6 +6,7 @@ import { OrthographicCamera, RoundedBox } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { CellType, Position, DuoLevelData, DuoGameState, Direction, PlayerColor, RedGate, SwitchItem, OneWayBarrier } from '@/lib/game/types';
 import { createDuoGameState, moveDuoPlayer, undoDuoMove, toggleSwitch } from '@/lib/game/duo-engine';
+import { DuoHintPanel } from '@/components/game/DuoHintPanel';
 import {
   Save,
   Play,
@@ -25,6 +26,7 @@ import {
   Flame,
   Lock,
   ToggleLeft,
+  Lightbulb,
 } from 'lucide-react';
 
 type DuoToolType = 'floor' | 'wall' | 'target' | 'box' | 'bluePlayer' | 'redPlayer' | 'redGate' | 'switch' | 'erase';
@@ -474,6 +476,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
   const [message, setMessage] = useState<string | null>(null);
   const [hasCompletedPlaythrough, setHasCompletedPlaythrough] = useState(false);
   const [loadingLevel, setLoadingLevel] = useState(false);
+  const [autoSolved, setAutoSolved] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const nextPairIdRef = useRef(0);
 
@@ -700,11 +703,13 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
     setGameState(createDuoGameState(levelData));
     setIsPlaying(true);
     setActivePlayer('blue');
+    setAutoSolved(false);
   }, [grid, bluePlayer, redPlayer, blueMaxSteps, redMaxSteps, boxes, targets, redGates, switches]);
 
   const handleStopPlay = useCallback(() => {
     setIsPlaying(false);
     setGameState(null);
+    setAutoSolved(false);
   }, []);
 
   useEffect(() => {
@@ -729,14 +734,50 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
     setGameState((prev) => {
       if (!prev) return prev;
       const next = moveDuoPlayer(prev, actualPlayer, direction);
-      if (next.isWin) {
+      if (next.isWin && !autoSolved) {
         setMessage('恭喜！双人关卡完成！已验证可通关。');
         setHasCompletedPlaythrough(true);
+        setTimeout(() => setMessage(null), 3000);
+      } else if (next.isWin && autoSolved) {
+        setMessage('提示通关完成（不计入成绩）');
         setTimeout(() => setMessage(null), 3000);
       }
       return next;
     });
-  }, [gameState, isPlaying, activePlayer]);
+  }, [gameState, isPlaying, activePlayer, autoSolved]);
+
+  const handleHintStep = useCallback(
+    (color: PlayerColor, direction: Direction) => {
+      if (!gameState || !isPlaying) return;
+      setAutoSolved(true);
+      setGameState((prev) => {
+        if (!prev) return prev;
+        const next = moveDuoPlayer(prev, color, direction);
+        if (next.isWin) {
+          setMessage('提示通关完成（不计入成绩）');
+          setTimeout(() => setMessage(null), 3000);
+        }
+        return next;
+      });
+    },
+    [gameState, isPlaying],
+  );
+
+  const handleHintSwitchToggle = useCallback(
+    (color: PlayerColor, switchX: number, switchY: number) => {
+      if (!gameState || !isPlaying) return;
+      setAutoSolved(true);
+      setGameState((prev) => {
+        if (!prev) return prev;
+        return toggleSwitch(prev, switchX, switchY, color);
+      });
+    },
+    [gameState, isPlaying],
+  );
+
+  const handleAutoSolveComplete = useCallback(() => {
+    setAutoSolved(true);
+  }, []);
 
   const handleResetPlay = useCallback(() => {
     if (!bluePlayer || !redPlayer || targets.length === 0) return;
@@ -753,6 +794,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
     };
     setGameState(createDuoGameState(levelData));
     setActivePlayer('blue');
+    setAutoSolved(false);
   }, [grid, bluePlayer, redPlayer, blueMaxSteps, redMaxSteps, boxes, targets, redGates, switches]);
 
   const handleUndoPlay = useCallback(() => {
@@ -844,6 +886,20 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
       setSaving(false);
     }
   }, [grid, bluePlayer, redPlayer, blueMaxSteps, redMaxSteps, boxes, targets, redGates, switches, levelName, hasCompletedPlaythrough, editingLevelId]);
+
+  const currentLevelData: DuoLevelData | null = (bluePlayer && redPlayer && targets.length > 0)
+    ? {
+        grid: grid.map((row) => [...row]),
+        bluePlayer: { ...bluePlayer },
+        redPlayer: { ...redPlayer },
+        blueMaxSteps,
+        redMaxSteps,
+        boxes: boxes.map((b) => ({ ...b })),
+        targets: targets.map((t) => ({ ...t })),
+        redGates: redGates.map((g) => ({ ...g })),
+        switches: switches.map((s) => ({ ...s })),
+      }
+    : null;
 
   const displayGrid = isPlaying && gameState ? gameState.grid : grid;
   const displayBoxes = isPlaying && gameState ? gameState.boxes : boxes;
@@ -1091,6 +1147,18 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
           <Save className="w-5 h-5" />
           {saving ? '保存中...' : '保存关卡'}
         </button>
+
+        {isPlaying && currentLevelData && (
+          <DuoHintPanel
+            levelData={currentLevelData}
+            currentState={gameState}
+            onStep={handleHintStep}
+            onSwitchToggle={handleHintSwitchToggle}
+            onAutoSolveComplete={handleAutoSolveComplete}
+            onReset={handleResetPlay}
+            disabled={!isPlaying || gameState?.isWin === true}
+          />
+        )}
 
         <div className="glass-card p-4 text-xs text-slate-400 leading-relaxed">
           <p className="text-slate-300 font-medium mb-2">操作说明</p>

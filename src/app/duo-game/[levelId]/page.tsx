@@ -18,6 +18,7 @@ import {
   Droplets,
   Flame,
   Undo2,
+  Lightbulb,
 } from 'lucide-react';
 import {
   createDuoGameState,
@@ -31,6 +32,7 @@ import type {
   DuoLevelData,
   PlayerColor,
 } from '@/lib/game/types';
+import { DuoHintPanel } from '@/components/game/DuoHintPanel';
 
 const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60);
@@ -53,6 +55,7 @@ export default function DuoGamePage() {
   const [completed, setCompleted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerColor>('blue');
+  const [autoSolved, setAutoSolved] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
 
@@ -113,6 +116,7 @@ export default function DuoGamePage() {
     setTime(0);
     setCompleted(false);
     setSubmitting(false);
+    setAutoSolved(false);
     setSelectedPlayer('blue');
     startTimeRef.current = Date.now();
   }, [status, levelData]);
@@ -167,6 +171,7 @@ export default function DuoGamePage() {
     setTime(0);
     setCompleted(false);
     setSubmitting(false);
+    setAutoSolved(false);
     setSelectedPlayer('blue');
     startTimeRef.current = Date.now();
   }, [levelData]);
@@ -193,6 +198,38 @@ export default function DuoGamePage() {
   const handleExit = useCallback(() => {
     router.push('/levels');
   }, [router]);
+
+  const handleHintStep = useCallback(
+    (color: PlayerColor, direction: Direction) => {
+      if (!gameState || completed) return;
+      setAutoSolved(true);
+      setGameState((prev) => {
+        if (!prev) return prev;
+        const next = moveDuoPlayer(prev, color, direction);
+        if (next !== prev && next.isWin) {
+          setCompleted(true);
+        }
+        return next;
+      });
+    },
+    [gameState, completed],
+  );
+
+  const handleHintSwitchToggle = useCallback(
+    (color: PlayerColor, switchX: number, switchY: number) => {
+      if (!gameState || completed) return;
+      setAutoSolved(true);
+      setGameState((prev) => {
+        if (!prev) return prev;
+        return toggleSwitch(prev, switchX, switchY, color);
+      });
+    },
+    [gameState, completed],
+  );
+
+  const handleAutoSolveComplete = useCallback(() => {
+    setAutoSolved(true);
+  }, []);
 
   const handleSubmitResult = useCallback(async () => {
     if (submitting) return;
@@ -261,16 +298,27 @@ export default function DuoGamePage() {
               <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm rounded-2xl z-20 p-4">
                 <div className="glass-card p-8 text-center max-w-sm w-full space-y-5">
                   <div className="flex justify-center">
-                    <div className="w-16 h-16 rounded-full flex items-center justify-center shadow-2xl bg-gradient-to-br from-yellow-400 to-orange-500 shadow-yellow-500/50">
-                      <Trophy className="w-8 h-8 text-white" />
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-2xl ${autoSolved ? 'bg-gradient-to-br from-slate-400 to-slate-500 shadow-slate-500/50' : 'bg-gradient-to-br from-yellow-400 to-orange-500 shadow-yellow-500/50'}`}>
+                      {autoSolved ? (
+                        <Lightbulb className="w-8 h-8 text-white" />
+                      ) : (
+                        <Trophy className="w-8 h-8 text-white" />
+                      )}
                     </div>
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-white mb-1">
-                      双人关卡完成！
+                      {autoSolved ? '提示通关完成' : '双人关卡完成！'}
                     </h2>
                     <p className="text-slate-400">{levelName}</p>
                   </div>
+                  {autoSolved && (
+                    <div className="glass-card p-3 bg-amber-500/10 border-amber-500/20">
+                      <p className="text-sm text-amber-300">
+                        这是提示通关结果，不计入成绩
+                      </p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="glass-card p-3">
                       <p className="text-xs text-slate-400 mb-1">用时</p>
@@ -286,17 +334,19 @@ export default function DuoGamePage() {
                     </div>
                   </div>
                   <div className="flex gap-3">
-                    <button
-                      onClick={handleSubmitResult}
-                      disabled={submitting}
-                      className="btn-primary flex-1"
-                    >
-                      {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
-                      查看成绩
-                    </button>
+                    {!autoSolved && (
+                      <button
+                        onClick={handleSubmitResult}
+                        disabled={submitting}
+                        className="btn-primary flex-1"
+                      >
+                        {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
+                        查看成绩
+                      </button>
+                    )}
                     <button
                       onClick={handleReset}
-                      className="btn-secondary flex-1"
+                      className={autoSolved ? 'btn-primary flex-1' : 'btn-secondary flex-1'}
                     >
                       <RotateCcw className="w-4 h-4" />
                       再玩一次
@@ -400,6 +450,16 @@ export default function DuoGamePage() {
                 退出关卡
               </button>
             </div>
+
+            <DuoHintPanel
+              levelData={levelData}
+              currentState={gameState}
+              onStep={handleHintStep}
+              onSwitchToggle={handleHintSwitchToggle}
+              onAutoSolveComplete={handleAutoSolveComplete}
+              onReset={handleReset}
+              disabled={completed}
+            />
 
             <div className="glass-card p-4 text-xs text-slate-400 leading-relaxed">
               <p className="text-slate-300 font-medium mb-2">操作说明</p>

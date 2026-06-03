@@ -18,7 +18,7 @@ export async function GET(request: Request, { params }: Params) {
 
   if (!isNaN(numericId) && numericId > 0 && numericId <= hardcodedDuoLevels.length) {
     const level = hardcodedDuoLevels[numericId - 1];
-    const levelNames = ['双人入门', '机关挑战', '合作闯关'];
+    const levelNames = ['双人同行', '机关初遇', '推箱协作'];
     return NextResponse.json({
       id: numericId,
       name: levelNames[numericId - 1] || `双人关卡 #${numericId}`,

@@ -26,7 +26,7 @@ export async function GET() {
     ]),
   );
 
-  const levelNames = ['双人入门', '机关挑战', '合作闯关'];
+  const levelNames = ['双人同行', '机关初遇', '推箱协作'];
 
   const officialLevels = hardcodedDuoLevels.map((_, idx) => {
     const id = idx + 1;
