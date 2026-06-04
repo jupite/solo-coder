@@ -41,7 +41,6 @@ export function Sidebar() {
     hasResources,
     showMessage,
     infiniteBuild,
-    toggleInfiniteBuild,
   } = useGameStore()
 
   const tools: CraftableItem[] = useMemo(() => [
@@ -243,18 +242,6 @@ export function Sidebar() {
           title="建筑"
         >
           🏠
-        </button>
-        <div className="w-11 h-px bg-gray-600 my-0.5" />
-        <button
-          onClick={toggleInfiniteBuild}
-          className={`w-11 h-11 rounded-lg flex items-center justify-center text-base transition-all border-2 ${
-            infiniteBuild
-              ? 'bg-purple-800/80 border-purple-400'
-              : 'bg-gray-800/60 border-gray-600 hover:border-gray-400'
-          }`}
-          title={infiniteBuild ? '无限建造：已开启' : '无限建造：已关闭'}
-        >
-          ♾️
         </button>
       </div>
     </div>

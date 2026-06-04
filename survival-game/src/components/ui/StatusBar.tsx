@@ -26,7 +26,7 @@ export function StatusBar() {
   const { playerHealth, playerHunger, playerStamina, equippedTool, infiniteBuild } = useGameStore()
 
   return (
-    <div className="absolute right-4 top-4 w-52 bg-gray-900/90 rounded-lg p-4 space-y-3 border border-gray-700">
+    <div className="absolute right-4 top-44 w-52 bg-gray-900/90 rounded-lg p-4 space-y-3 border border-gray-700">
       <StatBar label="生命" value={playerHealth} color="bg-red-500" icon="❤️" />
       <StatBar label="饥饿" value={playerHunger} color="bg-yellow-500" icon="🍖" />
       <StatBar label="体力" value={playerStamina} color="bg-green-500" icon="⚡" />

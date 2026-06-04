@@ -46,6 +46,8 @@ export interface PlacementState {
   snapToGrid: boolean
 }
 
+export type TimeOfDay = 'day' | 'dusk' | 'night'
+
 export interface GameState {
   playerPosition: [number, number, number]
   playerHealth: number
@@ -62,6 +64,11 @@ export interface GameState {
   infiniteBuild: boolean
   placement: PlacementState
   openedContainerId: string | null
+  timeOfDay: TimeOfDay
+  gameTime: number
+  timeSpeed: number
+  day: number
+  showDevTools: boolean
   showMessage: (text: string, type?: 'success' | 'error' | 'info') => void
   addToInventory: (type: ResourceType | ToolType | BuildingType, count?: number) => void
   removeFromInventory: (type: ResourceType | ToolType | BuildingType, count?: number) => void
@@ -88,6 +95,10 @@ export interface GameState {
   removeItemFromContainer: (containerId: string, type: ResourceType | ToolType, count?: number) => void
   moveItemToContainer: (containerId: string, type: ResourceType | ToolType, count?: number) => void
   moveItemFromContainer: (containerId: string, type: ResourceType | ToolType, count?: number) => void
+  updateGameTime: (delta: number) => void
+  setTimeSpeed: (speed: number) => void
+  setGameTime: (time: number) => void
+  toggleDevTools: () => void
 }
 
 export const TOOL_RECIPES: Record<ToolType, Partial<Record<ResourceType, number>>> = {
@@ -200,6 +211,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     snapToGrid: true,
   },
   openedContainerId: null,
+  timeOfDay: 'day',
+  gameTime: 0,
+  timeSpeed: 1,
+  day: 1,
+  showDevTools: false,
 
   showMessage: (text, type = 'info') => {
     set({ message: { text, type } })
@@ -486,6 +502,48 @@ export const useGameStore = create<GameState>((set, get) => ({
     get().addToInventory(type, count)
     get().showMessage(`📦 取出 ${count} 个${RESOURCE_NAMES[type as ResourceType] || type}`, 'success')
   },
+
+  updateGameTime: (delta) => {
+    const state = get()
+    const newTime = (state.gameTime + delta * state.timeSpeed) % 16
+    const newDay = state.day + Math.floor((state.gameTime + delta * state.timeSpeed) / 16)
+
+    let newTimeOfDay: TimeOfDay = 'day'
+    if (newTime >= 8 && newTime < 12) {
+      newTimeOfDay = 'dusk'
+    } else if (newTime >= 12 || newTime < 2) {
+      newTimeOfDay = 'night'
+    } else {
+      newTimeOfDay = 'day'
+    }
+
+    const hungerRate = newTimeOfDay === 'day' ? 0.02 : newTimeOfDay === 'dusk' ? 0.015 : 0.01
+    const newHunger = Math.max(0, state.playerHunger - hungerRate * delta * state.timeSpeed)
+
+    set({
+      gameTime: newTime,
+      day: newDay > state.day ? newDay : state.day,
+      timeOfDay: newTimeOfDay,
+      playerHunger: newHunger,
+    })
+  },
+
+  setTimeSpeed: (speed) => set({ timeSpeed: speed }),
+
+  setGameTime: (time) => {
+    const clampedTime = Math.max(0, Math.min(16, time))
+    let newTimeOfDay: TimeOfDay = 'day'
+    if (clampedTime >= 8 && clampedTime < 12) {
+      newTimeOfDay = 'dusk'
+    } else if (clampedTime >= 12 || clampedTime < 2) {
+      newTimeOfDay = 'night'
+    } else {
+      newTimeOfDay = 'day'
+    }
+    set({ gameTime: clampedTime, timeOfDay: newTimeOfDay })
+  },
+
+  toggleDevTools: () => set((state) => ({ showDevTools: !state.showDevTools })),
 }))
 
 export function generateResources(mapSize: number): ResourceNode[] {

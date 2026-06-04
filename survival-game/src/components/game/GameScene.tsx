@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useCallback } from 'react'
-import { Canvas, useThree } from '@react-three/fiber'
+import { useEffect, useCallback, useRef } from 'react'
+import { Canvas, useThree, useFrame } from '@react-three/fiber'
 import { Sky } from '@react-three/drei'
 import { Player } from './Player'
 import { Ground } from './Ground'
 import { ResourceNode } from './ResourceNode'
 import { Building, PlacementPreview } from './Building'
-import { useGameStore, generateResources } from '@/store/gameStore'
+import { useGameStore, generateResources, TimeOfDay } from '@/store/gameStore'
 import * as THREE from 'three'
 
 function PlacementHandler() {
@@ -95,6 +95,115 @@ function PlacementHandler() {
   return null
 }
 
+function DayNightCycle() {
+  const { gameTime, timeOfDay, updateGameTime } = useGameStore()
+  const directionalLightRef = useRef<THREE.DirectionalLight>(null)
+  const ambientLightRef = useRef<THREE.AmbientLight>(null)
+  const skyRef = useRef<any>(null)
+  const lastTime = useRef(0)
+
+  const getLightingParams = (time: number, timeOfDay: TimeOfDay) => {
+    const normalizedTime = time / 16
+
+    let sunAngle: number
+    let sunIntensity: number
+    let ambientIntensity: number
+    let fogColor: string
+    let fogNear: number
+    let fogFar: number
+
+    if (timeOfDay === 'day') {
+      const dayProgress = (time - 2) / 6
+      sunAngle = Math.PI * 0.1 + dayProgress * Math.PI * 0.3
+      sunIntensity = 0.8 + Math.sin(dayProgress * Math.PI) * 0.4
+      ambientIntensity = 0.5 + Math.sin(dayProgress * Math.PI) * 0.2
+      fogColor = '#87ceeb'
+      fogNear = 30
+      fogFar = 80
+    } else if (timeOfDay === 'dusk') {
+      const duskProgress = (time - 8) / 4
+      sunAngle = Math.PI * 0.4 + duskProgress * Math.PI * 0.3
+      sunIntensity = 1.2 - duskProgress * 0.6
+      ambientIntensity = 0.7 - duskProgress * 0.3
+      fogColor = `rgb(${Math.floor(255 - duskProgress * 100)}, ${Math.floor(180 - duskProgress * 80)}, ${Math.floor(100 + duskProgress * 50)})`
+      fogNear = 25 - duskProgress * 5
+      fogFar = 70 - duskProgress * 10
+    } else {
+      const nightProgress = time >= 12 ? (time - 12) / 4 : (time + 4) / 4
+      sunAngle = Math.PI * 0.7 + nightProgress * Math.PI * 0.2
+      sunIntensity = 0.1
+      ambientIntensity = 0.15
+      fogColor = '#0a0a1a'
+      fogNear = 15
+      fogFar = 45
+    }
+
+    return { sunAngle, sunIntensity, ambientIntensity, fogColor, fogNear, fogFar }
+  }
+
+  useFrame((state, delta) => {
+    const timeDelta = delta / 30
+    updateGameTime(timeDelta)
+
+    const params = getLightingParams(gameTime, timeOfDay)
+
+    if (directionalLightRef.current) {
+      const sunX = Math.cos(params.sunAngle) * 100
+      const sunY = Math.sin(params.sunAngle) * 100
+      directionalLightRef.current.position.set(sunX, sunY, 50)
+      directionalLightRef.current.intensity = params.sunIntensity
+
+      if (timeOfDay === 'night') {
+        directionalLightRef.current.color.setRGB(0.4, 0.4, 0.6)
+      } else if (timeOfDay === 'dusk') {
+        directionalLightRef.current.color.setRGB(1, 0.7, 0.4)
+      } else {
+        directionalLightRef.current.color.setRGB(1, 1, 1)
+      }
+    }
+
+    if (ambientLightRef.current) {
+      ambientLightRef.current.intensity = params.ambientIntensity
+      if (timeOfDay === 'night') {
+        ambientLightRef.current.color.setRGB(0.2, 0.2, 0.4)
+      } else {
+        ambientLightRef.current.color.setRGB(1, 1, 1)
+      }
+    }
+
+    const scene = state.scene
+    if (scene.fog) {
+      ;(scene.fog as THREE.Fog).color.set(params.fogColor)
+      ;(scene.fog as THREE.Fog).near = params.fogNear
+      ;(scene.fog as THREE.Fog).far = params.fogFar
+    }
+  })
+
+  return (
+    <>
+      <Sky
+        ref={skyRef}
+        distance={450000}
+        sunPosition={[
+          Math.cos(Math.PI * 0.25) * 100,
+          Math.sin(Math.PI * 0.25) * 100,
+          50,
+        ]}
+        inclination={0.5}
+        azimuth={0.25}
+      />
+      <ambientLight ref={ambientLightRef} intensity={0.6} />
+      <directionalLight
+        ref={directionalLightRef}
+        position={[50, 100, 50]}
+        intensity={1}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+      />
+    </>
+  )
+}
+
 function SceneContent() {
   const { resources, buildings, placement, openContainer, showMessage } = useGameStore()
 
@@ -119,14 +228,7 @@ function SceneContent() {
 
   return (
     <>
-      <Sky sunPosition={[100, 50, 100]} />
-      <ambientLight intensity={0.6} />
-      <directionalLight
-        position={[50, 100, 50]}
-        intensity={1}
-        castShadow
-        shadow-mapSize={[2048, 2048]}
-      />
+      <DayNightCycle />
 
       <Ground />
       <Player />
