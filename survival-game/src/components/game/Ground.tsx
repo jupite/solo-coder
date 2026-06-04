@@ -46,38 +46,6 @@ export function Ground() {
         </mesh>
       ))}
 
-      <group position={[MAP_SIZE / 2 - 0.5, 1, 0]}>
-        {Array.from({ length: 20 }, (_, i) => (
-          <mesh key={i} position={[0, i * 0.5, (i - 10) * 0.5]}>
-            <boxGeometry args={[1, 0.5, 0.5]} />
-            <meshStandardMaterial color="#8b4513" />
-          </mesh>
-        ))}
-      </group>
-      <group position={[-MAP_SIZE / 2 + 0.5, 1, 0]}>
-        {Array.from({ length: 20 }, (_, i) => (
-          <mesh key={i} position={[0, i * 0.5, (i - 10) * 0.5]}>
-            <boxGeometry args={[1, 0.5, 0.5]} />
-            <meshStandardMaterial color="#8b4513" />
-          </mesh>
-        ))}
-      </group>
-      <group position={[0, 1, MAP_SIZE / 2 - 0.5]}>
-        {Array.from({ length: 20 }, (_, i) => (
-          <mesh key={i} position={[(i - 10) * 0.5, i * 0.5, 0]}>
-            <boxGeometry args={[0.5, 0.5, 1]} />
-            <meshStandardMaterial color="#8b4513" />
-          </mesh>
-        ))}
-      </group>
-      <group position={[0, 1, -MAP_SIZE / 2 + 0.5]}>
-        {Array.from({ length: 20 }, (_, i) => (
-          <mesh key={i} position={[(i - 10) * 0.5, i * 0.5, 0]}>
-            <boxGeometry args={[0.5, 0.5, 1]} />
-            <meshStandardMaterial color="#8b4513" />
-          </mesh>
-        ))}
-      </group>
     </group>
   )
 }

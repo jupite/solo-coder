@@ -211,29 +211,6 @@ export function Player() {
           <meshBasicMaterial color="yellow" transparent opacity={0.6} />
         </mesh>
       )}
-
-      {resources.map((resource) => {
-        const dist = Math.sqrt(
-          Math.pow(resource.position[0] - playerPosition[0], 2) +
-          Math.pow(resource.position[2] - playerPosition[2], 2)
-        )
-        if (dist >= INTERACTION_RANGE) return null
-
-        return (
-          <mesh
-            key={`indicator-${resource.id}`}
-            position={[
-              resource.position[0],
-              resource.type === 'wood' ? 6 : resource.type === 'stone' ? 1.5 : 0.8,
-              resource.position[2],
-            ]}
-          >
-            <sphereGeometry args={[0.15, 8, 8]} />
-            <meshBasicMaterial color="#00ff00" transparent opacity={0.8} />
-          </mesh>
-        )
-      })}
-
     </group>
   )
 }
