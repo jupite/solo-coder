@@ -675,7 +675,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
     const newGrid = grid.map((row) => [...row]);
     if (selectedTool === 'floor') {
       newGrid[y][x] = CellType.FLOOR;
-      setTargets(targets.filter((t) => !(t.x === x && t.y === y));
+      setTargets(targets.filter((t) => !(t.x === x && t.y === y)));
       setRedGates(redGates.filter((g) => !(g.x === x && g.y === y)));
       setSwitches(switches.filter((s) => !(s.x === x && s.y === y)));
     } else if (selectedTool === 'wall') {
