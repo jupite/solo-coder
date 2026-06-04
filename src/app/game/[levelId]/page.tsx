@@ -138,6 +138,7 @@ export default function GamePage() {
   const handleHintStep = useCallback(
     (direction: Direction) => {
       if (!gameState || completed) return;
+      setAutoSolved(true);
       setGameState((prev) => {
         if (!prev) return prev;
         const next = movePlayer(prev, direction);

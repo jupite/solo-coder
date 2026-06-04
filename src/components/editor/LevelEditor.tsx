@@ -97,23 +97,33 @@ function EditorWallTile({ col, row, onClick, onDragOver }: { col: number; row: n
 function EditorTargetTile({ col, row, onClick, onDragOver }: { col: number; row: number; onClick: () => void; onDragOver: () => void }) {
   const { currentSkin: skin } = useSkin();
   return (
-    <group position={[col, 0, row]}>
-      <mesh
-        onClick={(e) => { e.stopPropagation(); onClick(); }}
-        onPointerOver={(e) => { if (e.buttons === 1) { e.stopPropagation(); onDragOver(); } }}
-        receiveShadow
-      >
+    <group position={[col, 0, row]} onClick={(e) => { e.stopPropagation(); onClick(); }} onPointerOver={(e) => { if (e.buttons === 1) { e.stopPropagation(); onDragOver(); } }}>
+      <mesh position={[0, 0.04, 0]} receiveShadow>
         <boxGeometry args={[0.92, 0.08, 0.92]} />
         <meshStandardMaterial color="#3a2a0a" metalness={0.3} roughness={0.6} />
       </mesh>
-      <mesh position={[0, 0.06, 0]}>
-        <boxGeometry args={[0.7, 0.06, 0.7]} />
+      <mesh position={[0, 0.14, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.28, 0.42, 32]} />
         <meshStandardMaterial
           color={skin.target.color}
           emissive={skin.target.emissive}
           emissiveIntensity={skin.target.emissiveIntensity}
-          metalness={0.5}
+          metalness={0.6}
           roughness={0.3}
+          toneMapped={false}
+          side={2}
+          transparent
+          opacity={0.95}
+        />
+      </mesh>
+      <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.22, 32]} />
+        <meshStandardMaterial
+          color={skin.target.color}
+          emissive={skin.target.emissive}
+          emissiveIntensity={skin.target.emissiveIntensity * 0.5}
+          transparent
+          opacity={0.6}
           toneMapped={false}
         />
       </mesh>

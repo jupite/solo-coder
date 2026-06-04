@@ -34,6 +34,7 @@ import type {
   PlayerColor,
 } from '@/lib/game/types';
 import { DuoHintPanel } from '@/components/game/DuoHintPanel';
+import { useSkin } from '@/components/game/SkinProvider';
 
 const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60);
@@ -47,6 +48,7 @@ export default function DuoGamePage() {
   const levelIdRaw = params.levelId;
   const levelId = Array.isArray(levelIdRaw) ? levelIdRaw[0] : levelIdRaw;
   const { data: session, status } = useSession();
+  const { currentSkin } = useSkin();
 
   const [levelData, setLevelData] = useState<DuoLevelData | null>(null);
   const [levelName, setLevelName] = useState<string>('');
@@ -409,12 +411,23 @@ export default function DuoGamePage() {
                 <button
                   onClick={() => setSelectedPlayer('blue')}
                   disabled={gameState.bluePlayer.isGone}
-                  className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${selectedPlayer === 'blue' ? 'bg-blue-500/30 border-2 border-blue-500' : 'bg-white/5 border-2 border-transparent hover:bg-white/10'} ${gameState.bluePlayer.isGone ? 'opacity-40' : ''}`}
+                  className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all border-2 ${selectedPlayer === 'blue' ? '' : 'border-transparent hover:bg-white/10'} ${gameState.bluePlayer.isGone ? 'opacity-40' : 'bg-white/5'}`}
+                  style={{
+                    backgroundColor: selectedPlayer === 'blue' ? `${currentSkin.player.color}30` : undefined,
+                    borderColor: selectedPlayer === 'blue' ? currentSkin.player.color : undefined,
+                    boxShadow: selectedPlayer === 'blue' ? `0 0 15px ${currentSkin.player.color}50` : undefined,
+                  }}
                 >
-                  <Droplets className="w-5 h-5 text-blue-400" />
-                  <span className="text-xs text-slate-300">{gameState.bluePlayer.isGone ? '已通关' : '蓝色'}</span>
+                  <Droplets
+                    className="w-5 h-5"
+                    style={{ color: currentSkin.player.color }}
+                  />
+                  <span className="text-xs text-slate-300">{gameState.bluePlayer.isGone ? '已通关' : '玩家 1'}</span>
                   {!gameState.bluePlayer.isGone && (
-                    <span className="text-xs text-blue-300">
+                    <span
+                      className="text-xs"
+                      style={{ color: currentSkin.player.color }}
+                    >
                       {gameState.bluePlayer.stepsRemaining}/{gameState.bluePlayer.maxSteps}
                     </span>
                   )}
@@ -422,12 +435,23 @@ export default function DuoGamePage() {
                 <button
                   onClick={() => setSelectedPlayer('red')}
                   disabled={gameState.redPlayer.isGone}
-                  className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all ${selectedPlayer === 'red' ? 'bg-red-500/30 border-2 border-red-500' : 'bg-white/5 border-2 border-transparent hover:bg-white/10'} ${gameState.redPlayer.isGone ? 'opacity-40' : ''}`}
+                  className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all border-2 ${selectedPlayer === 'red' ? '' : 'border-transparent hover:bg-white/10'} ${gameState.redPlayer.isGone ? 'opacity-40' : 'bg-white/5'}`}
+                  style={{
+                    backgroundColor: selectedPlayer === 'red' ? `${currentSkin.redPlayer.color}30` : undefined,
+                    borderColor: selectedPlayer === 'red' ? currentSkin.redPlayer.color : undefined,
+                    boxShadow: selectedPlayer === 'red' ? `0 0 15px ${currentSkin.redPlayer.color}50` : undefined,
+                  }}
                 >
-                  <Flame className="w-5 h-5 text-red-400" />
-                  <span className="text-xs text-slate-300">{gameState.redPlayer.isGone ? '已通关' : '红色'}</span>
+                  <Flame
+                    className="w-5 h-5"
+                    style={{ color: currentSkin.redPlayer.color }}
+                  />
+                  <span className="text-xs text-slate-300">{gameState.redPlayer.isGone ? '已通关' : '玩家 2'}</span>
                   {!gameState.redPlayer.isGone && (
-                    <span className="text-xs text-red-300">
+                    <span
+                      className="text-xs"
+                      style={{ color: currentSkin.redPlayer.color }}
+                    >
                       {gameState.redPlayer.stepsRemaining}/{gameState.redPlayer.maxSteps}
                     </span>
                   )}
