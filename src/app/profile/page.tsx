@@ -163,6 +163,13 @@ export default function ProfilePage() {
 
             <div className="flex items-center gap-3">
               <button
+                onClick={() => setActiveTab('skins')}
+                className={`inline-flex items-center gap-2 ${activeTab === 'skins' ? 'btn-primary' : 'btn-secondary'}`}
+              >
+                <Palette className="w-4 h-4" />
+                换肤
+              </button>
+              <button
                 onClick={() => router.push('/levels')}
                 className="btn-secondary inline-flex items-center gap-2"
               >
@@ -238,16 +245,6 @@ export default function ProfilePage() {
                 }`}
               >
                 双人
-              </button>
-              <button
-                onClick={() => setActiveTab('skins')}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${activeTab === 'skins'
-                  ? 'bg-purple-500/30 text-purple-300 border border-purple-500/50'
-                  : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <Palette className="w-3 h-3 inline mr-1" />
-                换肤
               </button>
             </div>
           </div>

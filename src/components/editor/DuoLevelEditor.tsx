@@ -7,6 +7,7 @@ import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { CellType, Position, DuoLevelData, DuoGameState, Direction, PlayerColor, RedGate, SwitchItem, OneWayBarrier } from '@/lib/game/types';
 import { createDuoGameState, moveDuoPlayer, undoDuoMove, toggleSwitch } from '@/lib/game/duo-engine';
 import { DuoHintPanel } from '@/components/game/DuoHintPanel';
+import { useSkin } from '@/components/game/SkinProvider';
 import {
   Save,
   Play,
@@ -84,6 +85,8 @@ function DuoEditorFloorTile({ col, row, onClick, onDragOver, isSelected }: { col
 }
 
 function DuoEditorWallTile({ col, row, onClick, onDragOver }: { col: number; row: number; onClick: () => void; onDragOver: () => void }) {
+  const { currentSkin } = useSkin();
+  const skin = currentSkin;
   return (
     <RoundedBox
       args={[0.92, 0.92, 0.92]}
@@ -95,12 +98,14 @@ function DuoEditorWallTile({ col, row, onClick, onDragOver }: { col: number; row
       castShadow
       receiveShadow
     >
-      <meshStandardMaterial color="#374151" metalness={0.4} roughness={0.7} />
+      <meshStandardMaterial color={skin.wall.color} metalness={skin.wall.metalness} roughness={skin.wall.roughness} />
     </RoundedBox>
   );
 }
 
 function DuoEditorTargetTile({ col, row, onClick, onDragOver }: { col: number; row: number; onClick: () => void; onDragOver: () => void }) {
+  const { currentSkin } = useSkin();
+  const skin = currentSkin;
   return (
     <group position={[col, 0, row]} onClick={(e) => { e.stopPropagation(); onClick(); }} onPointerOver={(e) => { if (e.buttons === 1) { e.stopPropagation(); onDragOver(); } }}>
       <mesh position={[0, 0.04, 0]} receiveShadow>
@@ -110,9 +115,9 @@ function DuoEditorTargetTile({ col, row, onClick, onDragOver }: { col: number; r
       <mesh position={[0, 0.14, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.28, 0.42, 32]} />
         <meshStandardMaterial
-          color="#fbbf24"
-          emissive="#f59e0b"
-          emissiveIntensity={1.0}
+          color={skin.target.color}
+          emissive={skin.target.emissive}
+          emissiveIntensity={skin.target.emissiveIntensity}
           metalness={0.6}
           roughness={0.3}
           toneMapped={false}
@@ -124,9 +129,9 @@ function DuoEditorTargetTile({ col, row, onClick, onDragOver }: { col: number; r
       <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.22, 32]} />
         <meshStandardMaterial
-          color="#fde68a"
-          emissive="#fbbf24"
-          emissiveIntensity={0.5}
+          color={skin.target.color}
+          emissive={skin.target.emissive}
+          emissiveIntensity={skin.target.emissiveIntensity * 0.5}
           transparent
           opacity={0.6}
           toneMapped={false}
@@ -137,13 +142,15 @@ function DuoEditorTargetTile({ col, row, onClick, onDragOver }: { col: number; r
 }
 
 function DuoEditorBox({ position, isOnTarget }: { position: Position; isOnTarget?: boolean }) {
+  const { currentSkin } = useSkin();
+  const skin = currentSkin;
   return (
     <group position={[position.x, 0.46, position.y]}>
       <RoundedBox args={[0.82, 0.82, 0.82]} radius={0.06} smoothness={2} castShadow receiveShadow>
         {isOnTarget ? (
-          <meshStandardMaterial color="#fcd34d" emissive="#f59e0b" emissiveIntensity={0.9} metalness={0.7} roughness={0.25} toneMapped={false} />
+          <meshStandardMaterial color={skin.boxOnTarget.color} emissive={skin.boxOnTarget.emissive} emissiveIntensity={skin.boxOnTarget.emissiveIntensity} metalness={skin.boxOnTarget.metalness} roughness={skin.boxOnTarget.roughness} toneMapped={false} />
         ) : (
-          <meshStandardMaterial color="#8b5a2b" metalness={0.1} roughness={0.85} />
+          <meshStandardMaterial color={skin.box.color} metalness={skin.box.metalness} roughness={skin.box.roughness} />
         )}
       </RoundedBox>
     </group>
@@ -151,36 +158,42 @@ function DuoEditorBox({ position, isOnTarget }: { position: Position; isOnTarget
 }
 
 function DuoEditorBluePlayer({ position }: { position: Position }) {
+  const { currentSkin } = useSkin();
+  const skin = currentSkin;
   return (
     <group position={[position.x, 0, position.y]}>
       <mesh position={[0, 0.35, 0]} castShadow>
         <capsuleGeometry args={[0.28, 0.4, 6, 12]} />
-        <meshStandardMaterial color="#60a5fa" emissive="#3b82f6" emissiveIntensity={0.35} metalness={0.4} roughness={0.4} />
+        <meshStandardMaterial color={skin.player.color} emissive={skin.player.emissive} emissiveIntensity={skin.player.emissiveIntensity} metalness={skin.player.metalness} roughness={skin.player.roughness} />
       </mesh>
       <mesh position={[0, 0.08, 0.35]} castShadow>
         <coneGeometry args={[0.18, 0.3, 3]} />
-        <meshStandardMaterial color="#22d3ee" emissive="#06b6d4" emissiveIntensity={0.8} toneMapped={false} />
+        <meshStandardMaterial color={skin.player.color} emissive={skin.player.emissive} emissiveIntensity={skin.player.emissiveIntensity * 2} toneMapped={false} />
       </mesh>
     </group>
   );
 }
 
 function DuoEditorRedPlayer({ position }: { position: Position }) {
+  const { currentSkin } = useSkin();
+  const skin = currentSkin;
   return (
     <group position={[position.x, 0, position.y]}>
       <mesh position={[0, 0.35, 0]} castShadow>
         <capsuleGeometry args={[0.28, 0.4, 6, 12]} />
-        <meshStandardMaterial color="#f87171" emissive="#ef4444" emissiveIntensity={0.35} metalness={0.4} roughness={0.4} />
+        <meshStandardMaterial color={skin.redPlayer.color} emissive={skin.redPlayer.emissive} emissiveIntensity={skin.redPlayer.emissiveIntensity} metalness={skin.redPlayer.metalness} roughness={skin.redPlayer.roughness} />
       </mesh>
       <mesh position={[0, 0.08, 0.35]} castShadow>
         <coneGeometry args={[0.18, 0.3, 3]} />
-        <meshStandardMaterial color="#fb923c" emissive="#f97316" emissiveIntensity={0.8} toneMapped={false} />
+        <meshStandardMaterial color={skin.redPlayer.color} emissive={skin.redPlayer.emissive} emissiveIntensity={skin.redPlayer.emissiveIntensity * 2} toneMapped={false} />
       </mesh>
     </group>
   );
 }
 
 function DuoEditorRedGate({ position, isOpen }: { position: Position; isOpen?: boolean }) {
+  const { currentSkin } = useSkin();
+  const skin = currentSkin;
   if (isOpen) {
     return (
       <group position={[position.x, 0, position.y]}>
@@ -199,8 +212,8 @@ function DuoEditorRedGate({ position, isOpen }: { position: Position; isOpen?: b
         <mesh position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.3, 0.42, 32]} />
           <meshStandardMaterial
-            color="#fca5a5"
-            emissive="#ef4444"
+            color={skin.redGate.color}
+            emissive={skin.redGate.emissive}
             emissiveIntensity={0.3}
             transparent
             opacity={0.4}
@@ -221,11 +234,11 @@ function DuoEditorRedGate({ position, isOpen }: { position: Position; isOpen?: b
         castShadow
         receiveShadow
       >
-        <meshStandardMaterial color="#991b1b" emissive="#ef4444" emissiveIntensity={0.5} metalness={0.6} roughness={0.3} toneMapped={false} />
+        <meshStandardMaterial color={skin.redGate.color} emissive={skin.redGate.emissive} emissiveIntensity={0.5} metalness={0.6} roughness={0.3} toneMapped={false} />
       </RoundedBox>
       <mesh position={[0, 0.46, 0.47]}>
         <boxGeometry args={[0.6, 0.6, 0.02]} />
-        <meshStandardMaterial color="#fca5a5" emissive="#ef4444" emissiveIntensity={0.8} transparent opacity={0.7} toneMapped={false} />
+        <meshStandardMaterial color={skin.redGate.color} emissive={skin.redGate.emissive} emissiveIntensity={0.8} transparent opacity={0.7} toneMapped={false} />
       </mesh>
     </group>
   );
@@ -244,12 +257,17 @@ function DuoEditorSwitch({
   switchId?: string | number;
   onClick?: () => void;
 }) {
+  const { currentSkin } = useSkin();
+  const skin = currentSkin;
   const handleClick = (e: any) => {
     e.stopPropagation();
     if (onClick) {
       onClick();
     }
   };
+
+  const switchColor = isActive ? skin.switchTile.onColor : skin.switchTile.offColor;
+  const switchEmissive = isClickable ? switchColor : skin.switchTile.emissive;
 
   return (
     <group position={[position.x, 0, position.y]} onClick={handleClick}>
@@ -260,8 +278,8 @@ function DuoEditorSwitch({
       <mesh position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.35, 32]} />
         <meshStandardMaterial
-          color={isClickable ? (isActive ? '#22c55e' : '#eab308') : (isActive ? '#64748b' : '#475569')}
-          emissive={isClickable ? (isActive ? '#22c55e' : '#eab308') : '#1e293b'}
+          color={isClickable ? switchColor : (isActive ? '#64748b' : '#475569')}
+          emissive={switchEmissive}
           emissiveIntensity={isClickable ? 0.8 : 0.3}
           metalness={0.6}
           roughness={0.3}
@@ -271,8 +289,8 @@ function DuoEditorSwitch({
       <mesh position={[0, 0.12, 0]}>
         <boxGeometry args={[0.28, 0.04, 0.06]} />
         <meshStandardMaterial
-          color={isActive ? '#22c55e' : '#ef4444'}
-          emissive={isActive ? '#22c55e' : '#ef4444'}
+          color={switchColor}
+          emissive={switchColor}
           emissiveIntensity={0.6}
           toneMapped={false}
         />
@@ -296,7 +314,9 @@ function DuoEditorSwitch({
 }
 
 function DuoEditorOneWayBarrier({ barrier }: { barrier: OneWayBarrier }) {
-  const color = barrier.color === 'blue' ? '#60a5fa' : '#f87171';
+  const { currentSkin } = useSkin();
+  const skin = currentSkin;
+  const color = barrier.color === 'blue' ? skin.player.color : skin.redPlayer.color;
   const rotation = {
     up: 0,
     right: Math.PI / 2,

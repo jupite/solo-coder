@@ -19,6 +19,7 @@ import {
   Flame,
   Undo2,
   Lightbulb,
+  Grid3X3,
 } from 'lucide-react';
 import {
   createDuoGameState,
@@ -333,29 +334,38 @@ export default function DuoGamePage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-3">
+                  <div className="flex flex-col gap-3">
                     {!autoSolved && (
                       <button
                         onClick={handleSubmitResult}
                         disabled={submitting}
-                        className="btn-primary flex-1"
+                        className="btn-primary w-full inline-flex items-center justify-center gap-2"
                       >
                         {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
                         查看成绩
                       </button>
                     )}
-                    <button
-                      onClick={handleReset}
-                      className={autoSolved ? 'btn-primary flex-1' : 'btn-secondary flex-1'}
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                      再玩一次
-                    </button>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={handleReset}
+                        className={autoSolved ? 'btn-primary flex-1 inline-flex items-center justify-center gap-2' : 'btn-secondary flex-1 inline-flex items-center justify-center gap-2'}
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        再玩一次
+                      </button>
+                      <button
+                        onClick={() => router.push('/duo-levels')}
+                        className="btn-secondary flex-1 inline-flex items-center justify-center gap-2"
+                      >
+                        <Grid3X3 className="w-4 h-4" />
+                        选择关卡
+                      </button>
+                    </div>
                     <button
                       onClick={handleExit}
-                      className="btn-ghost flex-1"
+                      className="btn-ghost w-full inline-flex items-center justify-center gap-2"
                     >
-                      返回关卡
+                      返回模式
                     </button>
                   </div>
                 </div>

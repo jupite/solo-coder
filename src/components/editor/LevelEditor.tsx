@@ -5,6 +5,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { OrthographicCamera, RoundedBox } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { CellType, Position, LevelData, GameState, Direction } from '@/lib/game/types';
+import { useSkin } from '@/components/game/SkinProvider';
 import { createGameState, movePlayer } from '@/lib/game/engine';
 import { HintPanel } from '@/components/game/HintPanel';
 import {
@@ -76,6 +77,7 @@ function EditorFloorTile({ col, row, onClick, onDragOver, isSelected }: { col: n
 }
 
 function EditorWallTile({ col, row, onClick, onDragOver }: { col: number; row: number; onClick: () => void; onDragOver: () => void }) {
+  const { currentSkin: skin } = useSkin();
   return (
     <RoundedBox
       args={[0.92, 0.92, 0.92]}
@@ -87,12 +89,13 @@ function EditorWallTile({ col, row, onClick, onDragOver }: { col: number; row: n
       castShadow
       receiveShadow
     >
-      <meshStandardMaterial color="#374151" metalness={0.4} roughness={0.7} />
+      <meshStandardMaterial color={skin.wall.color} metalness={skin.wall.metalness} roughness={skin.wall.roughness} />
     </RoundedBox>
   );
 }
 
 function EditorTargetTile({ col, row, onClick, onDragOver }: { col: number; row: number; onClick: () => void; onDragOver: () => void }) {
+  const { currentSkin: skin } = useSkin();
   return (
     <group position={[col, 0, row]}>
       <mesh
@@ -106,9 +109,9 @@ function EditorTargetTile({ col, row, onClick, onDragOver }: { col: number; row:
       <mesh position={[0, 0.06, 0]}>
         <boxGeometry args={[0.7, 0.06, 0.7]} />
         <meshStandardMaterial
-          color="#fbbf24"
-          emissive="#f59e0b"
-          emissiveIntensity={0.8}
+          color={skin.target.color}
+          emissive={skin.target.emissive}
+          emissiveIntensity={skin.target.emissiveIntensity}
           metalness={0.5}
           roughness={0.3}
           toneMapped={false}
@@ -119,13 +122,14 @@ function EditorTargetTile({ col, row, onClick, onDragOver }: { col: number; row:
 }
 
 function EditorBox({ position, isOnTarget }: { position: Position; isOnTarget?: boolean }) {
+  const { currentSkin: skin } = useSkin();
   return (
     <group position={[position.x, 0.46, position.y]}>
       <RoundedBox args={[0.82, 0.82, 0.82]} radius={0.06} smoothness={2} castShadow receiveShadow>
         {isOnTarget ? (
-          <meshStandardMaterial color="#fcd34d" emissive="#f59e0b" emissiveIntensity={0.9} metalness={0.7} roughness={0.25} toneMapped={false} />
+          <meshStandardMaterial color={skin.boxOnTarget.color} emissive={skin.boxOnTarget.emissive} emissiveIntensity={skin.boxOnTarget.emissiveIntensity} metalness={skin.boxOnTarget.metalness} roughness={skin.boxOnTarget.roughness} toneMapped={false} />
         ) : (
-          <meshStandardMaterial color="#8b5a2b" metalness={0.1} roughness={0.85} />
+          <meshStandardMaterial color={skin.box.color} metalness={skin.box.metalness} roughness={skin.box.roughness} />
         )}
       </RoundedBox>
     </group>
@@ -133,15 +137,16 @@ function EditorBox({ position, isOnTarget }: { position: Position; isOnTarget?: 
 }
 
 function EditorPlayer({ position }: { position: Position }) {
+  const { currentSkin: skin } = useSkin();
   return (
     <group position={[position.x, 0, position.y]}>
       <mesh position={[0, 0.35, 0]} castShadow>
         <capsuleGeometry args={[0.28, 0.4, 6, 12]} />
-        <meshStandardMaterial color="#60a5fa" emissive="#3b82f6" emissiveIntensity={0.35} metalness={0.4} roughness={0.4} />
+        <meshStandardMaterial color={skin.player.color} emissive={skin.player.emissive} emissiveIntensity={skin.player.emissiveIntensity} metalness={skin.player.metalness} roughness={skin.player.roughness} />
       </mesh>
       <mesh position={[0, 0.08, 0.35]} castShadow>
         <coneGeometry args={[0.18, 0.3, 3]} />
-        <meshStandardMaterial color="#22d3ee" emissive="#06b6d4" emissiveIntensity={0.8} toneMapped={false} />
+        <meshStandardMaterial color={skin.player.color} emissive={skin.player.emissive} emissiveIntensity={0.8} toneMapped={false} />
       </mesh>
     </group>
   );
