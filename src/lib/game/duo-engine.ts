@@ -10,6 +10,7 @@ import {
   Position,
   RedGate,
   SwitchItem,
+  SwitchConnection,
 } from './types';
 
 const DIRS: Record<Direction, Position> = {
@@ -57,6 +58,7 @@ export function createDuoGameState(level: DuoLevelData): DuoGameState {
     targets: level.targets.map((t) => ({ ...t })),
     redGates: level.redGates.map((g) => ({ ...g })),
     switches: level.switches.map((s) => ({ ...s })),
+    switchConnections: level.switchConnections?.map((c) => ({ ...c })) || [],
     oneWayBarriers: [],
     activeSwitches: new Set<string>(),
     currentTurn: 'blue',
@@ -91,22 +93,39 @@ function findSwitchAt(
   return switches.find((s) => s.x === x && s.y === y);
 }
 
+function findConnectionsForSwitch(
+  connections: SwitchConnection[],
+  switchId: string,
+): SwitchConnection[] {
+  return connections.filter((c) => c.switchId === switchId);
+}
+
+function findConnectionsForGate(
+  connections: SwitchConnection[],
+  gateId: string,
+): SwitchConnection[] {
+  return connections.filter((c) => c.gateId === gateId);
+}
+
 function isGateOpen(
   gate: RedGate,
+  connections: SwitchConnection[],
   activeSwitches: Set<string>,
 ): boolean {
-  return activeSwitches.has(gate.switchId);
+  const gateConnections = findConnectionsForGate(connections, gate.id);
+  return gateConnections.some((c) => activeSwitches.has(c.switchId));
 }
 
 function isGateBlocked(
   x: number,
   y: number,
   redGates: RedGate[],
+  connections: SwitchConnection[],
   activeSwitches: Set<string>,
 ): boolean {
   const gate = findGateAt(redGates, x, y);
   if (!gate) return false;
-  return !isGateOpen(gate, activeSwitches);
+  return !isGateOpen(gate, connections, activeSwitches);
 }
 
 function isPositionInPath(path: Position[], x: number, y: number): boolean {
@@ -180,10 +199,10 @@ export function toggleSwitch(
   if (!sw) return state;
 
   const newActiveSwitches = new Set(state.activeSwitches);
-  if (newActiveSwitches.has(sw.gateId)) {
-    newActiveSwitches.delete(sw.gateId);
+  if (newActiveSwitches.has(sw.id)) {
+    newActiveSwitches.delete(sw.id);
   } else {
-    newActiveSwitches.add(sw.gateId);
+    newActiveSwitches.add(sw.id);
   }
 
   return {
@@ -218,7 +237,7 @@ export function moveDuoPlayer(
     return state;
   }
 
-  if (isGateBlocked(nx, ny, state.redGates, state.activeSwitches)) {
+  if (isGateBlocked(nx, ny, state.redGates, state.switchConnections, state.activeSwitches)) {
     return state;
   }
 
@@ -255,7 +274,7 @@ export function moveDuoPlayer(
     if (isWall(state.grid, bx, by)) return state;
     if (findBoxIndex(newBoxes, bx, by) !== -1) return state;
     if (findSwitchAt(state.switches, bx, by)) return state;
-    if (isGateBlocked(bx, by, state.redGates, state.activeSwitches)) {
+    if (isGateBlocked(bx, by, state.redGates, state.switchConnections, state.activeSwitches)) {
       return state;
     }
 
@@ -417,7 +436,7 @@ export function getDuoCellAt(
 
   const gate = findGateAt(state.redGates, x, y);
   if (gate) {
-    if (isGateOpen(gate, state.activeSwitches)) {
+    if (isGateOpen(gate, state.switchConnections, state.activeSwitches)) {
       return CellType.FLOOR;
     }
     return CellType.RED_GATE;
@@ -425,7 +444,7 @@ export function getDuoCellAt(
 
   const sw = findSwitchAt(state.switches, x, y);
   if (sw) {
-    return state.activeSwitches.has(sw.gateId)
+    return state.activeSwitches.has(sw.id)
       ? CellType.SWITCH_ON
       : CellType.SWITCH_OFF;
   }

@@ -39,12 +39,17 @@ export interface GameState {
 export interface RedGate {
   x: number;
   y: number;
-  switchId: string;
+  id: string;
 }
 
 export interface SwitchItem {
   x: number;
   y: number;
+  id: string;
+}
+
+export interface SwitchConnection {
+  switchId: string;
   gateId: string;
 }
 
@@ -65,6 +70,7 @@ export interface DuoLevelData {
   targets: Position[];
   redGates: RedGate[];
   switches: SwitchItem[];
+  switchConnections: SwitchConnection[];
 }
 
 export interface DuoPlayerState {
@@ -97,6 +103,7 @@ export interface DuoGameState {
   targets: Position[];
   redGates: RedGate[];
   switches: SwitchItem[];
+  switchConnections: SwitchConnection[];
   oneWayBarriers: OneWayBarrier[];
   activeSwitches: Set<string>;
   currentTurn: PlayerColor;

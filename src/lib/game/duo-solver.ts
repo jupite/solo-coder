@@ -4,6 +4,7 @@ import {
   DuoLevelData,
   PlayerColor,
   Position,
+  SwitchConnection,
 } from './types';
 import { createDuoGameState, moveDuoPlayer, toggleSwitch } from './duo-engine';
 

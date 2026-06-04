@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrthographicCamera, RoundedBox } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
-import { CellType, Position, DuoLevelData, DuoGameState, Direction, PlayerColor, RedGate, SwitchItem, OneWayBarrier } from '@/lib/game/types';
+import { CellType, Position, DuoLevelData, DuoGameState, Direction, PlayerColor, RedGate, SwitchItem, OneWayBarrier, SwitchConnection } from '@/lib/game/types';
 import { createDuoGameState, moveDuoPlayer, undoDuoMove, toggleSwitch } from '@/lib/game/duo-engine';
 import { DuoHintPanel } from '@/components/game/DuoHintPanel';
 import {
@@ -27,9 +27,11 @@ import {
   Lock,
   ToggleLeft,
   Lightbulb,
+  Link,
+  Unlink,
 } from 'lucide-react';
 
-type DuoToolType = 'floor' | 'wall' | 'target' | 'box' | 'bluePlayer' | 'redPlayer' | 'redGate' | 'switch' | 'erase';
+type DuoToolType = 'floor' | 'wall' | 'target' | 'box' | 'bluePlayer' | 'redPlayer' | 'redGate' | 'switch' | 'wire' | 'erase';
 
 interface ToolConfig {
   type: DuoToolType;
@@ -47,6 +49,7 @@ const DUO_TOOLS: ToolConfig[] = [
   { type: 'redPlayer', label: '红色角色', icon: <Flame className="w-5 h-5" />, color: 'text-red-400' },
   { type: 'redGate', label: '红色机关', icon: <Lock className="w-5 h-5" />, color: 'text-red-500' },
   { type: 'switch', label: '开关', icon: <ToggleLeft className="w-5 h-5" />, color: 'text-green-400' },
+  { type: 'wire', label: '连线', icon: <Link className="w-5 h-5" />, color: 'text-cyan-400' },
   { type: 'erase', label: '擦除', icon: <Eraser className="w-5 h-5" />, color: 'text-red-400' },
 ];
 
@@ -235,19 +238,25 @@ function DuoEditorSwitch({
   position,
   isActive,
   isClickable,
+  isWireMode,
+  isSelected,
   onClick,
 }: {
   position: Position;
   isActive?: boolean;
   isClickable?: boolean;
+  isWireMode?: boolean;
+  isSelected?: boolean;
   onClick?: () => void;
 }) {
   const handleClick = (e: any) => {
     e.stopPropagation();
-    if (isClickable && onClick) {
+    if (onClick) {
       onClick();
     }
   };
+
+  const showHighlight = isWireMode || isSelected;
 
   return (
     <group position={[position.x, 0, position.y]} onClick={handleClick}>
@@ -275,12 +284,140 @@ function DuoEditorSwitch({
           toneMapped={false}
         />
       </mesh>
-      {isClickable && (
+      {(isClickable || showHighlight) && (
         <mesh position={[0, 0.06, 0]}>
           <ringGeometry args={[0.38, 0.42, 32]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.8} side={2} />
+          <meshBasicMaterial color={isSelected ? '#22d3ee' : '#ffffff'} transparent opacity={0.8} side={2} />
         </mesh>
       )}
+      {isWireMode && (
+        <mesh position={[0, 0.1, 0]}>
+          <ringGeometry args={[0.44, 0.48, 32]} />
+          <meshBasicMaterial color="#22d3ee" transparent opacity={0.6} side={2} />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
+function DuoEditorRedGateForWire({
+  position,
+  isOpen,
+  isWireMode,
+  isSelected,
+  onClick,
+}: {
+  position: Position;
+  isOpen?: boolean;
+  isWireMode?: boolean;
+  isSelected?: boolean;
+  onClick?: () => void;
+}) {
+  const handleClick = (e: any) => {
+    e.stopPropagation();
+    if (onClick) {
+      onClick();
+    }
+  };
+
+  if (isOpen) {
+    return (
+      <group position={[position.x, 0, position.y]} onClick={handleClick}>
+        <mesh position={[0, 0.04, 0]} receiveShadow>
+          <boxGeometry args={[0.92, 0.08, 0.92]} />
+          <meshStandardMaterial
+            color="#1e3a5f"
+            metalness={0.2}
+            roughness={0.8}
+            emissive="#0b1f3a"
+            emissiveIntensity={0.3}
+            transparent
+            opacity={0.6}
+          />
+        </mesh>
+        <mesh position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.3, 0.42, 32]} />
+          <meshStandardMaterial
+            color="#fca5a5"
+            emissive="#ef4444"
+            emissiveIntensity={0.3}
+            transparent
+            opacity={0.4}
+            toneMapped={false}
+          />
+        </mesh>
+        {isWireMode && (
+          <mesh position={[0, 0.1, 0]}>
+            <ringGeometry args={[0.44, 0.48, 32]} />
+            <meshBasicMaterial color="#22d3ee" transparent opacity={0.6} side={2} />
+          </mesh>
+        )}
+        {isSelected && (
+          <mesh position={[0, 0.06, 0]}>
+            <ringGeometry args={[0.38, 0.42, 32]} />
+            <meshBasicMaterial color="#22d3ee" transparent opacity={0.8} side={2} />
+          </mesh>
+        )}
+      </group>
+    );
+  }
+
+  return (
+    <group position={[position.x, 0, position.y]} onClick={handleClick}>
+      <RoundedBox
+        args={[0.92, 0.92, 0.92]}
+        radius={0.08}
+        smoothness={2}
+        position={[0, 0.46, 0]}
+        castShadow
+        receiveShadow
+      >
+        <meshStandardMaterial color="#991b1b" emissive="#ef4444" emissiveIntensity={0.5} metalness={0.6} roughness={0.3} toneMapped={false} />
+      </RoundedBox>
+      <mesh position={[0, 0.46, 0.47]}>
+        <boxGeometry args={[0.6, 0.6, 0.02]} />
+        <meshStandardMaterial color="#fca5a5" emissive="#ef4444" emissiveIntensity={0.8} transparent opacity={0.7} toneMapped={false} />
+      </mesh>
+      {isWireMode && (
+        <mesh position={[0, 0.06, 0]}>
+          <ringGeometry args={[0.44, 0.48, 32]} />
+          <meshBasicMaterial color="#22d3ee" transparent opacity={0.6} side={2} />
+        </mesh>
+      )}
+      {isSelected && (
+        <mesh position={[0, 0.02, 0]}>
+          <ringGeometry args={[0.48, 0.52, 32]} />
+          <meshBasicMaterial color="#22d3ee" transparent opacity={0.8} side={2} />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
+function SwitchWire({ from, to, isPreview }: { from: Position; to: Position; isPreview?: boolean }) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const length = Math.sqrt(dx * dx + dy * dy);
+  const angle = Math.atan2(dy, dx);
+
+  return (
+    <group position={[from.x, 0.2, from.y]} rotation={[-Math.PI / 2, 0, -angle]}>
+      <mesh position={[length / 2, 0, 0]}>
+        <cylinderGeometry args={[isPreview ? 0.05 : 0.06, isPreview ? 0.05 : 0.06, length, 8]} />
+        <meshBasicMaterial color={isPreview ? '#67e8f9' : '#22d3ee'} transparent opacity={isPreview ? 0.6 : 0.95} />
+      </mesh>
+      <mesh position={[0, 0, 0]}>
+        <sphereGeometry args={[0.1, 12, 12]} />
+        <meshBasicMaterial color="#22d3ee" transparent opacity={0.95} />
+      </mesh>
+      <mesh position={[length, 0, 0]}>
+        <sphereGeometry args={[0.1, 12, 12]} />
+        <meshBasicMaterial color="#22d3ee" transparent opacity={0.95} />
+      </mesh>
+      <mesh position={[length / 2, 0, 0]}>
+        <cylinderGeometry args={[0.02, 0.02, length, 8]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.4} />
+      </mesh>
     </group>
   );
 }
@@ -324,6 +461,7 @@ function DuoEditorGrid({
   redPlayerGone,
   redGates,
   switches,
+  switchConnections,
   activeSwitches,
   activePlayerColor,
   oneWayBarriers,
@@ -332,6 +470,10 @@ function DuoEditorGrid({
   onCellDrag,
   onSwitchClick,
   isPlaying,
+  isWireMode,
+  selectedWireStart,
+  onSwitchWireClick,
+  onGateWireClick,
 }: {
   grid: CellType[][];
   boxes: Position[];
@@ -342,6 +484,7 @@ function DuoEditorGrid({
   redPlayerGone?: boolean;
   redGates: RedGate[];
   switches: SwitchItem[];
+  switchConnections?: SwitchConnection[];
   activeSwitches?: Set<string>;
   activePlayerColor?: PlayerColor;
   oneWayBarriers?: OneWayBarrier[];
@@ -350,6 +493,10 @@ function DuoEditorGrid({
   onCellDrag: (x: number, y: number) => void;
   onSwitchClick?: (x: number, y: number) => void;
   isPlaying?: boolean;
+  isWireMode?: boolean;
+  selectedWireStart?: SwitchItem | null;
+  onSwitchWireClick?: (sw: SwitchItem) => void;
+  onGateWireClick?: (gate: RedGate) => void;
 }) {
   const rows = grid.length;
   const cols = grid[0]?.length ?? 0;
@@ -370,12 +517,12 @@ function DuoEditorGrid({
 
   const isSwitchActive = (sw: SwitchItem) => {
     if (!activeSwitches) return false;
-    return activeSwitches.has(sw.gateId);
+    return activeSwitches.has(sw.id);
   };
 
   const isGateOpen = (gate: RedGate) => {
-    if (!activeSwitches) return false;
-    return activeSwitches.has(gate.switchId);
+    if (!activeSwitches || !switchConnections) return false;
+    return switchConnections.some((c) => c.gateId === gate.id && activeSwitches.has(c.switchId));
   };
 
   const isSwitchClickable = (sw: SwitchItem) => {
@@ -386,6 +533,16 @@ function DuoEditorGrid({
     const dx = Math.abs(player.x - sw.x);
     const dy = Math.abs(player.y - sw.y);
     return (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
+  };
+
+  const getSwitchPosition = (switchId: string): Position | null => {
+    const sw = switches.find((s) => s.id === switchId);
+    return sw ? { x: sw.x, y: sw.y } : null;
+  };
+
+  const getGatePosition = (gateId: string): Position | null => {
+    const gate = redGates.find((g) => g.id === gateId);
+    return gate ? { x: gate.x, y: gate.y } : null;
   };
 
   return (
@@ -421,9 +578,20 @@ function DuoEditorGrid({
         })
       )}
 
-      {redGates.map((gate, idx) => (
-        <DuoEditorRedGate key={`gate-${idx}`} position={{ x: gate.x, y: gate.y }} isOpen={isGateOpen(gate)} />
-      ))}
+      {redGates.map((gate, idx) =>
+        isWireMode && !isPlaying ? (
+          <DuoEditorRedGateForWire
+            key={`gate-${idx}`}
+            position={{ x: gate.x, y: gate.y }}
+            isOpen={isGateOpen(gate)}
+            isWireMode={isWireMode && !isPlaying && selectedWireStart !== null}
+            isSelected={selectedWireStart !== null && switchConnections?.some((c) => c.switchId === selectedWireStart.id && c.gateId === gate.id)}
+            onClick={() => onGateWireClick?.(gate)}
+          />
+        ) : (
+          <DuoEditorRedGate key={`gate-${idx}`} position={{ x: gate.x, y: gate.y }} isOpen={isGateOpen(gate)} />
+        )
+      )}
 
       {switches.map((sw, idx) => (
         <DuoEditorSwitch
@@ -431,9 +599,24 @@ function DuoEditorGrid({
           position={{ x: sw.x, y: sw.y }}
           isActive={isSwitchActive(sw)}
           isClickable={isSwitchClickable(sw)}
-          onClick={() => onSwitchClick?.(sw.x, sw.y)}
+          isWireMode={isWireMode && !isPlaying}
+          isSelected={selectedWireStart?.id === sw.id}
+          onClick={() => {
+            if (isWireMode && !isPlaying) {
+              onSwitchWireClick?.(sw);
+            } else if (isPlaying) {
+              onSwitchClick?.(sw.x, sw.y);
+            }
+          }}
         />
       ))}
+
+      {switchConnections?.map((conn, idx) => {
+        const swPos = getSwitchPosition(conn.switchId);
+        const gatePos = getGatePosition(conn.gateId);
+        if (!swPos || !gatePos) return null;
+        return <SwitchWire key={`wire-${idx}`} from={swPos} to={gatePos} />;
+      })}
 
       {oneWayBarriers?.map((barrier, idx) => (
         <DuoEditorOneWayBarrier key={`barrier-${idx}`} barrier={barrier} />
@@ -465,6 +648,8 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
   const [redPlayer, setRedPlayer] = useState<Position | null>(null);
   const [redGates, setRedGates] = useState<RedGate[]>([]);
   const [switches, setSwitches] = useState<SwitchItem[]>([]);
+  const [switchConnections, setSwitchConnections] = useState<SwitchConnection[]>([]);
+  const [selectedWireStart, setSelectedWireStart] = useState<SwitchItem | null>(null);
   const [blueMaxSteps, setBlueMaxSteps] = useState(20);
   const [redMaxSteps, setRedMaxSteps] = useState(20);
   const [selectedTool, setSelectedTool] = useState<DuoToolType>('floor');
@@ -478,7 +663,8 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
   const [loadingLevel, setLoadingLevel] = useState(false);
   const [autoSolved, setAutoSolved] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const nextPairIdRef = useRef(0);
+  const nextGateIdRef = useRef(0);
+  const nextSwitchIdRef = useRef(0);
 
   useEffect(() => {
     if (!editingLevelId) return;
@@ -500,6 +686,56 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
           const parsedTargets = JSON.parse(lv.targets);
           const parsedRedGates = JSON.parse(lv.redGates || '[]');
           const parsedSwitches = JSON.parse(lv.switches || '[]');
+          const parsedConnections = JSON.parse(lv.switchConnections || '[]');
+
+          let finalGates: RedGate[] = parsedRedGates;
+          let finalSwitches: SwitchItem[] = parsedSwitches;
+          let finalConnections: SwitchConnection[] = parsedConnections;
+
+          if (parsedConnections.length === 0 && parsedRedGates.length > 0 && parsedRedGates[0].switchId) {
+            let gateIdCounter = 0;
+            let switchIdCounter = 0;
+            const gateIdMap = new Map<string, string>();
+            const switchIdMap = new Map<string, string>();
+            const newConnections: SwitchConnection[] = [];
+
+            finalGates = parsedRedGates.map((g: any) => {
+              const newId = `gate-${gateIdCounter++}`;
+              gateIdMap.set(g.switchId, newId);
+              return { x: g.x, y: g.y, id: newId };
+            });
+
+            finalSwitches = parsedSwitches.map((s: any) => {
+              const newId = `sw-${switchIdCounter++}`;
+              switchIdMap.set(s.gateId, newId);
+              return { x: s.x, y: s.y, id: newId };
+            });
+
+            parsedRedGates.forEach((g: any) => {
+              const gateId = gateIdMap.get(g.switchId);
+              const switchId = switchIdMap.get(g.switchId);
+              if (gateId && switchId) {
+                newConnections.push({ switchId, gateId });
+              }
+            });
+
+            finalConnections = newConnections;
+            nextGateIdRef.current = gateIdCounter;
+            nextSwitchIdRef.current = switchIdCounter;
+          } else {
+            let maxGateId = 0;
+            let maxSwitchId = 0;
+            parsedRedGates.forEach((g: RedGate) => {
+              const match = g.id?.match(/gate-(\d+)/);
+              if (match) maxGateId = Math.max(maxGateId, parseInt(match[1]) + 1);
+            });
+            parsedSwitches.forEach((s: SwitchItem) => {
+              const match = s.id?.match(/sw-(\d+)/);
+              if (match) maxSwitchId = Math.max(maxSwitchId, parseInt(match[1]) + 1);
+            });
+            nextGateIdRef.current = maxGateId;
+            nextSwitchIdRef.current = maxSwitchId;
+          }
 
           setGrid(parsedGrid);
           setBoxes(parsedBoxes);
@@ -508,22 +744,12 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
           setRedPlayer({ x: lv.redPlayerX, y: lv.redPlayerY });
           setBlueMaxSteps(lv.blueMaxSteps);
           setRedMaxSteps(lv.redMaxSteps);
-          setRedGates(parsedRedGates);
-          setSwitches(parsedSwitches);
+          setRedGates(finalGates);
+          setSwitches(finalSwitches);
+          setSwitchConnections(finalConnections);
           setLevelName(lv.name);
           setGridSize({ width: parsedGrid[0]?.length ?? 0, height: parsedGrid.length });
           setHasCompletedPlaythrough(lv.verified);
-
-          let maxId = 0;
-          parsedRedGates.forEach((g: RedGate) => {
-            const match = g.switchId.match(/pair-(\d+)/);
-            if (match) maxId = Math.max(maxId, parseInt(match[1]) + 1);
-          });
-          parsedSwitches.forEach((s: SwitchItem) => {
-            const match = s.gateId.match(/pair-(\d+)/);
-            if (match) maxId = Math.max(maxId, parseInt(match[1]) + 1);
-          });
-          nextPairIdRef.current = maxId;
         }
       } catch (err) {
         setMessage(err instanceof Error ? err.message : '加载失败');
@@ -553,8 +779,13 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
     setGrid(newGrid);
     setBoxes(boxes.filter((b) => b.x < width && b.y < height));
     setTargets(targets.filter((t) => t.x < width && t.y < height));
-    setRedGates(redGates.filter((g) => g.x < width && g.y < height));
-    setSwitches(switches.filter((s) => s.x < width && s.y < height));
+    const filteredGates = redGates.filter((g) => g.x < width && g.y < height);
+    const filteredSwitches = switches.filter((s) => s.x < width && s.y < height);
+    setRedGates(filteredGates);
+    setSwitches(filteredSwitches);
+    const validGateIds = new Set(filteredGates.map((g) => g.id));
+    const validSwitchIds = new Set(filteredSwitches.map((s) => s.id));
+    setSwitchConnections(switchConnections.filter((c) => validGateIds.has(c.gateId) && validSwitchIds.has(c.switchId)));
     if (bluePlayer && (bluePlayer.x >= width || bluePlayer.y >= height)) {
       setBluePlayer(null);
     }
@@ -563,16 +794,32 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
     }
     setGridSize({ width, height });
     setHasCompletedPlaythrough(false);
-  }, [grid, boxes, targets, bluePlayer, redPlayer, redGates, switches]);
+  }, [grid, boxes, targets, bluePlayer, redPlayer, redGates, switches, switchConnections]);
 
   const placeTool = useCallback((x: number, y: number) => {
     if (isPlaying) return;
+    if (selectedTool === 'wire') return;
 
     if (selectedTool === 'erase') {
       setBoxes(boxes.filter((b) => !(b.x === x && b.y === y)));
       setTargets(targets.filter((t) => !(t.x === x && t.y === y)));
+
+      const gateToRemove = redGates.find((g) => g.x === x && g.y === y);
+      const switchToRemove = switches.find((s) => s.x === x && s.y === y);
+
+      if (gateToRemove || switchToRemove) {
+        setSwitchConnections((prev) =>
+          prev.filter(
+            (c) =>
+              !(gateToRemove && c.gateId === gateToRemove.id) &&
+              !(switchToRemove && c.switchId === switchToRemove.id)
+          )
+        );
+      }
+
       setRedGates(redGates.filter((g) => !(g.x === x && g.y === y)));
       setSwitches(switches.filter((s) => !(s.x === x && s.y === y)));
+
       if (bluePlayer && bluePlayer.x === x && bluePlayer.y === y) {
         setBluePlayer(null);
       }
@@ -618,10 +865,14 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
 
     if (selectedTool === 'redGate') {
       if (redGates.some((g) => g.x === x && g.y === y)) {
+        const gateToRemove = redGates.find((g) => g.x === x && g.y === y);
+        if (gateToRemove) {
+          setSwitchConnections((prev) => prev.filter((c) => c.gateId !== gateToRemove.id));
+        }
         setRedGates(redGates.filter((g) => !(g.x === x && g.y === y)));
       } else {
-        const pairId = `pair-${nextPairIdRef.current++}`;
-        setRedGates([...redGates, { x, y, switchId: pairId }]);
+        const gateId = `gate-${nextGateIdRef.current++}`;
+        setRedGates([...redGates, { x, y, id: gateId }]);
       }
       setHasCompletedPlaythrough(false);
       return;
@@ -629,11 +880,14 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
 
     if (selectedTool === 'switch') {
       if (switches.some((s) => s.x === x && s.y === y)) {
+        const switchToRemove = switches.find((s) => s.x === x && s.y === y);
+        if (switchToRemove) {
+          setSwitchConnections((prev) => prev.filter((c) => c.switchId !== switchToRemove.id));
+        }
         setSwitches(switches.filter((s) => !(s.x === x && s.y === y)));
       } else {
-        const lastGate = redGates[redGates.length - 1];
-        const gateId = lastGate ? lastGate.switchId : `pair-${nextPairIdRef.current++}`;
-        setSwitches([...switches, { x, y, gateId }]);
+        const swId = `sw-${nextSwitchIdRef.current++}`;
+        setSwitches([...switches, { x, y, id: swId }]);
       }
       setHasCompletedPlaythrough(false);
       return;
@@ -643,6 +897,19 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
     if (selectedTool === 'floor') {
       newGrid[y][x] = CellType.FLOOR;
       setTargets(targets.filter((t) => !(t.x === x && t.y === y)));
+
+      const gateToRemove = redGates.find((g) => g.x === x && g.y === y);
+      const switchToRemove = switches.find((s) => s.x === x && s.y === y);
+      if (gateToRemove || switchToRemove) {
+        setSwitchConnections((prev) =>
+          prev.filter(
+            (c) =>
+              !(gateToRemove && c.gateId === gateToRemove.id) &&
+              !(switchToRemove && c.switchId === switchToRemove.id)
+          )
+        );
+      }
+
       setRedGates(redGates.filter((g) => !(g.x === x && g.y === y)));
       setSwitches(switches.filter((s) => !(s.x === x && s.y === y)));
     } else if (selectedTool === 'wall') {
@@ -660,14 +927,47 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
 
   const handleCellClick = useCallback((x: number, y: number) => {
     if (isPlaying) return;
+    if (selectedTool === 'wire') return;
     placeTool(x, y);
-  }, [isPlaying, placeTool]);
+  }, [isPlaying, placeTool, selectedTool]);
 
   const handleCellDrag = useCallback((x: number, y: number) => {
     if (isPlaying) return;
-    if (selectedTool === 'box' || selectedTool === 'bluePlayer' || selectedTool === 'redPlayer' || selectedTool === 'redGate' || selectedTool === 'switch') return;
+    if (selectedTool === 'box' || selectedTool === 'bluePlayer' || selectedTool === 'redPlayer' || selectedTool === 'redGate' || selectedTool === 'switch' || selectedTool === 'wire') return;
     placeTool(x, y);
   }, [isPlaying, selectedTool, placeTool]);
+
+  const handleSwitchWireClick = useCallback((sw: SwitchItem) => {
+    if (selectedWireStart) {
+      if (selectedWireStart.id === sw.id) {
+        setSelectedWireStart(null);
+      } else {
+        setSelectedWireStart(sw);
+      }
+    } else {
+      setSelectedWireStart(sw);
+    }
+  }, [selectedWireStart]);
+
+  const handleGateWireClick = useCallback((gate: RedGate) => {
+    if (!selectedWireStart) return;
+
+    const existingConn = switchConnections.find(
+      (c) => c.switchId === selectedWireStart.id && c.gateId === gate.id
+    );
+
+    if (existingConn) {
+      setSwitchConnections((prev) =>
+        prev.filter((c) => !(c.switchId === selectedWireStart.id && c.gateId === gate.id))
+      );
+    } else {
+      setSwitchConnections((prev) => [
+        ...prev,
+        { switchId: selectedWireStart.id, gateId: gate.id },
+      ]);
+    }
+    setHasCompletedPlaythrough(false);
+  }, [selectedWireStart, switchConnections]);
 
   const handleClearLevel = useCallback(() => {
     if (isPlaying) return;
@@ -678,6 +978,8 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
     setRedPlayer(null);
     setRedGates([]);
     setSwitches([]);
+    setSwitchConnections([]);
+    setSelectedWireStart(null);
     setHasCompletedPlaythrough(false);
   }, [isPlaying, gridSize]);
 
@@ -698,13 +1000,15 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
       targets: targets.map((t) => ({ ...t })),
       redGates: redGates.map((g) => ({ ...g })),
       switches: switches.map((s) => ({ ...s })),
+      switchConnections: switchConnections.map((c) => ({ ...c })),
     };
 
     setGameState(createDuoGameState(levelData));
     setIsPlaying(true);
     setActivePlayer('blue');
     setAutoSolved(false);
-  }, [grid, bluePlayer, redPlayer, blueMaxSteps, redMaxSteps, boxes, targets, redGates, switches]);
+    setSelectedWireStart(null);
+  }, [grid, bluePlayer, redPlayer, blueMaxSteps, redMaxSteps, boxes, targets, redGates, switches, switchConnections]);
 
   const handleStopPlay = useCallback(() => {
     setIsPlaying(false);
@@ -791,11 +1095,12 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
       targets: targets.map((t) => ({ ...t })),
       redGates: redGates.map((g) => ({ ...g })),
       switches: switches.map((s) => ({ ...s })),
+      switchConnections: switchConnections.map((c) => ({ ...c })),
     };
     setGameState(createDuoGameState(levelData));
     setActivePlayer('blue');
     setAutoSolved(false);
-  }, [grid, bluePlayer, redPlayer, blueMaxSteps, redMaxSteps, boxes, targets, redGates, switches]);
+  }, [grid, bluePlayer, redPlayer, blueMaxSteps, redMaxSteps, boxes, targets, redGates, switches, switchConnections]);
 
   const handleUndoPlay = useCallback(() => {
     if (!gameState || !isPlaying) return;
@@ -854,6 +1159,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
         targets: JSON.stringify(targets),
         redGates: JSON.stringify(redGates),
         switches: JSON.stringify(switches),
+        switchConnections: JSON.stringify(switchConnections),
         verified: hasCompletedPlaythrough,
       };
 
@@ -885,7 +1191,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
     } finally {
       setSaving(false);
     }
-  }, [grid, bluePlayer, redPlayer, blueMaxSteps, redMaxSteps, boxes, targets, redGates, switches, levelName, hasCompletedPlaythrough, editingLevelId]);
+  }, [grid, bluePlayer, redPlayer, blueMaxSteps, redMaxSteps, boxes, targets, redGates, switches, switchConnections, levelName, hasCompletedPlaythrough, editingLevelId]);
 
   const currentLevelData: DuoLevelData | null = (bluePlayer && redPlayer && targets.length > 0)
     ? {
@@ -898,6 +1204,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
         targets: targets.map((t) => ({ ...t })),
         redGates: redGates.map((g) => ({ ...g })),
         switches: switches.map((s) => ({ ...s })),
+        switchConnections: switchConnections.map((c) => ({ ...c })),
       }
     : null;
 
@@ -910,6 +1217,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
   const displayRedGone = isPlaying && gameState ? gameState.redPlayer.isGone : false;
   const displayRedGates = isPlaying && gameState ? gameState.redGates : redGates;
   const displaySwitches = isPlaying && gameState ? gameState.switches : switches;
+  const displayConnections = isPlaying && gameState ? gameState.switchConnections : switchConnections;
   const displayActiveSwitches = isPlaying && gameState ? gameState.activeSwitches : new Set<string>();
   const displayBarriers = isPlaying && gameState ? gameState.oneWayBarriers : [];
 
@@ -1002,6 +1310,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
             redPlayerGone={displayRedGone}
             redGates={displayRedGates}
             switches={displaySwitches}
+            switchConnections={displayConnections}
             activeSwitches={displayActiveSwitches}
             activePlayerColor={activePlayer}
             oneWayBarriers={displayBarriers}
@@ -1010,6 +1319,10 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
             onCellDrag={handleCellDrag}
             onSwitchClick={handleSwitchClick}
             isPlaying={isPlaying}
+            isWireMode={selectedTool === 'wire'}
+            selectedWireStart={selectedWireStart}
+            onSwitchWireClick={handleSwitchWireClick}
+            onGateWireClick={handleGateWireClick}
           />
 
           {isPlaying && (
@@ -1129,6 +1442,10 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
               <span className="text-slate-400">机关/开关:</span>
               <span className="text-white">{redGates.length}/{switches.length}</span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-slate-400">连线数量:</span>
+              <span className="text-cyan-400">{switchConnections.length}</span>
+            </div>
             <div className="h-px bg-white/10 my-2" />
             <div className="flex justify-between items-center">
               <span className="text-slate-400">通关验证:</span>
@@ -1165,6 +1482,9 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
           <p>• 选择工具后点击地图放置物品</p>
           <p>• 拖动可以连续绘制墙壁和地板</p>
           <p>• 红色机关阻止所有角色和箱子</p>
+          <p>• <span className="text-cyan-400">连线工具:</span> 先点击开关选中，再点击机关建立连接</p>
+          <p>• <span className="text-cyan-400">删除连线:</span> 选中开关后点击已连接的机关</p>
+          <p>• <span className="text-cyan-400">一个开关可控制多个机关</span></p>
           <p>• 角色走到开关旁可点击切换机关</p>
           <p>• 角色离开格子后生成单向障碍</p>
           <p>• 只能从离开方向原路返回</p>
