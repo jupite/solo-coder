@@ -44,8 +44,8 @@ const DUO_TOOLS: ToolConfig[] = [
   { type: 'wall', label: '墙壁', icon: <Square className="w-5 h-5" />, color: 'text-gray-500' },
   { type: 'target', label: '目标点', icon: <Target className="w-5 h-5" />, color: 'text-yellow-400' },
   { type: 'box', label: '箱子', icon: <Package className="w-5 h-5" />, color: 'text-amber-600' },
-  { type: 'bluePlayer', label: '蓝色角色', icon: <Droplets className="w-5 h-5" />, color: 'text-blue-400' },
-  { type: 'redPlayer', label: '红色角色', icon: <Flame className="w-5 h-5" />, color: 'text-red-400' },
+  { type: 'bluePlayer', label: '玩家 1', icon: <Droplets className="w-5 h-5" />, color: 'text-blue-400' },
+  { type: 'redPlayer', label: '玩家 2', icon: <Flame className="w-5 h-5" />, color: 'text-red-400' },
   { type: 'redGate', label: '红色机关', icon: <Lock className="w-5 h-5" />, color: 'text-red-500' },
   { type: 'switch', label: '开关', icon: <ToggleLeft className="w-5 h-5" />, color: 'text-green-400' },
   { type: 'erase', label: '擦除', icon: <Eraser className="w-5 h-5" />, color: 'text-red-400' },
@@ -1111,7 +1111,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
                 onClick={() => setActivePlayer(activePlayer === 'blue' ? 'red' : 'blue')}
                 className={`ml-2 px-2 py-1 rounded text-xs font-bold ${activePlayer === 'blue' ? 'bg-blue-500/30 text-blue-300' : 'bg-red-500/30 text-red-300'}`}
               >
-                {activePlayer === 'blue' ? '蓝色角色' : '红色角色'} (Tab切换)
+                {activePlayer === 'blue' ? '玩家 1' : '玩家 2'} (Tab切换)
               </button>
             </div>
           )}
@@ -1150,7 +1150,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
           <h3 className="text-sm font-medium text-white mb-3">移动点数</h3>
           <div className="space-y-3">
             <div>
-              <label className="text-xs text-slate-400 mb-1 block">蓝色最大步数</label>
+              <label className="text-xs text-slate-400 mb-1 block">玩家 1 最大步数</label>
               <input
                 type="number"
                 min="1"
@@ -1162,7 +1162,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
               />
             </div>
             <div>
-              <label className="text-xs text-slate-400 mb-1 block">红色最大步数</label>
+              <label className="text-xs text-slate-400 mb-1 block">玩家 2 最大步数</label>
               <input
                 type="number"
                 min="1"
