@@ -4,14 +4,9 @@ import { useState } from 'react'
 import { useGameStore } from '@/store/gameStore'
 
 const TIME_PRESETS = [
-  { label: '☀️ 早晨', value: 1 },
-  { label: '☀️ 上午', value: 3 },
-  { label: '☀️ 正午', value: 5 },
-  { label: '☀️ 下午', value: 7 },
-  { label: '🌅 黄昏', value: 9 },
-  { label: '🌅 黄昏末', value: 11 },
-  { label: '🌙 夜晚', value: 13 },
-  { label: '🌙 深夜', value: 15 },
+  { label: '☀️ 白天', value: 4 },
+  { label: '🌅 黄昏', value: 10 },
+  { label: '🌙 夜晚', value: 14 },
 ]
 
 const SPEED_PRESETS = [
@@ -116,7 +111,7 @@ export function DevTools() {
 
           <div className="mb-3">
             <label className="text-gray-300 text-xs mb-2 block">时间预设</label>
-            <div className="grid grid-cols-4 gap-1">
+            <div className="grid grid-cols-3 gap-1">
               {TIME_PRESETS.map((preset) => (
                 <button
                   key={preset.value}

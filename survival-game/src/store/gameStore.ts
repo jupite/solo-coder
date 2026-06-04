@@ -518,7 +518,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       newTimeOfDay = 'night'
     }
 
-    const hungerRate = newTimeOfDay === 'day' ? 0.05 : newTimeOfDay === 'dusk' ? 0.03 : 0.02
+    const hungerRate = 75 / 16
     const newHunger = Math.max(0, state.playerHunger - hungerRate * delta * state.timeSpeed)
 
     set({
