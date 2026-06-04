@@ -4,13 +4,14 @@ import { useState } from 'react'
 import { useGameStore } from '@/store/gameStore'
 
 const TIME_PRESETS = [
-  { label: '🌅 日出', value: 0 },
+  { label: '☀️ 早晨', value: 1 },
   { label: '☀️ 上午', value: 3 },
-  { label: '🌤️ 正午', value: 5 },
-  { label: '🌇 下午', value: 7 },
-  { label: '🌆 黄昏', value: 9 },
+  { label: '☀️ 正午', value: 5 },
+  { label: '☀️ 下午', value: 7 },
+  { label: '🌅 黄昏', value: 9 },
+  { label: '🌅 黄昏末', value: 11 },
   { label: '🌙 夜晚', value: 13 },
-  { label: '🌑 深夜', value: 15 },
+  { label: '🌙 深夜', value: 15 },
 ]
 
 const SPEED_PRESETS = [
@@ -123,7 +124,7 @@ export function DevTools() {
                     setSliderValue(preset.value)
                     setGameTime(preset.value)
                   }}
-                  className={`px-2 py-1.5 text-[10px] rounded transition-colors ${
+                  className={`px-1.5 py-1.5 text-[10px] rounded transition-colors ${
                     Math.abs(gameTime - preset.value) < 0.5
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-700 text-gray-300 hover:bg-gray-600'

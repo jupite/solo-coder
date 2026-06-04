@@ -103,8 +103,6 @@ function DayNightCycle() {
   const lastTime = useRef(0)
 
   const getLightingParams = (time: number, timeOfDay: TimeOfDay) => {
-    const normalizedTime = time / 16
-
     let sunAngle: number
     let sunIntensity: number
     let ambientIntensity: number
@@ -113,29 +111,32 @@ function DayNightCycle() {
     let fogFar: number
 
     if (timeOfDay === 'day') {
-      const dayProgress = (time - 2) / 6
-      sunAngle = Math.PI * 0.1 + dayProgress * Math.PI * 0.3
-      sunIntensity = 0.8 + Math.sin(dayProgress * Math.PI) * 0.4
-      ambientIntensity = 0.5 + Math.sin(dayProgress * Math.PI) * 0.2
+      const dayProgress = time / 8
+      sunAngle = Math.PI * 0.15 + dayProgress * Math.PI * 0.35
+      sunIntensity = 0.9 + Math.sin(dayProgress * Math.PI) * 0.3
+      ambientIntensity = 0.6 + Math.sin(dayProgress * Math.PI) * 0.2
       fogColor = '#87ceeb'
       fogNear = 30
       fogFar = 80
     } else if (timeOfDay === 'dusk') {
       const duskProgress = (time - 8) / 4
-      sunAngle = Math.PI * 0.4 + duskProgress * Math.PI * 0.3
-      sunIntensity = 1.2 - duskProgress * 0.6
-      ambientIntensity = 0.7 - duskProgress * 0.3
-      fogColor = `rgb(${Math.floor(255 - duskProgress * 100)}, ${Math.floor(180 - duskProgress * 80)}, ${Math.floor(100 + duskProgress * 50)})`
+      sunAngle = Math.PI * 0.5 + duskProgress * Math.PI * 0.25
+      sunIntensity = 1.0 - duskProgress * 0.7
+      ambientIntensity = 0.6 - duskProgress * 0.3
+      const r = Math.floor(255 - duskProgress * 180)
+      const g = Math.floor(180 - duskProgress * 120)
+      const b = Math.floor(100 + duskProgress * 30)
+      fogColor = `rgb(${r}, ${g}, ${b})`
       fogNear = 25 - duskProgress * 5
-      fogFar = 70 - duskProgress * 10
+      fogFar = 65 - duskProgress * 15
     } else {
-      const nightProgress = time >= 12 ? (time - 12) / 4 : (time + 4) / 4
-      sunAngle = Math.PI * 0.7 + nightProgress * Math.PI * 0.2
-      sunIntensity = 0.1
-      ambientIntensity = 0.15
+      const nightProgress = (time - 12) / 4
+      sunAngle = Math.PI * 0.75 + nightProgress * Math.PI * 0.15
+      sunIntensity = 0.08
+      ambientIntensity = 0.12
       fogColor = '#0a0a1a'
-      fogNear = 15
-      fogFar = 45
+      fogNear = 12
+      fogFar = 35
     }
 
     return { sunAngle, sunIntensity, ambientIntensity, fogColor, fogNear, fogFar }

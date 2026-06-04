@@ -505,19 +505,20 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   updateGameTime: (delta) => {
     const state = get()
-    const newTime = (state.gameTime + delta * state.timeSpeed) % 16
-    const newDay = state.day + Math.floor((state.gameTime + delta * state.timeSpeed) / 16)
+    const totalTime = state.gameTime + delta * state.timeSpeed
+    const newTime = totalTime % 16
+    const newDay = state.day + Math.floor(totalTime / 16)
 
-    let newTimeOfDay: TimeOfDay = 'day'
-    if (newTime >= 8 && newTime < 12) {
-      newTimeOfDay = 'dusk'
-    } else if (newTime >= 12 || newTime < 2) {
-      newTimeOfDay = 'night'
-    } else {
+    let newTimeOfDay: TimeOfDay
+    if (newTime >= 0 && newTime < 8) {
       newTimeOfDay = 'day'
+    } else if (newTime >= 8 && newTime < 12) {
+      newTimeOfDay = 'dusk'
+    } else {
+      newTimeOfDay = 'night'
     }
 
-    const hungerRate = newTimeOfDay === 'day' ? 0.02 : newTimeOfDay === 'dusk' ? 0.015 : 0.01
+    const hungerRate = newTimeOfDay === 'day' ? 0.05 : newTimeOfDay === 'dusk' ? 0.03 : 0.02
     const newHunger = Math.max(0, state.playerHunger - hungerRate * delta * state.timeSpeed)
 
     set({
@@ -532,13 +533,13 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setGameTime: (time) => {
     const clampedTime = Math.max(0, Math.min(16, time))
-    let newTimeOfDay: TimeOfDay = 'day'
-    if (clampedTime >= 8 && clampedTime < 12) {
-      newTimeOfDay = 'dusk'
-    } else if (clampedTime >= 12 || clampedTime < 2) {
-      newTimeOfDay = 'night'
-    } else {
+    let newTimeOfDay: TimeOfDay
+    if (clampedTime >= 0 && clampedTime < 8) {
       newTimeOfDay = 'day'
+    } else if (clampedTime >= 8 && clampedTime < 12) {
+      newTimeOfDay = 'dusk'
+    } else {
+      newTimeOfDay = 'night'
     }
     set({ gameTime: clampedTime, timeOfDay: newTimeOfDay })
   },
