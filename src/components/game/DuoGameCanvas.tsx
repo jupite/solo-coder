@@ -12,38 +12,8 @@ import { Player } from './Player';
 import { RedPlayer } from './RedPlayer';
 import { Target } from './Target';
 import { RedGate } from './RedGate';
-import type { DuoGameState, DuoLevelData, OneWayBarrier, Position, SwitchItem, RedGate } from '@/lib/game/types';
+import type { DuoGameState, DuoLevelData, OneWayBarrier, Position, SwitchItem } from '@/lib/game/types';
 import * as THREE from 'three';
-
-function SwitchWire({ from, to, isActive }: { from: Position; to: Position; isActive: boolean }) {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const length = Math.sqrt(dx * dx + dy * dy);
-  const angle = Math.atan2(dy, dx);
-  const color = isActive ? '#22c55e' : '#94a3b8';
-  const emissiveColor = isActive ? '#16a34a' : '#64748b';
-
-  return (
-    <group position={[from.x, 0.2, from.y]} rotation={[-Math.PI / 2, 0, -angle]}>
-      <mesh position={[length / 2, 0, 0]}>
-        <cylinderGeometry args={[0.06, 0.06, length, 8]} />
-        <meshBasicMaterial color={color} transparent opacity={0.9} />
-      </mesh>
-      <mesh position={[0, 0, 0]}>
-        <sphereGeometry args={[0.1, 12, 12]} />
-        <meshBasicMaterial color={color} transparent opacity={0.95} />
-      </mesh>
-      <mesh position={[length, 0, 0]}>
-        <sphereGeometry args={[0.1, 12, 12]} />
-        <meshBasicMaterial color={color} transparent opacity={0.95} />
-      </mesh>
-      <mesh position={[length / 2, 0, 0]}>
-        <cylinderGeometry args={[0.02, 0.02, length, 8]} />
-        <meshBasicMaterial color={emissiveColor} transparent opacity={0.5} />
-      </mesh>
-    </group>
-  );
-}
 
 interface DuoGameCanvasProps {
   gameState: DuoGameState;
@@ -198,9 +168,7 @@ function InnerCanvas({
   const isGateOpen = (gateX: number, gateY: number) => {
     const gate = gameState.redGates.find((g) => g.x === gateX && g.y === gateY);
     if (!gate) return false;
-    return gameState.switchConnections.some(
-      (c) => c.gateId === gate.id && gameState.activeSwitches.has(c.switchId)
-    );
+    return gameState.activeSwitches.has(gate.switchId);
   };
 
   const isSwitchActive = (swX: number, swY: number) => {
@@ -224,16 +192,6 @@ function InnerCanvas({
     },
     [onSwitchClick],
   );
-
-  const getSwitchPosition = (switchId: string): Position | null => {
-    const sw = gameState.switches.find((s) => s.id === switchId);
-    return sw ? { x: sw.x, y: sw.y } : null;
-  };
-
-  const getGatePosition = (gateId: string): Position | null => {
-    const gate = gameState.redGates.find((g) => g.id === gateId);
-    return gate ? { x: gate.x, y: gate.y } : null;
-  };
 
   return (
     <>
@@ -279,14 +237,6 @@ function InnerCanvas({
             onClick={() => handleSwitchClick(sw.x, sw.y)}
           />
         ))}
-
-        {gameState.switchConnections.map((conn, idx) => {
-          const swPos = getSwitchPosition(conn.switchId);
-          const gatePos = getGatePosition(conn.gateId);
-          if (!swPos || !gatePos) return null;
-          const isActive = gameState.activeSwitches.has(conn.switchId);
-          return <SwitchWire key={`wire-${idx}`} from={swPos} to={gatePos} isActive={isActive} />;
-        })}
 
         {gameState.boxes.map((pos, idx) => {
           const isOnTarget = gameState.targets.some(
