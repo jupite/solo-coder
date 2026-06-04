@@ -15,7 +15,7 @@ export function Player() {
   const keys = useRef<Set<string>>(new Set())
   const [isAttacking, setIsAttacking] = useState(false)
   const [isGathering, setIsGathering] = useState(false)
-  
+
   const {
     playerPosition,
     setPlayerPosition,
@@ -24,13 +24,18 @@ export function Player() {
     resources,
     equippedTool,
     showMessage,
+    buildings,
+    openContainer,
+    placement,
   } = useGameStore()
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase()
       keys.current.add(key)
-      
+
+      if (placement.isActive) return
+
       if (key === 'f' && !isAttacking) {
         e.preventDefault()
         setIsAttacking(true)
@@ -38,14 +43,14 @@ export function Player() {
         setTimeout(() => setIsAttacking(false), 300)
         showMessage('⚔️ 攻击！', 'info')
       }
-      
+
       if (e.key === ' ' && !isGathering) {
         e.preventDefault()
         setIsGathering(true)
-        
+
         let nearestId: string | null = null
         let nearestDist = Infinity
-        
+
         for (const resource of resources) {
           const dist = Math.sqrt(
             Math.pow(resource.position[0] - playerPosition[0], 2) +
@@ -63,10 +68,35 @@ export function Player() {
         } else {
           showMessage('❌ 附近没有可采集的资源', 'error')
         }
-        
+
         setTimeout(() => setIsGathering(false), 500)
       }
-      
+
+      if (key === 'e') {
+        let nearestBuilding: { id: string; type: string } | null = null
+        let nearestDist = Infinity
+
+        for (const building of buildings) {
+          const dist = Math.sqrt(
+            Math.pow(building.position[0] - playerPosition[0], 2) +
+            Math.pow(building.position[2] - playerPosition[2], 2)
+          )
+          if (dist < INTERACTION_RANGE + 1 && dist < nearestDist) {
+            nearestBuilding = { id: building.id, type: building.type }
+            nearestDist = dist
+          }
+        }
+
+        if (nearestBuilding) {
+          if (nearestBuilding.type === 'chest') {
+            openContainer(nearestBuilding.id)
+            showMessage('📦 打开了箱子', 'info')
+          } else if (nearestBuilding.type === 'campfire') {
+            showMessage('🔥 火堆正在燃烧', 'info')
+          }
+        }
+      }
+
       if (key === 'm') {
         useGameStore.getState().toggleMap()
       }
@@ -83,7 +113,7 @@ export function Player() {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [isAttacking, isGathering, gatherResource, attack, resources, playerPosition, equippedTool, showMessage])
+  }, [isAttacking, isGathering, gatherResource, attack, resources, playerPosition, equippedTool, showMessage, buildings, openContainer, placement.isActive])
 
   useFrame(() => {
     if (!meshRef.current) return
@@ -116,12 +146,12 @@ export function Player() {
         <capsuleGeometry args={[0.3, 0.8, 4, 8]} />
         <meshStandardMaterial color="#4a90d9" />
       </mesh>
-      
+
       <mesh position={[0, 1.3, 0]} castShadow>
         <sphereGeometry args={[0.25, 16, 16]} />
         <meshStandardMaterial color="#f5cba7" />
       </mesh>
-      
+
       <mesh
         position={[0.4, 0.5, isAttacking ? -0.5 : 0.2]}
         rotation={[isAttacking ? -Math.PI / 2 : 0, 0, Math.PI / 4]}
@@ -129,7 +159,7 @@ export function Player() {
         <boxGeometry args={[0.1, 0.1, 0.5]} />
         <meshStandardMaterial color="#8b4513" />
       </mesh>
-      
+
       {equippedTool && (
         <group
           position={[0.6, 0.7, isGathering ? -0.3 : 0.3]}
@@ -174,7 +204,7 @@ export function Player() {
           )}
         </group>
       )}
-      
+
       {isGathering && (
         <mesh position={[0, 2.5, 0]}>
           <sphereGeometry args={[0.3, 8, 8]} />
@@ -188,7 +218,7 @@ export function Player() {
           Math.pow(resource.position[2] - playerPosition[2], 2)
         )
         if (dist >= INTERACTION_RANGE) return null
-        
+
         return (
           <mesh
             key={`indicator-${resource.id}`}
@@ -200,6 +230,28 @@ export function Player() {
           >
             <sphereGeometry args={[0.15, 8, 8]} />
             <meshBasicMaterial color="#00ff00" transparent opacity={0.8} />
+          </mesh>
+        )
+      })}
+
+      {buildings.map((building) => {
+        const dist = Math.sqrt(
+          Math.pow(building.position[0] - playerPosition[0], 2) +
+          Math.pow(building.position[2] - playerPosition[2], 2)
+        )
+        if (dist >= INTERACTION_RANGE + 1) return null
+
+        return (
+          <mesh
+            key={`building-indicator-${building.id}`}
+            position={[building.position[0], 2, building.position[2]]}
+          >
+            <sphereGeometry args={[0.2, 8, 8]} />
+            <meshBasicMaterial
+              color={building.type === 'chest' ? '#ffaa00' : '#ff6600'}
+              transparent
+              opacity={0.8}
+            />
           </mesh>
         )
       })}

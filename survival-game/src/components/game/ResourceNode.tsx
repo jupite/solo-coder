@@ -92,12 +92,12 @@ export function ResourceNode({ resource }: ResourceNodeProps) {
 
   return (
     <group ref={meshRef} position={resource.position as [number, number, number]}>
-      {[...Array(5)].map((_, i) => (
+      {Array.from({ length: 5 }, (_, i) => (
         <mesh
           key={i}
           position={[
             Math.sin(i * 1.2) * 0.2,
-            0.15 + Math.random() * 0.1,
+            0.15 + 0.05,
             Math.cos(i * 1.2) * 0.2,
           ]}
           castShadow
