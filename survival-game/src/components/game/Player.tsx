@@ -234,27 +234,6 @@ export function Player() {
         )
       })}
 
-      {buildings.map((building) => {
-        const dist = Math.sqrt(
-          Math.pow(building.position[0] - playerPosition[0], 2) +
-          Math.pow(building.position[2] - playerPosition[2], 2)
-        )
-        if (dist >= INTERACTION_RANGE + 1) return null
-
-        return (
-          <mesh
-            key={`building-indicator-${building.id}`}
-            position={[building.position[0], 2, building.position[2]]}
-          >
-            <sphereGeometry args={[0.2, 8, 8]} />
-            <meshBasicMaterial
-              color={building.type === 'chest' ? '#ffaa00' : '#ff6600'}
-              transparent
-              opacity={0.8}
-            />
-          </mesh>
-        )
-      })}
     </group>
   )
 }

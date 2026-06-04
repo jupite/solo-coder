@@ -35,10 +35,6 @@ export function Building({ building, onInteract }: BuildingProps) {
     >
       {building.type === 'campfire' && <CampfireModel />}
       {building.type === 'chest' && <ChestModel />}
-      <mesh position={[0, 2, 0]}>
-        <planeGeometry args={[0.8, 0.3]} />
-        <meshBasicMaterial color="white" transparent opacity={0.8} side={THREE.DoubleSide} />
-      </mesh>
     </group>
   )
 }
