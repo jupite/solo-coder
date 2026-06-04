@@ -241,7 +241,7 @@ function DuoEditorSwitch({
   position: Position;
   isActive?: boolean;
   isClickable?: boolean;
-  switchId?: number;
+  switchId?: string | number;
   onClick?: () => void;
 }) {
   const handleClick = (e: any) => {
@@ -352,7 +352,7 @@ function DuoEditorGrid({
   redPlayerGone?: boolean;
   redGates: RedGate[];
   switches: SwitchItem[];
-  activeSwitches?: Set<number>;
+  activeSwitches?: Set<string | number>;
   activePlayerColor?: PlayerColor;
   oneWayBarriers?: OneWayBarrier[];
   selectedArea: { startX: number; startY: number; endX: number; endY: number } | null;
@@ -379,7 +379,7 @@ function DuoEditorGrid({
   };
 
   const isSwitchActive = (sw: SwitchItem) => {
-    if (!activeSwitches) return false;
+    if (!activeSwitches || sw.id === undefined) return false;
     return activeSwitches.has(sw.id);
   };
 
@@ -952,7 +952,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
   const displayRedGone = isPlaying && gameState ? gameState.redPlayer.isGone : false;
   const displayRedGates = isPlaying && gameState ? gameState.redGates : redGates;
   const displaySwitches = isPlaying && gameState ? gameState.switches : switches;
-  const displayActiveSwitches = isPlaying && gameState ? gameState.activeSwitches : new Set<number>();
+  const displayActiveSwitches = isPlaying && gameState ? gameState.activeSwitches : new Set<string | number>();
   const displayBarriers = isPlaying && gameState ? gameState.oneWayBarriers : [];
 
   const handleSwitchClick = useCallback((swX: number, swY: number) => {
@@ -1208,7 +1208,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
                     onChange={(e) => handleGateSwitchIdChange(gate.x, gate.y, parseInt(e.target.value) || 0)}
                     className="w-16 px-2 py-1 bg-white/5 border border-white/10 rounded text-white text-center text-xs"
                   />
-                  {gate.switchId > 0 && !switches.some((s) => s.id === gate.switchId) && (
+                  {typeof gate.switchId === 'number' && gate.switchId > 0 && !switches.some((s) => s.id === gate.switchId) && (
                     <span className="text-red-400 text-xs">⚠ 无效ID</span>
                   )}
                 </div>

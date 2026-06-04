@@ -58,7 +58,7 @@ export function createDuoGameState(level: DuoLevelData): DuoGameState {
     redGates: level.redGates.map((g) => ({ ...g })),
     switches: level.switches.map((s) => ({ ...s })),
     oneWayBarriers: [],
-    activeSwitches: new Set<number>(),
+    activeSwitches: new Set<string | number>(),
     currentTurn: 'blue',
     steps: 0,
     isWin: false,
@@ -93,7 +93,7 @@ function findSwitchAt(
 
 function isGateOpen(
   gate: RedGate,
-  activeSwitches: Set<number>,
+  activeSwitches: Set<string | number>,
 ): boolean {
   return activeSwitches.has(gate.switchId);
 }
@@ -102,7 +102,7 @@ function isGateBlocked(
   x: number,
   y: number,
   redGates: RedGate[],
-  activeSwitches: Set<number>,
+  activeSwitches: Set<string | number>,
 ): boolean {
   const gate = findGateAt(redGates, x, y);
   if (!gate) return false;
@@ -177,7 +177,7 @@ export function toggleSwitch(
   if (!isSwitchClickable(state, switchX, switchY, playerColor)) return state;
 
   const sw = findSwitchAt(state.switches, switchX, switchY);
-  if (!sw) return state;
+  if (!sw || sw.id === undefined) return state;
 
   const newActiveSwitches = new Set(state.activeSwitches);
   if (newActiveSwitches.has(sw.id)) {
@@ -424,7 +424,7 @@ export function getDuoCellAt(
   }
 
   const sw = findSwitchAt(state.switches, x, y);
-  if (sw) {
+  if (sw && sw.id !== undefined) {
     return state.activeSwitches.has(sw.id)
       ? CellType.SWITCH_ON
       : CellType.SWITCH_OFF;

@@ -14,7 +14,14 @@ import {
   Calendar,
   Gamepad2,
   Users,
+  Palette,
+  Check,
+  Package,
+  Blocks,
+  Settings,
 } from 'lucide-react';
+import { useSkin } from '@/components/game/SkinProvider';
+import { SKINS, SKIN_CATEGORIES } from '@/lib/game/skins';
 
 interface RecordEntry {
   levelId: number | string;
@@ -48,7 +55,8 @@ export default function ProfilePage() {
   const [records, setRecords] = useState<RecordEntry[]>([]);
   const [duoRecords, setDuoRecords] = useState<DuoRecordEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'solo' | 'duo'>('solo');
+  const [activeTab, setActiveTab] = useState<'solo' | 'duo' | 'skins'>('solo');
+  const { currentSkinId, currentSkin, setSkin } = useSkin();
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -204,12 +212,15 @@ export default function ProfilePage() {
         </div>
 
         <div className="glass-card p-6 md:p-8">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-yellow-400" />
-              最佳成绩
+              {activeTab === 'skins' ? (
+                <><Palette className="w-5 h-5 text-purple-400" />模型换肤</>
+              ) : (
+                <><Trophy className="w-5 h-5 text-yellow-400" />最佳成绩</>
+              )}
             </h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setActiveTab('solo')}
                 className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${activeTab === 'solo'
@@ -228,10 +239,129 @@ export default function ProfilePage() {
               >
                 双人
               </button>
+              <button
+                onClick={() => setActiveTab('skins')}
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${activeTab === 'skins'
+                  ? 'bg-purple-500/30 text-purple-300 border border-purple-500/50'
+                  : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Palette className="w-3 h-3 inline mr-1" />
+                换肤
+              </button>
             </div>
           </div>
 
-          {currentRecords.length === 0 ? (
+          {activeTab === 'skins' ? (
+            <div className="space-y-6">
+              <p className="text-slate-400 text-sm">
+                选择你喜欢的皮肤风格，让游戏体验更加个性化。皮肤设置会自动保存。
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Object.values(SKINS).map((skin) => (
+                  <div
+                    key={skin.id}
+                    onClick={() => setSkin(skin.id)}
+                    className={`relative glass-card p-5 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl ${
+                      currentSkinId === skin.id
+                        ? 'gradient-border ring-2 ring-purple-500/50 shadow-purple-500/20'
+                        : 'hover:bg-white/5'
+                    }`}
+                  >
+                    {currentSkinId === skin.id && (
+                      <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center">
+                        <Check className="w-4 h-4 text-white" />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div
+                        className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg"
+                        style={{
+                          background: `linear-gradient(135deg, ${skin.player.color}, ${skin.redPlayer.color})`,
+                          boxShadow: `0 0 20px ${skin.player.emissive}40`,
+                        }}
+                      >
+                        <Palette className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-white">{skin.name}</h3>
+                        <p className="text-xs text-slate-400">{skin.description}</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      <div className="flex items-center gap-1 text-xs">
+                        <User className="w-3 h-3 text-slate-400" />
+                        <div
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: skin.player.color }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 text-xs">
+                        <Users className="w-3 h-3 text-slate-400" />
+                        <div
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: skin.redPlayer.color }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 text-xs">
+                        <Package className="w-3 h-3 text-slate-400" />
+                        <div
+                          className="w-4 h-4 rounded"
+                          style={{ backgroundColor: skin.box.color }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 text-xs">
+                        <Blocks className="w-3 h-3 text-slate-400" />
+                        <div
+                          className="w-4 h-4 rounded"
+                          style={{ backgroundColor: skin.wall.color }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 text-xs">
+                        <Settings className="w-3 h-3 text-slate-400" />
+                        <div
+                          className="w-4 h-4 rounded"
+                          style={{ backgroundColor: skin.target.color }}
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-white/10">
+                      <div className="grid grid-cols-4 gap-2">
+                        <div className="text-center">
+                          <div
+                            className="w-8 h-8 mx-auto rounded-lg mb-1"
+                            style={{ backgroundColor: skin.player.color, boxShadow: `0 0 8px ${skin.player.emissive}` }}
+                          />
+                          <p className="text-xs text-slate-500">角色</p>
+                        </div>
+                        <div className="text-center">
+                          <div
+                            className="w-8 h-8 mx-auto rounded-lg mb-1"
+                            style={{ backgroundColor: skin.box.color }}
+                          />
+                          <p className="text-xs text-slate-500">箱子</p>
+                        </div>
+                        <div className="text-center">
+                          <div
+                            className="w-8 h-8 mx-auto rounded-lg mb-1"
+                            style={{ backgroundColor: skin.wall.color }}
+                          />
+                          <p className="text-xs text-slate-500">墙壁</p>
+                        </div>
+                        <div className="text-center">
+                          <div
+                            className="w-8 h-8 mx-auto rounded-lg mb-1"
+                            style={{ backgroundColor: skin.boxOnTarget.color, boxShadow: `0 0 8px ${skin.boxOnTarget.emissive}` }}
+                          />
+                          <p className="text-xs text-slate-500">完成</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : currentRecords.length === 0 ? (
             <div className="text-center py-12">
               <Trophy className="w-12 h-12 text-slate-600 mx-auto mb-3" />
               <p className="text-slate-400 mb-4">

@@ -14,12 +14,17 @@ import {
   Sparkles,
   Loader2,
 } from 'lucide-react';
+import { levels as soloLevels } from '@/lib/game/levels';
+import { duoLevels } from '@/lib/game/duo-levels';
 
 const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 };
+
+const SOLO_LEVEL_NAMES = ['初级训练', '小试牛刀', '经典关卡'];
+const DUO_LEVEL_NAMES = ['双人同行', '机关初遇', '推箱协作'];
 
 export default function ResultPage() {
   const router = useRouter();
@@ -36,21 +41,17 @@ export default function ResultPage() {
   const isNewRecord = searchParams.get('isNewRecord') === 'true';
   const mode = searchParams.get('mode') || 'solo';
 
-  const levelNames = ['初级训练', '小试牛刀', '经典关卡'];
-  const duoLevelNames = ['双人入门', '机关挑战', '合作闯关'];
   const numericLevelId = Number(levelId);
+  const isOfficialLevel = !isNaN(numericLevelId) && numericLevelId >= 1;
+  const totalOfficialLevels = mode === 'duo' ? duoLevels.length : soloLevels.length;
+  const levelNames = mode === 'duo' ? DUO_LEVEL_NAMES : SOLO_LEVEL_NAMES;
+
   let levelName = `关卡 ${levelId}`;
-  if (mode === 'duo') {
-    if (!isNaN(numericLevelId) && numericLevelId >= 1 && numericLevelId <= duoLevelNames.length) {
-      levelName = duoLevelNames[numericLevelId - 1];
-    }
-  } else {
-    if (!isNaN(numericLevelId) && numericLevelId >= 1 && numericLevelId <= levelNames.length) {
-      levelName = levelNames[numericLevelId - 1];
-    }
+  if (isOfficialLevel && numericLevelId <= levelNames.length) {
+    levelName = levelNames[numericLevelId - 1];
   }
 
-  const hasNextLevel = !isNaN(numericLevelId) && numericLevelId < (mode === 'duo' ? duoLevelNames.length : levelNames.length);
+  const hasNextLevel = isOfficialLevel && numericLevelId < totalOfficialLevels;
 
   useEffect(() => {
     if (status === 'unauthenticated') {

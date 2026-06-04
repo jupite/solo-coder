@@ -1,5 +1,6 @@
 import { RoundedBox } from '@react-three/drei';
 import type { Position } from '@/lib/game/types';
+import { useSkin } from './SkinProvider';
 
 interface RedGateProps {
   position: Position;
@@ -7,6 +8,9 @@ interface RedGateProps {
 }
 
 export function RedGate({ position, isOpen = false }: RedGateProps) {
+  const { currentSkin } = useSkin();
+  const skin = currentSkin.redGate;
+
   if (isOpen) {
     return (
       <group position={[position.x, 0, position.y]}>
@@ -25,8 +29,8 @@ export function RedGate({ position, isOpen = false }: RedGateProps) {
         <mesh position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.3, 0.42, 32]} />
           <meshStandardMaterial
-            color="#fca5a5"
-            emissive="#ef4444"
+            color={skin.color}
+            emissive={skin.emissive}
             emissiveIntensity={0.3}
             transparent
             opacity={0.4}
@@ -48,8 +52,8 @@ export function RedGate({ position, isOpen = false }: RedGateProps) {
         receiveShadow
       >
         <meshStandardMaterial
-          color="#991b1b"
-          emissive="#ef4444"
+          color={skin.color}
+          emissive={skin.emissive}
           emissiveIntensity={0.5}
           metalness={0.6}
           roughness={0.3}
@@ -59,8 +63,8 @@ export function RedGate({ position, isOpen = false }: RedGateProps) {
       <mesh position={[0, 0.46, 0.47]}>
         <boxGeometry args={[0.6, 0.6, 0.02]} />
         <meshStandardMaterial
-          color="#fca5a5"
-          emissive="#ef4444"
+          color={skin.color}
+          emissive={skin.emissive}
           emissiveIntensity={0.8}
           transparent
           opacity={0.7}

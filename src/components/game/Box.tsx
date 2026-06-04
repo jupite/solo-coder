@@ -1,5 +1,6 @@
 import { RoundedBox } from '@react-three/drei';
 import type { Position } from '@/lib/game/types';
+import { useSkin } from './SkinProvider';
 
 interface BoxProps {
   position: Position;
@@ -7,6 +8,33 @@ interface BoxProps {
 }
 
 export function Box({ position, isOnTarget = false }: BoxProps) {
+  const { currentSkin } = useSkin();
+
+  let color: string;
+  let emissive: string;
+  let emissiveIntensity: number;
+  let metalness: number;
+  let roughness: number;
+  let toneMapped: boolean;
+
+  if (isOnTarget) {
+    const skin = currentSkin.boxOnTarget;
+    color = skin.color;
+    emissive = skin.emissive;
+    emissiveIntensity = skin.emissiveIntensity;
+    metalness = skin.metalness;
+    roughness = skin.roughness;
+    toneMapped = false;
+  } else {
+    const skin = currentSkin.box;
+    color = skin.color;
+    emissive = '#000000';
+    emissiveIntensity = 0;
+    metalness = skin.metalness;
+    roughness = skin.roughness;
+    toneMapped = true;
+  }
+
   return (
     <group position={[position.x, 0.46, position.y]}>
       <RoundedBox
@@ -16,22 +44,14 @@ export function Box({ position, isOnTarget = false }: BoxProps) {
         castShadow
         receiveShadow
       >
-        {isOnTarget ? (
-          <meshStandardMaterial
-            color="#fcd34d"
-            emissive="#f59e0b"
-            emissiveIntensity={0.9}
-            metalness={0.7}
-            roughness={0.25}
-            toneMapped={false}
-          />
-        ) : (
-          <meshStandardMaterial
-            color="#8b5a2b"
-            metalness={0.1}
-            roughness={0.85}
-          />
-        )}
+        <meshStandardMaterial
+          color={color}
+          emissive={emissive}
+          emissiveIntensity={emissiveIntensity}
+          metalness={metalness}
+          roughness={roughness}
+          toneMapped={toneMapped}
+        />
       </RoundedBox>
     </group>
   );

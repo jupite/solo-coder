@@ -173,7 +173,7 @@ function InnerCanvas({
 
   const isSwitchActive = (swX: number, swY: number) => {
     const sw = gameState.switches.find((s) => s.x === swX && s.y === swY);
-    if (!sw) return false;
+    if (!sw || sw.id === undefined) return false;
     return gameState.activeSwitches.has(sw.id);
   };
 

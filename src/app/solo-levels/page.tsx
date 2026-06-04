@@ -169,12 +169,15 @@ export default function SoloLevelsPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="glass-card px-4 py-2 flex items-center gap-2">
+            <button
+              onClick={() => router.push('/profile')}
+              className="glass-card px-4 py-2 flex items-center gap-2 hover:bg-white/10 transition-colors cursor-pointer"
+            >
               <Crown className="w-4 h-4 text-yellow-400" />
               <span className="text-sm text-slate-300">
                 {session.user?.name || '玩家'}
               </span>
-            </div>
+            </button>
             <Link
               href="/editor"
               className="btn-primary inline-flex items-center gap-2"
