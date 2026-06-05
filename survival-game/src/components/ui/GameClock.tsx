@@ -19,12 +19,19 @@ export function GameClock() {
 
   const hours = Math.floor(gameTime)
   const minutes = Math.floor((gameTime % 1) * 60)
-  const currentSegment = Math.floor(gameTime)
 
   const formatTime = (h: number, m: number) => {
-    const displayHour = (h % 24).toString().padStart(2, '0')
+    const displayHour = h.toString().padStart(2, '0')
     const displayMin = m.toString().padStart(2, '0')
     return `${displayHour}:${displayMin}`
+  }
+
+  const clockProgress = gameTime / 24
+
+  const getSegmentColor = (hour: number) => {
+    if (hour >= 6 && hour < 17) return '#fbbf24'
+    if (hour >= 17 && hour < 19) return '#f97316'
+    return '#4338ca'
   }
 
   return (
@@ -37,7 +44,7 @@ export function GameClock() {
           </div>
         </div>
 
-        <div className="relative w-24 h-24 mx-auto">
+        <div className="relative w-28 h-28 mx-auto">
           <svg viewBox="0 0 100 100" className="w-full h-full">
             <circle
               cx="50"
@@ -48,18 +55,14 @@ export function GameClock() {
               strokeWidth="4"
             />
 
-            {Array.from({ length: 16 }, (_, i) => {
-              const angle = (i / 16) * Math.PI * 2 - Math.PI / 2
+            {Array.from({ length: 24 }, (_, i) => {
+              const angle = (i / 24) * Math.PI * 2 - Math.PI / 2
               const x1 = 50 + 35 * Math.cos(angle)
               const y1 = 50 + 35 * Math.sin(angle)
               const x2 = 50 + 42 * Math.cos(angle)
               const y2 = 50 + 42 * Math.sin(angle)
-              const isActive = i <= currentSegment
-              const isNight = i >= 12 || i < 2
-              const isDusk = i >= 8 && i < 12
-              let color = '#fbbf24'
-              if (isNight) color = '#4338ca'
-              else if (isDusk) color = '#f97316'
+              const isActive = i <= hours
+              const color = getSegmentColor(i)
 
               return (
                 <line
@@ -69,7 +72,7 @@ export function GameClock() {
                   x2={x2}
                   y2={y2}
                   stroke={isActive ? color : '#4b5563'}
-                  strokeWidth="3"
+                  strokeWidth="2"
                   strokeLinecap="round"
                 />
               )
@@ -79,7 +82,7 @@ export function GameClock() {
 
             <text
               x="50"
-              y="48"
+              y="46"
               textAnchor="middle"
               dominantBaseline="middle"
               fill="white"
@@ -91,21 +94,41 @@ export function GameClock() {
             </text>
             <text
               x="50"
-              y="62"
+              y="60"
               textAnchor="middle"
               dominantBaseline="middle"
               fill="#9ca3af"
               fontSize="10"
             >
-              格 {currentSegment + 1}/16
+              24小时制
             </text>
+
+            <circle
+              cx="50"
+              cy="50"
+              r="28"
+              fill="none"
+              stroke="none"
+              strokeWidth="0"
+            />
+            <circle
+              cx="50"
+              cy="50"
+              r="28"
+              fill="none"
+              stroke="#fbbf24"
+              strokeWidth="2"
+              strokeDasharray={`${clockProgress * Math.PI * 2 * 28} ${Math.PI * 2 * 28}`}
+              transform="rotate(-90 50 50)"
+              opacity="0.5"
+            />
           </svg>
         </div>
 
-        <div className="mt-3 flex justify-center gap-1 text-[10px]">
-          <span className="px-2 py-0.5 rounded bg-yellow-900/50 text-yellow-400">0-8 白天</span>
-          <span className="px-2 py-0.5 rounded bg-orange-900/50 text-orange-400">8-12 黄昏</span>
-          <span className="px-2 py-0.5 rounded bg-blue-900/50 text-blue-400">12-16 夜晚</span>
+        <div className="mt-3 flex justify-center gap-1 text-[10px] flex-wrap">
+          <span className="px-2 py-0.5 rounded bg-yellow-900/50 text-yellow-400">6-17点 白天</span>
+          <span className="px-2 py-0.5 rounded bg-orange-900/50 text-orange-400">17-19点 黄昏</span>
+          <span className="px-2 py-0.5 rounded bg-blue-900/50 text-blue-400">19-6点 夜晚</span>
         </div>
       </div>
     </div>

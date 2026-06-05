@@ -24,7 +24,7 @@ export function Pigman({ monster }: MonsterProps) {
   const wanderTargetRef = useRef<[number, number, number] | null>(null)
   const lastWanderChangeRef = useRef<number>(0)
 
-  const { playerPosition, takeDamage, updateMonster, showMessage } = useGameStore()
+  const { playerPosition, takeDamage, updateMonster, showMessage, monsters } = useGameStore()
 
   useEffect(() => {
     if (meshRef.current) {
@@ -135,6 +135,21 @@ export function Pigman({ monster }: MonsterProps) {
         } else {
           wanderTargetRef.current = null
         }
+      }
+    }
+
+    const minMonsterDistance = MONSTER_RADIUS * 2
+    for (const other of monsters) {
+      if (other.id === monster.id) continue
+      const dx = newPosition[0] - other.position[0]
+      const dz = newPosition[2] - other.position[2]
+      const dist = Math.sqrt(dx * dx + dz * dz)
+      if (dist < minMonsterDistance && dist > 0) {
+        const overlap = minMonsterDistance - dist
+        const pushX = (dx / dist) * overlap * 0.5
+        const pushZ = (dz / dist) * overlap * 0.5
+        newPosition[0] += pushX
+        newPosition[2] += pushZ
       }
     }
 

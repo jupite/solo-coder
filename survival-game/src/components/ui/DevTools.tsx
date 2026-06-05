@@ -4,9 +4,9 @@ import { useState } from 'react'
 import { useGameStore } from '@/store/gameStore'
 
 const TIME_PRESETS = [
-  { label: '☀️ 白天', value: 4 },
-  { label: '🌅 黄昏', value: 10 },
-  { label: '🌙 夜晚', value: 14 },
+  { label: '☀️ 白天', value: 12 },
+  { label: '🌅 黄昏', value: 18 },
+  { label: '🌙 夜晚', value: 22 },
 ]
 
 const SPEED_PRESETS = [
@@ -76,7 +76,7 @@ export function DevTools() {
             <div className="text-gray-400">天数:</div>
             <div className="text-white font-mono">第 {day} 天</div>
             <div className="text-gray-400">时间:</div>
-            <div className="text-white font-mono">{gameTime.toFixed(2)} / 16</div>
+            <div className="text-white font-mono">{gameTime.toFixed(2)} 时 / 24</div>
             <div className="text-gray-400">流速:</div>
             <div className="text-white font-mono">{timeSpeed}x</div>
             <div className="text-gray-400">饥饿:</div>
@@ -96,16 +96,16 @@ export function DevTools() {
             <input
               type="range"
               min="0"
-              max="16"
+              max="24"
               step="0.1"
               value={sliderValue}
               onChange={(e) => handleSliderChange(parseFloat(e.target.value))}
               className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
             />
             <div className="flex justify-between text-[10px] text-gray-500 mt-1">
-              <span>0</span>
-              <span>8</span>
-              <span>16</span>
+              <span>0点</span>
+              <span>12点</span>
+              <span>24点</span>
             </div>
           </div>
 

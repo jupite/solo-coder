@@ -5,9 +5,8 @@ import { useGameStore } from '@/store/gameStore'
 function StatBar({ label, value, color, icon, rate }: { label: string; value: number; color: string; icon: string; rate?: number }) {
   const formatRate = (r?: number) => {
     if (r === undefined || r === 0) return ''
-    const perMin = r / 60
-    if (perMin > 0) return `+${perMin.toFixed(1)}/时`
-    return `${perMin.toFixed(1)}/时`
+    if (r > 0) return `+${r.toFixed(1)}/分`
+    return `${r.toFixed(1)}/分`
   }
 
   const rateColor = rate && rate > 0 ? 'text-green-400' : 'text-red-400'

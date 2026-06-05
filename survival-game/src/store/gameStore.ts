@@ -1046,29 +1046,35 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   updateGameTime: (delta) => {
     const state = get()
-    const totalTime = state.gameTime + delta * state.timeSpeed
-    const newTime = totalTime % 16
-    const newDay = state.day + Math.floor(totalTime / 16)
+    const hoursPerSecond = 24 / (8 * 60)
+    const gameHoursDelta = delta * state.timeSpeed * hoursPerSecond
+    const totalTime = state.gameTime + gameHoursDelta
+    const newTime = totalTime % 24
+    const newDay = state.day + Math.floor(totalTime / 24)
 
     let newTimeOfDay: TimeOfDay
-    if (newTime >= 0 && newTime < 8) {
+    if (newTime >= 6 && newTime < 17) {
       newTimeOfDay = 'day'
-    } else if (newTime >= 8 && newTime < 12) {
+    } else if (newTime >= 17 && newTime < 19) {
       newTimeOfDay = 'dusk'
     } else {
       newTimeOfDay = 'night'
     }
 
-    const hungerPerUnit = 75 / 16
-    const hungerDelta = -hungerPerUnit * delta * state.timeSpeed
+    const hungerPerDay = 75
+    const hungerPerHour = hungerPerDay / 24
+    const hungerDelta = -hungerPerHour * gameHoursDelta
     const newHunger = Math.max(0, state.playerHunger + hungerDelta)
 
-    let sanityDelta = 0
-    if (newTimeOfDay === 'dusk' || newTimeOfDay === 'night') {
-      sanityDelta -= 5 * delta * state.timeSpeed / 60 * 16
+    const sanityPerMinute = {
+      day: 0,
+      dusk: -5 / 60,
+      night: -5 / 60,
     }
+    let sanityDelta = sanityPerMinute[newTimeOfDay] * 60 * gameHoursDelta
+
     if (newTimeOfDay === 'night' && !state.isNearLightSource()) {
-      sanityDelta -= 50 * delta * state.timeSpeed / 60 * 16
+      sanityDelta -= (50 / 60) * 60 * gameHoursDelta
     }
 
     const nearbyMonsterCount = state.monsters.filter((m) => {
@@ -1079,31 +1085,32 @@ export const useGameStore = create<GameState>((set, get) => ({
       return dist < 10
     }).length
     if (nearbyMonsterCount > 0) {
-      sanityDelta -= 5 * delta * state.timeSpeed / 60 * 16
+      sanityDelta -= (5 / 60) * 60 * gameHoursDelta
     }
 
     if (newHunger <= 0) {
-      sanityDelta -= 5 * delta * state.timeSpeed / 60 * 16
+      sanityDelta -= (5 / 60) * 60 * gameHoursDelta
     }
 
     const newSanity = Math.max(0, Math.min(state.playerMaxSanity, state.playerSanity + sanityDelta))
 
     let healthDelta = 0
     if (newHunger <= 0) {
-      healthDelta -= delta * state.timeSpeed / 60 * 16
+      healthDelta -= delta * state.timeSpeed
     }
     const newHealth = Math.max(0, state.playerHealth + healthDelta)
 
-    const gameTimeDelta = delta * state.timeSpeed
-    const rateMultiplier = gameTimeDelta > 0 ? 1 / gameTimeDelta : 0
+    const gameMinutesDelta = gameHoursDelta * 60
+    const rateMultiplier = gameMinutesDelta > 0 ? 1 / gameMinutesDelta : 0
 
-    const hungerRatePerHour = hungerDelta * rateMultiplier
-    const sanityRatePerHour = sanityDelta * rateMultiplier
-    const healthRatePerHour = healthDelta * rateMultiplier
+    const hungerRatePerGameMinute = hungerDelta * rateMultiplier
+    const sanityRatePerGameMinute = sanityDelta * rateMultiplier
+    const healthRatePerGameMinute = healthDelta * rateMultiplier
 
     const newBuildings = state.buildings.map((building) => {
       if (building.type === 'campfire' && building.fuel > 0) {
-        const fuelConsumption = 2 * delta * state.timeSpeed / 60 * 16
+        const fuelConsumptionPerDay = 30
+        const fuelConsumption = (fuelConsumptionPerDay / 24) * gameHoursDelta
         return {
           ...building,
           fuel: Math.max(0, building.fuel - fuelConsumption),
@@ -1120,9 +1127,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       playerSanity: newSanity,
       playerHealth: newHealth,
       buildings: newBuildings,
-      healthRate: healthRatePerHour,
-      hungerRate: hungerRatePerHour,
-      sanityRate: sanityRatePerHour,
+      healthRate: healthRatePerGameMinute,
+      hungerRate: hungerRatePerGameMinute,
+      sanityRate: sanityRatePerGameMinute,
     })
 
     if (newSanity < 20) {
@@ -1139,11 +1146,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   setTimeSpeed: (speed) => set({ timeSpeed: speed }),
 
   setGameTime: (time) => {
-    const clampedTime = Math.max(0, Math.min(16, time))
+    const clampedTime = Math.max(0, Math.min(24, time))
     let newTimeOfDay: TimeOfDay
-    if (clampedTime >= 0 && clampedTime < 8) {
+    if (clampedTime >= 6 && clampedTime < 17) {
       newTimeOfDay = 'day'
-    } else if (clampedTime >= 8 && clampedTime < 12) {
+    } else if (clampedTime >= 17 && clampedTime < 19) {
       newTimeOfDay = 'dusk'
     } else {
       newTimeOfDay = 'night'

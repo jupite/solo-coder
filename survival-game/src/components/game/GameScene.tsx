@@ -101,7 +101,6 @@ function DayNightCycle() {
   const { gameTime, timeOfDay, updateGameTime, updateTreeGrowth } = useGameStore()
   const directionalLightRef = useRef<THREE.DirectionalLight>(null)
   const ambientLightRef = useRef<THREE.AmbientLight>(null)
-  const skyRef = useRef<THREE.Mesh>(null)
   const lastTime = useRef(0)
 
   const getLightingParams = (time: number, timeOfDay: TimeOfDay) => {
@@ -113,27 +112,33 @@ function DayNightCycle() {
     let fogFar: number
 
     if (timeOfDay === 'day') {
-      const dayProgress = time / 8
-      sunAngle = Math.PI * 0.15 + dayProgress * Math.PI * 0.35
+      const dayProgress = (time - 6) / 11
+      sunAngle = Math.PI * 0.15 + dayProgress * Math.PI * 0.7
       sunIntensity = 0.9 + Math.sin(dayProgress * Math.PI) * 0.3
       ambientIntensity = 0.6 + Math.sin(dayProgress * Math.PI) * 0.2
       fogColor = '#87ceeb'
       fogNear = 30
       fogFar = 80
     } else if (timeOfDay === 'dusk') {
-      const duskProgress = (time - 8) / 4
-      sunAngle = Math.PI * 0.5 + duskProgress * Math.PI * 0.25
-      sunIntensity = 1.0 - duskProgress * 0.7
-      ambientIntensity = 0.6 - duskProgress * 0.3
-      const r = Math.floor(255 - duskProgress * 180)
-      const g = Math.floor(180 - duskProgress * 120)
-      const b = Math.floor(100 + duskProgress * 30)
+      const duskProgress = (time - 17) / 2
+      sunAngle = Math.PI * 0.85 + duskProgress * Math.PI * 0.1
+      sunIntensity = 0.5 - duskProgress * 0.4
+      ambientIntensity = 0.4 - duskProgress * 0.25
+      const r = Math.floor(200 - duskProgress * 150)
+      const g = Math.floor(120 - duskProgress * 80)
+      const b = Math.floor(80 + duskProgress * 20)
       fogColor = `rgb(${r}, ${g}, ${b})`
-      fogNear = 25 - duskProgress * 5
-      fogFar = 65 - duskProgress * 15
+      fogNear = 25 - duskProgress * 10
+      fogFar = 60 - duskProgress * 25
     } else {
-      const nightProgress = (time - 12) / 4
-      sunAngle = Math.PI * 0.75 + nightProgress * Math.PI * 0.15
+      let nightProgress: number
+      if (time >= 19) {
+        nightProgress = (time - 19) / 5
+      } else {
+        nightProgress = 0.5 + time / 6
+      }
+      nightProgress = Math.min(1, Math.max(0, nightProgress))
+      sunAngle = Math.PI * 0.95 + nightProgress * Math.PI * 0.1
       sunIntensity = 0.08
       ambientIntensity = 0.12
       fogColor = '#0a0a1a'
@@ -145,9 +150,8 @@ function DayNightCycle() {
   }
 
   useFrame((state, delta) => {
-    const timeDelta = delta / 30
-    updateGameTime(timeDelta)
-    updateTreeGrowth(timeDelta)
+    updateGameTime(delta)
+    updateTreeGrowth(delta)
 
     const params = getLightingParams(gameTime, timeOfDay)
 
@@ -186,7 +190,6 @@ function DayNightCycle() {
   return (
     <>
       <Sky
-        ref={skyRef}
         distance={450000}
         sunPosition={[
           Math.cos(Math.PI * 0.25) * 100,

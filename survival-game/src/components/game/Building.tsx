@@ -107,7 +107,7 @@ function CampfireModel({ fuel, maxFuel, isHovered }: { fuel: number; maxFuel: nu
         </group>
       )}
       {hasFuel && (
-        <pointLight position={[0, 1.2, 0]} color="#ff8800" intensity={2} distance={10} decay={2} />
+        <pointLight position={[0, 1.5, 0]} color="#ff8800" intensity={2} distance={15} decay={1} />
       )}
       
       {isHovered && (
