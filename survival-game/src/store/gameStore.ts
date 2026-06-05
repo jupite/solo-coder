@@ -7,7 +7,7 @@ export type ItemType = ResourceType | ToolType | EquipmentType
 export type BuildingType = 'campfire' | 'chest'
 export type EquipSlotType = 'head' | 'body' | 'hand'
 
-export type TreeGrowthStage = 'sapling' | 'small' | 'medium' | 'large' | 'old'
+export type TreeGrowthStage = 'small' | 'medium' | 'large' | 'old'
 export type TreeState = 'normal' | 'burning' | 'charred' | 'stump'
 
 export interface InventoryItem {
@@ -695,7 +695,6 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
 
         const woodDrops: Record<TreeGrowthStage, number> = {
-          sapling: 1,
           small: 2,
           medium: 3,
           large: 5,
@@ -1098,7 +1097,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   updateTreeGrowth: (delta) => {
     set((state) => {
       const growthInterval = 30
-      const stageOrder: TreeGrowthStage[] = ['sapling', 'small', 'medium', 'large', 'old']
+      const stageOrder: TreeGrowthStage[] = ['small', 'medium', 'large', 'old']
       
       const newResources = state.resources.map((resource) => {
         if (resource.type !== 'wood' || resource.treeState === 'charred' || resource.treeState === 'stump') {
@@ -1115,13 +1114,12 @@ export const useGameStore = create<GameState>((set, get) => ({
             if (Math.random() < 0.5) {
               get().dropItem('seed', resource.position, 1)
             }
-            nextStage = 'old'
+            nextStage = 'small'
           } else {
-            nextStage = stageOrder[currentStageIndex + 1] || 'old'
+            nextStage = stageOrder[currentStageIndex + 1] || 'small'
           }
 
           const stageHealthMap: Record<TreeGrowthStage, number> = {
-            sapling: 15,
             small: 30,
             medium: 45,
             large: 60,
@@ -1132,7 +1130,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           return {
             ...resource,
             treeGrowthStage: nextStage,
-            growthTimer: currentStage === 'old' ? 0 : currentTimer - growthInterval,
+            growthTimer: currentTimer - growthInterval,
             health: resource.treeState === 'normal' ? newHealth : resource.health,
             maxHealth: newHealth,
           }
@@ -1228,9 +1226,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       id: `tree-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type: 'wood',
       position: [position[0], 0, position[2]],
-      health: 15,
-      maxHealth: 15,
-      treeGrowthStage: 'sapling',
+      health: 30,
+      maxHealth: 30,
+      treeGrowthStage: 'small',
       treeState: 'normal',
       growthTimer: 0,
     }
@@ -1239,7 +1237,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       resources: [...s.resources, newTree],
     }))
 
-    get().showMessage('🌱 种下了一颗树苗！', 'success')
+    get().showMessage('🌱 种下了一颗小树苗！', 'success')
     return true
   },
 }))
@@ -1255,7 +1253,6 @@ export function generateResources(mapSize: number): ResourceNode[] {
     const z = (Math.random() - 0.5) * mapSize * 0.9
 
     const stageHealthMap: Record<TreeGrowthStage, number> = {
-      sapling: 15,
       small: 30,
       medium: 45,
       large: 60,

@@ -11,28 +11,24 @@ interface ResourceNodeProps {
 
 function renderTree(stage: TreeGrowthStage, state: TreeState) {
   const trunkHeight: Record<TreeGrowthStage, number> = {
-    sapling: 0.3,
     small: 1,
     medium: 2,
     large: 3,
     old: 2.5,
   }
   const trunkRadius: Record<TreeGrowthStage, number> = {
-    sapling: 0.05,
     small: 0.12,
     medium: 0.2,
     large: 0.35,
     old: 0.4,
   }
   const foliageRadius: Record<TreeGrowthStage, number> = {
-    sapling: 0.2,
     small: 0.7,
     medium: 1.2,
     large: 1.8,
     old: 1.5,
   }
   const foliageHeight: Record<TreeGrowthStage, number> = {
-    sapling: 0.3,
     small: 1,
     medium: 2,
     large: 3,
@@ -84,21 +80,13 @@ function renderTree(stage: TreeGrowthStage, state: TreeState) {
         <cylinderGeometry args={[r * 0.8, r * 1.1, h, 8]} />
         <meshStandardMaterial color={trunkColor} />
       </mesh>
-      {stage !== 'sapling' && (
-        <mesh position={[0, h + fh * 0.5, 0]} castShadow>
-          <coneGeometry args={[fr, fh, 8]} />
-          <meshStandardMaterial color={foliageColor1} />
-        </mesh>
-      )}
-      {stage !== 'sapling' && stage !== 'small' && (
+      <mesh position={[0, h + fh * 0.5, 0]} castShadow>
+        <coneGeometry args={[fr, fh, 8]} />
+        <meshStandardMaterial color={foliageColor1} />
+      </mesh>
+      {stage !== 'small' && (
         <mesh position={[0, h + fh * 0.85, 0]} castShadow>
           <coneGeometry args={[fr * 0.7, fh * 0.6, 8]} />
-          <meshStandardMaterial color={foliageColor2} />
-        </mesh>
-      )}
-      {stage === 'sapling' && (
-        <mesh position={[0, h + 0.15, 0]} castShadow>
-          <coneGeometry args={[fr, 0.3, 4]} />
           <meshStandardMaterial color={foliageColor2} />
         </mesh>
       )}
@@ -129,7 +117,7 @@ export function ResourceNode({ resource }: ResourceNodeProps) {
   if (resource.type === 'wood') {
     const stage = resource.treeGrowthStage || 'medium'
     const state = resource.treeState || 'normal'
-    const totalHeight = state === 'stump' ? 0.5 : (state === 'charred' ? 3 : (stage === 'sapling' ? 0.8 : stage === 'small' ? 2.5 : stage === 'medium' ? 4.5 : 6))
+    const totalHeight = state === 'stump' ? 0.5 : (state === 'charred' ? 3 : (stage === 'small' ? 2.5 : stage === 'medium' ? 4.5 : 6))
 
     return (
       <group ref={meshRef} position={resource.position as [number, number, number]}>
