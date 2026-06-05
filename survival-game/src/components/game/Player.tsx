@@ -29,6 +29,7 @@ export function Player() {
     placement,
     plantSeed,
     reduceDurability,
+    monsters,
   } = useGameStore()
 
   useEffect(() => {
@@ -132,11 +133,41 @@ export function Player() {
     if (keys.current.has('d') || keys.current.has('arrowright')) dx += MOVE_SPEED
 
     const halfMap = MAP_SIZE / 2 - 1
-    const newX = Math.max(-halfMap, Math.min(halfMap, playerPosition[0] + dx))
-    const newZ = Math.max(-halfMap, Math.min(halfMap, playerPosition[2] + dz))
+    let newX = Math.max(-halfMap, Math.min(halfMap, playerPosition[0] + dx))
+    let newZ = Math.max(-halfMap, Math.min(halfMap, playerPosition[2] + dz))
+
+    const PLAYER_RADIUS = 0.5
+    const MONSTER_RADIUS = 0.4
+    const minDistance = PLAYER_RADIUS + MONSTER_RADIUS
+
+    const checkCollision = (px: number, pz: number): boolean => {
+      for (const monster of monsters) {
+        const dist = Math.sqrt(
+          Math.pow(px - monster.position[0], 2) +
+          Math.pow(pz - monster.position[2], 2)
+        )
+        if (dist < minDistance) {
+          return true
+        }
+      }
+      return false
+    }
 
     if (dx !== 0 || dz !== 0) {
-      setPlayerPosition([newX, 1, newZ])
+      if (!checkCollision(newX, newZ)) {
+        setPlayerPosition([newX, 1, newZ])
+      } else {
+        if (!checkCollision(newX, playerPosition[2])) {
+          newZ = playerPosition[2]
+          setPlayerPosition([newX, 1, newZ])
+        } else if (!checkCollision(playerPosition[0], newZ)) {
+          newX = playerPosition[0]
+          setPlayerPosition([newX, 1, newZ])
+        } else {
+          newX = playerPosition[0]
+          newZ = playerPosition[2]
+        }
+      }
     }
 
     meshRef.current.position.set(newX, 1, newZ)

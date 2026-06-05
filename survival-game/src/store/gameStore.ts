@@ -119,6 +119,9 @@ export interface GameState {
   lastAttackTime: number
   lastSanityDamageTime: number
   draggedItem: { index: number; type: ItemType; count: number } | null
+  healthRate: number
+  hungerRate: number
+  sanityRate: number
   showMessage: (text: string, type?: 'success' | 'error' | 'info') => void
   addToInventory: (type: ItemType, count?: number, durability?: number, maxDurability?: number) => boolean
   removeFromInventory: (index: number, count?: number) => void
@@ -357,6 +360,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   lastAttackTime: 0,
   lastSanityDamageTime: 0,
   draggedItem: null,
+  healthRate: 0,
+  hungerRate: 0,
+  sanityRate: 0,
 
   getInventorySize: () => {
     const state = get()
@@ -1053,8 +1059,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       newTimeOfDay = 'night'
     }
 
-    const hungerRate = 75 / 16
-    const newHunger = Math.max(0, state.playerHunger - hungerRate * delta * state.timeSpeed)
+    const hungerPerUnit = 75 / 16
+    const hungerDelta = -hungerPerUnit * delta * state.timeSpeed
+    const newHunger = Math.max(0, state.playerHunger + hungerDelta)
 
     let sanityDelta = 0
     if (newTimeOfDay === 'dusk' || newTimeOfDay === 'night') {
@@ -1081,10 +1088,18 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const newSanity = Math.max(0, Math.min(state.playerMaxSanity, state.playerSanity + sanityDelta))
 
-    let newHealth = state.playerHealth
+    let healthDelta = 0
     if (newHunger <= 0) {
-      newHealth = Math.max(0, state.playerHealth - delta * state.timeSpeed / 60 * 16)
+      healthDelta -= delta * state.timeSpeed / 60 * 16
     }
+    const newHealth = Math.max(0, state.playerHealth + healthDelta)
+
+    const gameTimeDelta = delta * state.timeSpeed
+    const rateMultiplier = gameTimeDelta > 0 ? 1 / gameTimeDelta : 0
+
+    const hungerRatePerHour = hungerDelta * rateMultiplier
+    const sanityRatePerHour = sanityDelta * rateMultiplier
+    const healthRatePerHour = healthDelta * rateMultiplier
 
     const newBuildings = state.buildings.map((building) => {
       if (building.type === 'campfire' && building.fuel > 0) {
@@ -1105,6 +1120,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       playerSanity: newSanity,
       playerHealth: newHealth,
       buildings: newBuildings,
+      healthRate: healthRatePerHour,
+      hungerRate: hungerRatePerHour,
+      sanityRate: sanityRatePerHour,
     })
 
     if (newSanity < 20) {
@@ -1337,7 +1355,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           Math.pow(building.position[0] - state.playerPosition[0], 2) +
           Math.pow(building.position[2] - state.playerPosition[2], 2)
         )
-        if (dist < 15) {
+        if (dist < 8) {
           return true
         }
       }

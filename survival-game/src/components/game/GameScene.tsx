@@ -101,7 +101,7 @@ function DayNightCycle() {
   const { gameTime, timeOfDay, updateGameTime, updateTreeGrowth } = useGameStore()
   const directionalLightRef = useRef<THREE.DirectionalLight>(null)
   const ambientLightRef = useRef<THREE.AmbientLight>(null)
-  const skyRef = useRef<THREE.Object3D>(null)
+  const skyRef = useRef<THREE.Mesh>(null)
   const lastTime = useRef(0)
 
   const getLightingParams = (time: number, timeOfDay: TimeOfDay) => {

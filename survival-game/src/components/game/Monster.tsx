@@ -12,6 +12,8 @@ const SHADOW_ATTACK_COOLDOWN = 1200
 const MONSTER_CHASE_DISTANCE = 15
 const SHADOW_CHASE_DISTANCE = 25
 const MONSTER_WANDER_CHANGE_INTERVAL = 3000
+const PLAYER_RADIUS = 0.5
+const MONSTER_RADIUS = 0.4
 
 interface MonsterProps {
   monster: MonsterType
@@ -56,11 +58,21 @@ export function Pigman({ monster }: MonsterProps) {
         const normalizedDx = dx / length
         const normalizedDz = dz / length
 
-        newPosition = [
-          monster.position[0] + normalizedDx * moveSpeed,
-          0,
-          monster.position[2] + normalizedDz * moveSpeed,
-        ]
+        const minDistance = PLAYER_RADIUS + MONSTER_RADIUS
+        if (dist - moveSpeed > minDistance) {
+          newPosition = [
+            monster.position[0] + normalizedDx * moveSpeed,
+            0,
+            monster.position[2] + normalizedDz * moveSpeed,
+          ]
+        } else if (dist > minDistance) {
+          const moveAmount = dist - minDistance
+          newPosition = [
+            monster.position[0] + normalizedDx * moveAmount,
+            0,
+            monster.position[2] + normalizedDz * moveAmount,
+          ]
+        }
 
         const angle = Math.atan2(dx, dz)
         meshRef.current.rotation.y = angle
@@ -95,14 +107,31 @@ export function Pigman({ monster }: MonsterProps) {
           const normalizedDx = dx / wanderDist
           const normalizedDz = dz / wanderDist
 
-          newPosition = [
-            monster.position[0] + normalizedDx * moveSpeed * 0.3,
-            0,
-            monster.position[2] + normalizedDz * moveSpeed * 0.3,
-          ]
+          const moveAmount = moveSpeed * 0.3
+          let finalMoveAmount = moveAmount
 
-          const angle = Math.atan2(dx, dz)
-          meshRef.current.rotation.y = angle
+          const minDistance = PLAYER_RADIUS + MONSTER_RADIUS
+
+          const nextDist = Math.sqrt(
+            Math.pow(playerPosition[0] - (monster.position[0] + normalizedDx * moveAmount), 2) +
+            Math.pow(playerPosition[2] - (monster.position[2] + normalizedDz * moveAmount), 2)
+          )
+
+          if (nextDist < minDistance) {
+            wanderTargetRef.current = null
+            finalMoveAmount = 0
+          }
+
+          if (finalMoveAmount > 0) {
+            newPosition = [
+              monster.position[0] + normalizedDx * finalMoveAmount,
+              0,
+              monster.position[2] + normalizedDz * finalMoveAmount,
+            ]
+
+            const angle = Math.atan2(dx, dz)
+            meshRef.current.rotation.y = angle
+          }
         } else {
           wanderTargetRef.current = null
         }
