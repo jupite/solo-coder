@@ -45,10 +45,10 @@ function getEquipSlotForItem(item: InventoryItem): EquipSlotType | null {
 }
 
 export function InventoryBar() {
-  const { inventory, equipment, moveInventoryItem, equipItem, unequipItem, getInventorySize, hasBackpack } = useGameStore()
+  const { inventory, equipment, moveInventoryItem, equipItem, unequipItem, getInventorySize, hasBackpack, setDraggedItem } = useGameStore()
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null)
   const [dragOverEquipSlot, setDragOverEquipSlot] = useState<EquipSlotType | null>(null)
-  const [draggedItem, setDraggedItem] = useState<{ source: string; index?: number; slot?: EquipSlotType } | null>(null)
+  const [localDraggedItem, setLocalDraggedItem] = useState<{ source: string; index?: number; slot?: EquipSlotType } | null>(null)
 
   const equipSlots: { slot: EquipSlotType; label: string; icon: string }[] = [
     { slot: 'head', label: '头部', icon: '👤' },
@@ -58,15 +58,24 @@ export function InventoryBar() {
 
   const handleDragStart = (e: React.DragEvent, source: string, index?: number, slot?: EquipSlotType) => {
     e.dataTransfer.setData('source', source)
-    if (index !== undefined) e.dataTransfer.setData('index', index.toString())
+    if (index !== undefined) {
+      e.dataTransfer.setData('index', index.toString())
+      const item = inventory[index]
+      if (item) {
+        const dragData = { index, type: item.type, count: 1 }
+        e.dataTransfer.setData('inventory-item', JSON.stringify(dragData))
+        setDraggedItem(dragData)
+      }
+    }
     if (slot) e.dataTransfer.setData('slot', slot)
     e.dataTransfer.effectAllowed = 'move'
-    setDraggedItem({ source, index, slot })
+    setLocalDraggedItem({ source, index, slot })
   }
 
   const handleDragEnd = () => {
     setDragOverSlot(null)
     setDragOverEquipSlot(null)
+    setLocalDraggedItem(null)
     setDraggedItem(null)
   }
 

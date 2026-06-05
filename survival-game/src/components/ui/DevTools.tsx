@@ -31,7 +31,7 @@ export function DevTools() {
     day,
     playerHunger,
     playerHealth,
-    playerStamina,
+    playerSanity,
     updatePlayerStats,
   } = useGameStore()
 
@@ -83,8 +83,8 @@ export function DevTools() {
             <div className="text-white font-mono">{playerHunger.toFixed(1)}%</div>
             <div className="text-gray-400">生命:</div>
             <div className="text-white font-mono">{playerHealth.toFixed(1)}%</div>
-            <div className="text-gray-400">体力:</div>
-            <div className="text-white font-mono">{playerStamina.toFixed(1)}%</div>
+            <div className="text-gray-400">理智:</div>
+            <div className="text-white font-mono">{playerSanity.toFixed(1)}%</div>
           </div>
         </div>
 
@@ -188,9 +188,9 @@ export function DevTools() {
             </button>
             <button
               onClick={() => updatePlayerStats(undefined, undefined, 100)}
-              className="py-2 px-2 bg-green-700 hover:bg-green-600 text-white rounded text-xs transition-colors"
+              className="py-2 px-2 bg-purple-700 hover:bg-purple-600 text-white rounded text-xs transition-colors"
             >
-              ⚡ 满体力
+              🧠 满理智
             </button>
           </div>
         </div>

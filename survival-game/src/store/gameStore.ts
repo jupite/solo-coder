@@ -5,6 +5,7 @@ export type ToolType = 'axe' | 'pickaxe' | 'torch'
 export type EquipmentType = 'helmet' | 'armor' | 'spear' | 'backpack'
 export type ItemType = ResourceType | ToolType | EquipmentType
 export type BuildingType = 'campfire' | 'chest'
+export type MonsterType = 'pigman' | 'shadow'
 export type EquipSlotType = 'head' | 'body' | 'hand'
 
 export type TreeGrowthStage = 'small' | 'medium' | 'large' | 'old'
@@ -47,11 +48,13 @@ export interface PlacedBuilding {
   position: [number, number, number]
   rotation: number
   inventory: InventoryItem[]
+  fuel: number
+  maxFuel: number
 }
 
 export interface Monster {
   id: string
-  type: 'pigman'
+  type: MonsterType
   position: [number, number, number]
   health: number
   maxHealth: number
@@ -91,7 +94,8 @@ export interface GameState {
   playerHealth: number
   playerMaxHealth: number
   playerHunger: number
-  playerStamina: number
+  playerSanity: number
+  playerMaxSanity: number
   inventory: (InventoryItem | null)[]
   equipment: Record<EquipSlotType, InventoryItem | null>
   hasBackpack: boolean
@@ -113,6 +117,8 @@ export interface GameState {
   day: number
   showDevTools: boolean
   lastAttackTime: number
+  lastSanityDamageTime: number
+  draggedItem: { index: number; type: ItemType; count: number } | null
   showMessage: (text: string, type?: 'success' | 'error' | 'info') => void
   addToInventory: (type: ItemType, count?: number, durability?: number, maxDurability?: number) => boolean
   removeFromInventory: (index: number, count?: number) => void
@@ -123,7 +129,7 @@ export interface GameState {
   calculateDamage: (baseDamage: number) => number
   takeDamage: (damage: number) => void
   setPlayerPosition: (pos: [number, number, number]) => void
-  updatePlayerStats: (health?: number, hunger?: number, stamina?: number) => void
+  updatePlayerStats: (health?: number, hunger?: number, sanity?: number) => void
   gatherResource: (id: string) => { success: boolean; message: string }
   attack: () => void
   toggleMap: () => void
@@ -158,6 +164,11 @@ export interface GameState {
   dropItem: (type: ItemType, position: [number, number, number], count?: number) => void
   pickupDroppedItem: (itemId: string) => boolean
   plantSeed: (position: [number, number, number]) => boolean
+  addBuildingFuel: (buildingId: string, fuelType: ResourceType, count: number) => boolean
+  spawnShadowMonster: () => void
+  updateSanity: (delta: number) => void
+  isNearLightSource: () => boolean
+  setDraggedItem: (item: { index: number; type: ItemType; count: number } | null) => void
 }
 
 export const TOOL_RECIPES: Record<ToolType, Partial<Record<ResourceType, number>>> = {
@@ -310,7 +321,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   playerHealth: 100,
   playerMaxHealth: 100,
   playerHunger: 100,
-  playerStamina: 100,
+  playerSanity: 100,
+  playerMaxSanity: 100,
   inventory: Array(BASE_INVENTORY_SIZE).fill(null),
   equipment: {
     head: null,
@@ -343,6 +355,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   day: 1,
   showDevTools: false,
   lastAttackTime: 0,
+  lastSanityDamageTime: 0,
+  draggedItem: null,
 
   getInventorySize: () => {
     const state = get()
@@ -626,11 +640,11 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setPlayerPosition: (pos) => set({ playerPosition: pos }),
 
-  updatePlayerStats: (health, hunger, stamina) =>
+  updatePlayerStats: (health, hunger, sanity) =>
     set((state) => ({
       playerHealth: health ?? state.playerHealth,
       playerHunger: hunger ?? state.playerHunger,
-      playerStamina: stamina ?? state.playerStamina,
+      playerSanity: sanity ?? state.playerSanity,
     })),
 
   gatherResource: (id) => {
@@ -778,8 +792,13 @@ export const useGameStore = create<GameState>((set, get) => ({
           const newHealth = targetMonster.health - baseDamage
           if (newHealth <= 0) {
             setTimeout(() => {
-              get().addToInventory('meat', 2)
-              get().showMessage('🎉 击败了猪人！获得2个肉', 'success')
+              if (targetMonster.type === 'shadow') {
+                get().updateSanity(20)
+                get().showMessage('✨ 击败了影子怪物！回复20点理智', 'success')
+              } else {
+                get().addToInventory('meat', 2)
+                get().showMessage('🎉 击败了猪人！获得2个肉', 'success')
+              }
             }, 0)
             return {
               monsters: s.monsters.filter((m) => m.id !== monster.id),
@@ -796,10 +815,6 @@ export const useGameStore = create<GameState>((set, get) => ({
         break
       }
     }
-
-    set((state) => ({
-      playerStamina: Math.max(0, state.playerStamina - 5),
-    }))
   },
 
   toggleMap: () => set((state) => ({ showMap: !state.showMap })),
@@ -947,6 +962,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       position: [...state.placement.position] as [number, number, number],
       rotation: state.placement.rotation,
       inventory: [],
+      fuel: state.placement.buildingType === 'campfire' ? 50 : 0,
+      maxFuel: state.placement.buildingType === 'campfire' ? 200 : 0,
     }
 
     set({
@@ -1039,12 +1056,66 @@ export const useGameStore = create<GameState>((set, get) => ({
     const hungerRate = 75 / 16
     const newHunger = Math.max(0, state.playerHunger - hungerRate * delta * state.timeSpeed)
 
+    let sanityDelta = 0
+    if (newTimeOfDay === 'dusk' || newTimeOfDay === 'night') {
+      sanityDelta -= 5 * delta * state.timeSpeed / 60 * 16
+    }
+    if (newTimeOfDay === 'night' && !state.isNearLightSource()) {
+      sanityDelta -= 50 * delta * state.timeSpeed / 60 * 16
+    }
+
+    const nearbyMonsterCount = state.monsters.filter((m) => {
+      const dist = Math.sqrt(
+        Math.pow(m.position[0] - state.playerPosition[0], 2) +
+        Math.pow(m.position[2] - state.playerPosition[2], 2)
+      )
+      return dist < 10
+    }).length
+    if (nearbyMonsterCount > 0) {
+      sanityDelta -= 5 * delta * state.timeSpeed / 60 * 16
+    }
+
+    if (newHunger <= 0) {
+      sanityDelta -= 5 * delta * state.timeSpeed / 60 * 16
+    }
+
+    const newSanity = Math.max(0, Math.min(state.playerMaxSanity, state.playerSanity + sanityDelta))
+
+    let newHealth = state.playerHealth
+    if (newHunger <= 0) {
+      newHealth = Math.max(0, state.playerHealth - delta * state.timeSpeed / 60 * 16)
+    }
+
+    const newBuildings = state.buildings.map((building) => {
+      if (building.type === 'campfire' && building.fuel > 0) {
+        const fuelConsumption = 2 * delta * state.timeSpeed / 60 * 16
+        return {
+          ...building,
+          fuel: Math.max(0, building.fuel - fuelConsumption),
+        }
+      }
+      return building
+    }).filter((b) => b.type !== 'campfire' || b.fuel > 0)
+
     set({
       gameTime: newTime,
       day: newDay > state.day ? newDay : state.day,
       timeOfDay: newTimeOfDay,
       playerHunger: newHunger,
+      playerSanity: newSanity,
+      playerHealth: newHealth,
+      buildings: newBuildings,
     })
+
+    if (newSanity < 20) {
+      state.spawnShadowMonster()
+    }
+
+    if (newSanity > 40) {
+      set((s) => ({
+        monsters: s.monsters.filter((m) => m.type !== 'shadow'),
+      }))
+    }
   },
 
   setTimeSpeed: (speed) => set({ timeSpeed: speed }),
@@ -1079,8 +1150,13 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       const newHealth = monster.health - damage
       if (newHealth <= 0) {
-        get().addToInventory('meat', 2)
-        get().showMessage('🎉 击败了猪人！获得2个肉', 'success')
+        if (monster.type === 'shadow') {
+          get().updateSanity(20)
+          get().showMessage('✨ 击败了影子怪物！回复20点理智', 'success')
+        } else {
+          get().addToInventory('meat', 2)
+          get().showMessage('🎉 击败了猪人！获得2个肉', 'success')
+        }
         return {
           monsters: state.monsters.filter((m) => m.id !== monsterId),
         }
@@ -1239,6 +1315,114 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     get().showMessage('🌱 种下了一颗小树苗！', 'success')
     return true
+  },
+
+  updateSanity: (delta) => {
+    set((state) => ({
+      playerSanity: Math.max(0, Math.min(state.playerMaxSanity, state.playerSanity + delta)),
+    }))
+  },
+
+  isNearLightSource: () => {
+    const state = get()
+    
+    const handItem = state.equipment.hand
+    if (handItem && handItem.type === 'torch' && handItem.durability && handItem.durability > 0) {
+      return true
+    }
+
+    for (const building of state.buildings) {
+      if (building.type === 'campfire' && building.fuel > 0) {
+        const dist = Math.sqrt(
+          Math.pow(building.position[0] - state.playerPosition[0], 2) +
+          Math.pow(building.position[2] - state.playerPosition[2], 2)
+        )
+        if (dist < 15) {
+          return true
+        }
+      }
+    }
+
+    return false
+  },
+
+  spawnShadowMonster: () => {
+    const state = get()
+    const shadowMonsters = state.monsters.filter((m) => m.type === 'shadow')
+    const sanity = state.playerSanity
+
+    let maxShadows = 0
+    if (sanity < 10) {
+      maxShadows = 4
+    } else if (sanity < 20) {
+      maxShadows = 2
+    }
+
+    if (shadowMonsters.length >= maxShadows) return
+
+    const angle = Math.random() * Math.PI * 2
+    const distance = 8 + Math.random() * 5
+    const spawnPos: [number, number, number] = [
+      state.playerPosition[0] + Math.cos(angle) * distance,
+      0,
+      state.playerPosition[2] + Math.sin(angle) * distance,
+    ]
+
+    const newShadow: Monster = {
+      id: `shadow-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type: 'shadow',
+      position: spawnPos,
+      health: 30,
+      maxHealth: 30,
+      damage: 10,
+      attackRange: 2,
+      detectRange: 20,
+      isAggro: true,
+      lastAttackTime: 0,
+      targetPosition: null,
+    }
+
+    set((s) => ({
+      monsters: [...s.monsters, newShadow],
+    }))
+  },
+
+  addBuildingFuel: (buildingId, fuelType, count) => {
+    const state = get()
+    const building = state.buildings.find((b) => b.id === buildingId)
+    
+    if (!building || building.type !== 'campfire') {
+      get().showMessage('❌ 无法添加燃料', 'error')
+      return false
+    }
+
+    const fuelValues: Record<string, number> = {
+      wood: 20,
+      twig: 5,
+      grass: 3,
+    }
+
+    const fuelValue = fuelValues[fuelType] || 0
+    if (fuelValue <= 0) {
+      get().showMessage('❌ 该物品不能作为燃料', 'error')
+      return false
+    }
+
+    const totalFuel = fuelValue * count
+    const newFuel = Math.min(building.maxFuel, building.fuel + totalFuel)
+    
+    set((s) => ({
+      buildings: s.buildings.map((b) =>
+        b.id === buildingId ? { ...b, fuel: newFuel } : b
+      ),
+    }))
+
+    get().showMessage(`🔥 添加了 ${totalFuel} 点燃料`, 'success')
+    return true
+  },
+
+  setDraggedItem: (item) => {
+    set({ draggedItem: item })
   },
 }))
 

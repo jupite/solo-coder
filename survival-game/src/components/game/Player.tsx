@@ -28,6 +28,7 @@ export function Player() {
     openContainer,
     placement,
     plantSeed,
+    reduceDurability,
   } = useGameStore()
 
   useEffect(() => {
@@ -119,7 +120,7 @@ export function Player() {
     }
   }, [isAttacking, isGathering, gatherResource, attack, resources, playerPosition, showMessage, buildings, openContainer, placement.isActive, plantSeed])
 
-  useFrame(() => {
+  useFrame((state) => {
     if (!meshRef.current) return
 
     let dx = 0
@@ -142,6 +143,19 @@ export function Player() {
 
     camera.position.set(newX - 12, 14, newZ + 12)
     camera.lookAt(newX, 0, newZ)
+
+    const delta = state.clock.getDelta()
+    const handItem = equipment.hand
+    if (handItem && handItem.type === 'torch' && handItem.durability && handItem.durability > 0) {
+      const torchFuelConsumption = delta * 0.5
+      const newDurability = handItem.durability - torchFuelConsumption
+      if (newDurability <= 0) {
+        reduceDurability('hand', handItem.durability)
+      } else {
+        const newEquipment = { ...equipment, hand: { ...handItem, durability: newDurability } }
+        useGameStore.setState({ equipment: newEquipment })
+      }
+    }
   })
 
   const hasHelmet = equipment.head?.type === 'helmet'
@@ -225,17 +239,17 @@ export function Player() {
               </mesh>
             </>
           )}
-          {handItem.type === 'torch' && (
+          {handItem.type === 'torch' && handItem.durability && handItem.durability > 0 && (
             <>
               <mesh position={[0, 0, -0.1]}>
                 <cylinderGeometry args={[0.03, 0.03, 0.5]} />
                 <meshStandardMaterial color="#8b4513" />
               </mesh>
               <mesh position={[0, 0.35, -0.3]}>
-                <sphereGeometry args={[0.1, 8, 8]} />
-                <meshBasicMaterial color="#ff6600" transparent opacity={0.8} />
+                <sphereGeometry args={[0.12, 8, 8]} />
+                <meshBasicMaterial color="#ff6600" transparent opacity={0.9} />
               </mesh>
-              <pointLight position={[0, 0.35, -0.3]} color="#ff6600" intensity={1} distance={8} />
+              <pointLight position={[0, 0.5, -0.3]} color="#ff8800" intensity={2} distance={12} decay={2} />
             </>
           )}
           {handItem.type === 'spear' && (

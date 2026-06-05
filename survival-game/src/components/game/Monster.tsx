@@ -6,8 +6,11 @@ import * as THREE from 'three'
 import { useGameStore, Monster as MonsterType } from '@/store/gameStore'
 
 const MONSTER_MOVE_SPEED = 0.05
+const SHADOW_MOVE_SPEED = 0.08
 const MONSTER_ATTACK_COOLDOWN = 1500
+const SHADOW_ATTACK_COOLDOWN = 1200
 const MONSTER_CHASE_DISTANCE = 15
+const SHADOW_CHASE_DISTANCE = 25
 const MONSTER_WANDER_CHANGE_INTERVAL = 3000
 
 interface MonsterProps {
@@ -38,8 +41,12 @@ export function Pigman({ monster }: MonsterProps) {
     let newPosition = [...monster.position] as [number, number, number]
     let newAggro = monster.isAggro
 
-    if (monster.isAggro) {
-      if (dist > MONSTER_CHASE_DISTANCE) {
+    const moveSpeed = monster.type === 'shadow' ? SHADOW_MOVE_SPEED : MONSTER_MOVE_SPEED
+    const chaseDistance = monster.type === 'shadow' ? SHADOW_CHASE_DISTANCE : MONSTER_CHASE_DISTANCE
+    const attackCooldown = monster.type === 'shadow' ? SHADOW_ATTACK_COOLDOWN : MONSTER_ATTACK_COOLDOWN
+
+    if (monster.isAggro || monster.type === 'shadow') {
+      if (dist > chaseDistance && monster.type !== 'shadow') {
         newAggro = false
         wanderTargetRef.current = null
       } else if (dist > monster.attackRange) {
@@ -50,16 +57,16 @@ export function Pigman({ monster }: MonsterProps) {
         const normalizedDz = dz / length
 
         newPosition = [
-          monster.position[0] + normalizedDx * MONSTER_MOVE_SPEED,
+          monster.position[0] + normalizedDx * moveSpeed,
           0,
-          monster.position[2] + normalizedDz * MONSTER_MOVE_SPEED,
+          monster.position[2] + normalizedDz * moveSpeed,
         ]
 
         const angle = Math.atan2(dx, dz)
         meshRef.current.rotation.y = angle
       } else {
         const now = Date.now()
-        if (now - monster.lastAttackTime > MONSTER_ATTACK_COOLDOWN) {
+        if (now - monster.lastAttackTime > attackCooldown) {
           takeDamage(monster.damage)
           updateMonster(monster.id, { lastAttackTime: now })
         }
@@ -89,9 +96,9 @@ export function Pigman({ monster }: MonsterProps) {
           const normalizedDz = dz / wanderDist
 
           newPosition = [
-            monster.position[0] + normalizedDx * MONSTER_MOVE_SPEED * 0.3,
+            monster.position[0] + normalizedDx * moveSpeed * 0.3,
             0,
-            monster.position[2] + normalizedDz * MONSTER_MOVE_SPEED * 0.3,
+            monster.position[2] + normalizedDz * moveSpeed * 0.3,
           ]
 
           const angle = Math.atan2(dx, dz)
@@ -110,6 +117,44 @@ export function Pigman({ monster }: MonsterProps) {
   })
 
   const healthPercentage = monster.health / monster.maxHealth
+
+  if (monster.type === 'shadow') {
+    return (
+      <group ref={meshRef} position={monster.position as [number, number, number]}>
+        <mesh position={[0, 0.6, 0]} castShadow>
+          <capsuleGeometry args={[0.3, 0.9, 4, 8]} />
+          <meshBasicMaterial color="#1a0033" transparent opacity={0.85} />
+        </mesh>
+
+        <mesh position={[0, 1.3, 0]} castShadow>
+          <sphereGeometry args={[0.28, 16, 16]} />
+          <meshBasicMaterial color="#0d001a" transparent opacity={0.9} />
+        </mesh>
+
+        <mesh position={[-0.12, 1.35, 0.2]}>
+          <sphereGeometry args={[0.06, 8, 8]} />
+          <meshBasicMaterial color="#ff0066" />
+        </mesh>
+        <mesh position={[0.12, 1.35, 0.2]}>
+          <sphereGeometry args={[0.06, 8, 8]} />
+          <meshBasicMaterial color="#ff0066" />
+        </mesh>
+
+        <pointLight position={[0, 0.5, 0]} color="#660066" intensity={0.5} distance={5} />
+
+        <group position={[0, 1.8, 0]}>
+          <mesh position={[0, 0, 0]}>
+            <boxGeometry args={[0.6, 0.05, 0.1]} />
+            <meshBasicMaterial color="#333" />
+          </mesh>
+          <mesh position={[0, 0, 0.05]}>
+            <boxGeometry args={[0.6 * healthPercentage, 0.05, 0.1]} />
+            <meshBasicMaterial color={healthPercentage > 0.5 ? '#9932cc' : healthPercentage > 0.25 ? '#ff4500' : '#ff0000'} />
+          </mesh>
+        </group>
+      </group>
+    )
+  }
 
   return (
     <group ref={meshRef} position={monster.position as [number, number, number]}>

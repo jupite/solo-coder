@@ -9,7 +9,7 @@ import { ResourceNode } from './ResourceNode'
 import { Building, PlacementPreview } from './Building'
 import { MonsterManager } from './Monster'
 import { DroppedItem } from './DroppedItem'
-import { useGameStore, generateResources, generateMonsters, TimeOfDay } from '@/store/gameStore'
+import { useGameStore, generateResources, generateMonsters, TimeOfDay, ResourceType } from '@/store/gameStore'
 import * as THREE from 'three'
 
 function PlacementHandler() {
@@ -101,7 +101,7 @@ function DayNightCycle() {
   const { gameTime, timeOfDay, updateGameTime, updateTreeGrowth } = useGameStore()
   const directionalLightRef = useRef<THREE.DirectionalLight>(null)
   const ambientLightRef = useRef<THREE.AmbientLight>(null)
-  const skyRef = useRef<any>(null)
+  const skyRef = useRef<THREE.Object3D>(null)
   const lastTime = useRef(0)
 
   const getLightingParams = (time: number, timeOfDay: TimeOfDay) => {
@@ -209,7 +209,8 @@ function DayNightCycle() {
 }
 
 function SceneContent() {
-  const { resources, buildings, placement, openContainer, showMessage, droppedItems, pickupDroppedItem } = useGameStore()
+  const { resources, buildings, placement, openContainer, showMessage, droppedItems, pickupDroppedItem, draggedItem, addBuildingFuel, removeFromInventory, setDraggedItem } = useGameStore()
+  const { raycaster, camera, gl } = useThree()
 
   useEffect(() => {
     useGameStore.setState({ 
@@ -232,6 +233,72 @@ function SceneContent() {
     },
     [buildings, openContainer, showMessage]
   )
+
+  const handleDrop = useCallback(
+    (event: DragEvent) => {
+      event.preventDefault()
+      
+      if (!draggedItem) return
+      
+      const canvas = gl.domElement
+      const rect = canvas.getBoundingClientRect()
+      const mouse = new THREE.Vector2(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1
+      )
+
+      raycaster.setFromCamera(mouse, camera)
+      const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+      const intersection = new THREE.Vector3()
+      raycaster.ray.intersectPlane(groundPlane, intersection)
+      
+      if (intersection) {
+        let nearestBuilding: { id: string; dist: number } | null = null
+        
+        for (const building of buildings) {
+          if (building.type !== 'campfire') continue
+          
+          const dist = Math.sqrt(
+            Math.pow(building.position[0] - intersection.x, 2) +
+            Math.pow(building.position[2] - intersection.z, 2)
+          )
+          
+          if (dist < 2 && (!nearestBuilding || dist < nearestBuilding.dist)) {
+            nearestBuilding = { id: building.id, dist }
+          }
+        }
+        
+        if (nearestBuilding && ['wood', 'twig', 'grass'].includes(draggedItem.type)) {
+          const state = useGameStore.getState()
+          const item = state.inventory[draggedItem.index]
+          if (item && item.type === draggedItem.type && item.count >= draggedItem.count) {
+            const success = addBuildingFuel(nearestBuilding.id, draggedItem.type as ResourceType, draggedItem.count)
+            if (success) {
+              removeFromInventory(draggedItem.index, draggedItem.count)
+            }
+          }
+        }
+      }
+      
+      setDraggedItem(null)
+    },
+    [draggedItem, buildings, raycaster, camera, gl, addBuildingFuel, removeFromInventory, setDraggedItem]
+  )
+
+  const handleDragOver = useCallback((event: DragEvent) => {
+    event.preventDefault()
+  }, [])
+
+  useEffect(() => {
+    const canvas = gl.domElement
+    canvas.addEventListener('drop', handleDrop)
+    canvas.addEventListener('dragover', handleDragOver)
+    
+    return () => {
+      canvas.removeEventListener('drop', handleDrop)
+      canvas.removeEventListener('dragover', handleDragOver)
+    }
+  }, [gl, handleDrop, handleDragOver])
 
   return (
     <>
