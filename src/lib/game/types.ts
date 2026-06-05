@@ -107,6 +107,7 @@ export interface DuoGameState {
 }
 
 export interface DuoGravityLevelData {
+  name?: string;
   grid: CellType[][];
   bluePlayer: Position;
   redPlayer: Position;
@@ -134,6 +135,7 @@ export interface DuoGravityGameState {
   bluePlayer: DuoGravityPlayerState;
   redPlayer: DuoGravityPlayerState;
   boxes: Position[];
+  initialBoxes: Position[];
   targets: Position[];
   currentTurn: PlayerColor;
   steps: number;
