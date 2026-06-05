@@ -7,6 +7,8 @@ import { useGameStore, Monster as MonsterType } from '@/store/gameStore'
 
 const MONSTER_MOVE_SPEED = 0.05
 const MONSTER_ATTACK_COOLDOWN = 1500
+const MONSTER_CHASE_DISTANCE = 15
+const MONSTER_WANDER_CHANGE_INTERVAL = 3000
 
 interface MonsterProps {
   monster: MonsterType
@@ -14,6 +16,9 @@ interface MonsterProps {
 
 export function Pigman({ monster }: MonsterProps) {
   const meshRef = useRef<THREE.Group>(null)
+  const wanderTargetRef = useRef<[number, number, number] | null>(null)
+  const lastWanderChangeRef = useRef<number>(0)
+
   const { playerPosition, takeDamage, updateMonster, showMessage } = useGameStore()
 
   useEffect(() => {
@@ -33,10 +38,11 @@ export function Pigman({ monster }: MonsterProps) {
     let newPosition = [...monster.position] as [number, number, number]
     let newAggro = monster.isAggro
 
-    if (dist < monster.detectRange || monster.isAggro) {
-      newAggro = true
-
-      if (dist > monster.attackRange) {
+    if (monster.isAggro) {
+      if (dist > MONSTER_CHASE_DISTANCE) {
+        newAggro = false
+        wanderTargetRef.current = null
+      } else if (dist > monster.attackRange) {
         const dx = playerPosition[0] - monster.position[0]
         const dz = playerPosition[2] - monster.position[2]
         const length = Math.sqrt(dx * dx + dz * dz)
@@ -59,13 +65,40 @@ export function Pigman({ monster }: MonsterProps) {
         }
       }
     } else {
-      if (Math.random() < 0.01) {
-        const randomAngle = Math.random() * Math.PI * 2
-        newPosition = [
-          monster.position[0] + Math.cos(randomAngle) * 0.1,
+      const now = Date.now()
+      
+      if (!wanderTargetRef.current || now - lastWanderChangeRef.current > MONSTER_WANDER_CHANGE_INTERVAL) {
+        const angle = Math.random() * Math.PI * 2
+        const dist = Math.random() * 2 + 1
+        wanderTargetRef.current = [
+          monster.position[0] + Math.cos(angle) * dist,
           0,
-          monster.position[2] + Math.sin(randomAngle) * 0.1,
+          monster.position[2] + Math.sin(angle) * dist,
         ]
+        lastWanderChangeRef.current = now
+      }
+
+      if (wanderTargetRef.current) {
+        const target = wanderTargetRef.current
+        const dx = target[0] - monster.position[0]
+        const dz = target[2] - monster.position[2]
+        const wanderDist = Math.sqrt(dx * dx + dz * dz)
+
+        if (wanderDist > 0.1) {
+          const normalizedDx = dx / wanderDist
+          const normalizedDz = dz / wanderDist
+
+          newPosition = [
+            monster.position[0] + normalizedDx * MONSTER_MOVE_SPEED * 0.3,
+            0,
+            monster.position[2] + normalizedDz * MONSTER_MOVE_SPEED * 0.3,
+          ]
+
+          const angle = Math.atan2(dx, dz)
+          meshRef.current.rotation.y = angle
+        } else {
+          wanderTargetRef.current = null
+        }
       }
     }
 

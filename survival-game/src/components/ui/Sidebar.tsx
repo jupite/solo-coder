@@ -59,6 +59,7 @@ export function Sidebar() {
     { type: 'helmet', icon: ITEM_ICONS.helmet, name: EQUIPMENT_NAMES.helmet, description: EQUIPMENT_DESCRIPTIONS.helmet, requirements: EQUIPMENT_RECIPES.helmet, statsStr: '头部装备 · 减伤20% · 耐久100' },
     { type: 'armor', icon: ITEM_ICONS.armor, name: EQUIPMENT_NAMES.armor, description: EQUIPMENT_DESCRIPTIONS.armor, requirements: EQUIPMENT_RECIPES.armor, statsStr: '身体装备 · 减伤40% · 耐久150' },
     { type: 'spear', icon: ITEM_ICONS.spear, name: EQUIPMENT_NAMES.spear, description: EQUIPMENT_DESCRIPTIONS.spear, requirements: EQUIPMENT_RECIPES.spear, statsStr: '手持武器 · 伤害25 · 耐久80' },
+    { type: 'backpack', icon: ITEM_ICONS.backpack, name: EQUIPMENT_NAMES.backpack, description: EQUIPMENT_DESCRIPTIONS.backpack, requirements: EQUIPMENT_RECIPES.backpack, statsStr: '身体装备 · 增加8格背包' },
   ], [])
 
   const buildingItems: CraftableItem[] = useMemo(() => [

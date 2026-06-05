@@ -11,11 +11,10 @@ import {
   TOOL_NAMES,
   EQUIPMENT_NAMES,
   EQUIPMENT_STATS,
+  TOOL_STATS,
   EquipSlotType,
   InventoryItem,
 } from '@/store/gameStore'
-
-const INVENTORY_SIZE = 15
 
 function getItemName(item: InventoryItem): string {
   const type = item.type
@@ -27,16 +26,26 @@ function getItemName(item: InventoryItem): string {
 
 function isEquipment(item: InventoryItem | null): item is InventoryItem & { type: EquipmentType } {
   if (!item) return false
-  return ['helmet', 'armor', 'spear'].includes(item.type)
+  return ['helmet', 'armor', 'spear', 'backpack'].includes(item.type)
+}
+
+function isTool(item: InventoryItem | null): item is InventoryItem & { type: ToolType } {
+  if (!item) return false
+  return ['axe', 'pickaxe', 'torch'].includes(item.type)
 }
 
 function getEquipSlotForItem(item: InventoryItem): EquipSlotType | null {
-  if (!isEquipment(item)) return null
-  return EQUIPMENT_STATS[item.type].equipSlot
+  if (isEquipment(item)) {
+    return EQUIPMENT_STATS[item.type].equipSlot
+  }
+  if (isTool(item)) {
+    return TOOL_STATS[item.type].equipSlot
+  }
+  return null
 }
 
 export function InventoryBar() {
-  const { inventory, equipment, equippedTool, setEquippedTool, moveInventoryItem, equipItem, unequipItem } = useGameStore()
+  const { inventory, equipment, moveInventoryItem, equipItem, unequipItem, getInventorySize, hasBackpack } = useGameStore()
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null)
   const [dragOverEquipSlot, setDragOverEquipSlot] = useState<EquipSlotType | null>(null)
   const [draggedItem, setDraggedItem] = useState<{ source: string; index?: number; slot?: EquipSlotType } | null>(null)
@@ -47,7 +56,7 @@ export function InventoryBar() {
     { slot: 'hand', label: '手持', icon: '✋' },
   ]
 
-  const isTool = (type: string) => ['axe', 'pickaxe', 'torch'].includes(type)
+  const inventorySize = getInventorySize()
 
   const handleDragStart = (e: React.DragEvent, source: string, index?: number, slot?: EquipSlotType) => {
     e.dataTransfer.setData('source', source)
@@ -119,23 +128,14 @@ export function InventoryBar() {
     setDraggedItem(null)
   }
 
-  const handleSlotClick = (index: number) => {
-    const item = inventory[index]
-    if (!item) return
-
-    if (isTool(item.type)) {
-      setEquippedTool(equippedTool === item.type ? null : item.type as ToolType)
-    }
-  }
-
   const renderDurabilityBar = (item: InventoryItem) => {
     if (!item.durability || !item.maxDurability) return null
     const percentage = (item.durability / item.maxDurability) * 100
     const color = percentage > 50 ? 'bg-green-500' : percentage > 25 ? 'bg-yellow-500' : 'bg-red-500'
     
     return (
-      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-700">
-        <div className={`h-full ${color}`} style={{ width: `${percentage}%` }} />
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-700 rounded-b">
+        <div className={`h-full ${color} rounded-b`} style={{ width: `${percentage}%` }} />
       </div>
     )
   }
@@ -165,7 +165,7 @@ export function InventoryBar() {
                   draggable
                   onDragStart={(e) => handleDragStart(e, 'equipment', undefined, slot)}
                   onDragEnd={handleDragEnd}
-                  className="cursor-grab active:cursor-grabbing hover:scale-110 transition-transform"
+                  className="cursor-grab active:cursor-grabbing hover:scale-110 transition-transform relative"
                 >
                   <span className="text-2xl">{ITEM_ICONS[item.type] || icon}</span>
                   {renderDurabilityBar(item)}
@@ -181,50 +181,54 @@ export function InventoryBar() {
 
       <div className="flex flex-col gap-2">
         <div className="grid grid-cols-5 gap-2">
-          {Array.from({ length: INVENTORY_SIZE }, (_, i) => inventory[i] || null).map((item, index) => (
-            <div
-              key={index}
-              onDragOver={(e) => handleInventoryDragOver(e, index)}
-              onDragLeave={() => setDragOverSlot(null)}
-              onDrop={(e) => handleInventoryDrop(e, index)}
-              className={`w-12 h-12 bg-gray-900/80 rounded-lg flex items-center justify-center relative border-2 transition-all cursor-pointer ${
-                item && equippedTool === item.type
-                  ? 'border-green-500 bg-green-900/30'
-                  : dragOverSlot === index
-                  ? 'border-blue-400 bg-blue-900/30'
-                  : 'border-gray-700 hover:border-gray-500'
-              }`}
-              onClick={() => handleSlotClick(index)}
-            >
-              {item && (
-                <>
-                  <div
-                    draggable
-                    onDragStart={(e) => {
-                      e.stopPropagation()
-                      handleDragStart(e, 'inventory', index)
-                    }}
-                    onDragEnd={handleDragEnd}
-                    className="cursor-grab active:cursor-grabbing hover:scale-110 transition-transform"
-                  >
-                    <span className="text-xl">{ITEM_ICONS[item.type] || '📦'}</span>
-                  </div>
-                  {!isEquipment(item) && (
-                    <span className="absolute bottom-0.5 right-1 text-[10px] text-white bg-black/70 px-1 rounded font-bold">
-                      {item.count}
-                    </span>
-                  )}
-                  {renderDurabilityBar(item)}
-                </>
-              )}
-              <span className="absolute top-0.5 left-1 text-[10px] text-gray-500 font-mono">
-                {index + 1}
-              </span>
-            </div>
-          ))}
+          {Array.from({ length: inventorySize }, (_, i) => inventory[i] || null).map((item, index) => {
+            const isBackpackSlot = index >= 15
+            return (
+              <div
+                key={index}
+                onDragOver={(e) => handleInventoryDragOver(e, index)}
+                onDragLeave={() => setDragOverSlot(null)}
+                onDrop={(e) => handleInventoryDrop(e, index)}
+                className={`w-12 h-12 rounded-lg flex items-center justify-center relative border-2 transition-all cursor-pointer ${
+                  isBackpackSlot
+                    ? 'bg-indigo-900/50 border-indigo-600 hover:border-indigo-400'
+                    : dragOverSlot === index
+                    ? 'bg-blue-900/30 border-blue-400'
+                    : 'bg-gray-900/80 border-gray-700 hover:border-gray-500'
+                }`}
+                title={item ? getItemName(item) : isBackpackSlot ? '背包扩展格' : ''}
+              >
+                {item && (
+                  <>
+                    <div
+                      draggable
+                      onDragStart={(e) => {
+                        e.stopPropagation()
+                        handleDragStart(e, 'inventory', index)
+                      }}
+                      onDragEnd={handleDragEnd}
+                      className="cursor-grab active:cursor-grabbing hover:scale-110 transition-transform relative"
+                    >
+                      <span className="text-xl">{ITEM_ICONS[item.type] || '📦'}</span>
+                    </div>
+                    {!isEquipment(item) && !isTool(item) && (
+                      <span className="absolute bottom-0.5 right-1 text-[10px] text-white bg-black/70 px-1 rounded font-bold">
+                        {item.count}
+                      </span>
+                    )}
+                    {renderDurabilityBar(item)}
+                  </>
+                )}
+                <span className="absolute top-0.5 left-1 text-[10px] text-gray-500 font-mono">
+                  {index + 1}
+                </span>
+              </div>
+            )
+          })}
         </div>
         <div className="text-center text-xs text-gray-400">
           点击工具装备 · 拖拽装备到左侧栏位 · 拖拽物品排序
+          {hasBackpack && <span className="text-indigo-400 ml-2">🎒 背包扩展中 (+8格)</span>}
         </div>
       </div>
     </div>
@@ -232,7 +236,7 @@ export function InventoryBar() {
 }
 
 export function ContainerPanel() {
-  const { openedContainerId, buildings, openContainer, moveItemToContainer, moveItemFromContainer, inventory } = useGameStore()
+  const { openedContainerId, buildings, openContainer, moveItemToContainer, moveItemFromContainer, inventory, getInventorySize } = useGameStore()
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -242,6 +246,7 @@ export function ContainerPanel() {
   if (!building) return null
 
   const containerSlots = Array.from({ length: 8 }, (_, i) => building.inventory[i] || null)
+  const inventorySize = getInventorySize()
 
   const handleContainerDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -358,32 +363,39 @@ export function ContainerPanel() {
             onDragOver={handleInventoryDragOver}
             onDrop={handleInventoryDrop}
           >
-            {Array.from({ length: INVENTORY_SIZE }, (_, i) => inventory[i] || null).map((slot, index) => (
-              <div
-                key={index}
-                className="w-12 h-12 bg-gray-700/50 rounded-lg flex items-center justify-center relative border-2 border-gray-600"
-              >
-                {slot && (
-                  <>
-                    <div
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('source', 'inventory')
-                        e.dataTransfer.setData('index', index.toString())
-                        e.dataTransfer.effectAllowed = 'move'
-                      }}
-                      className="text-xl cursor-grab active:cursor-grabbing hover:scale-110 transition-transform"
-                      title={`${getItemName(slot)} - 拖到箱子`}
-                    >
-                      {ITEM_ICONS[slot.type] || '📦'}
-                    </div>
-                    <span className="absolute bottom-0 right-0.5 text-[10px] text-white bg-black/70 px-1 rounded font-bold">
-                      {slot.count}
-                    </span>
-                  </>
-                )}
-              </div>
-            ))}
+            {Array.from({ length: inventorySize }, (_, i) => inventory[i] || null).map((slot, index) => {
+              const isBackpackSlot = index >= 15
+              return (
+                <div
+                  key={index}
+                  className={`w-12 h-12 rounded-lg flex items-center justify-center relative border-2 ${
+                    isBackpackSlot
+                      ? 'bg-indigo-900/30 border-indigo-700/50'
+                      : 'bg-gray-700/50 border-gray-600'
+                  }`}
+                >
+                  {slot && (
+                    <>
+                      <div
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('source', 'inventory')
+                          e.dataTransfer.setData('index', index.toString())
+                          e.dataTransfer.effectAllowed = 'move'
+                        }}
+                        className="text-xl cursor-grab active:cursor-grabbing hover:scale-110 transition-transform"
+                        title={`${getItemName(slot)} - 拖到箱子`}
+                      >
+                        {ITEM_ICONS[slot.type] || '📦'}
+                      </div>
+                      <span className="absolute bottom-0 right-0.5 text-[10px] text-white bg-black/70 px-1 rounded font-bold">
+                        {slot.count}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
 

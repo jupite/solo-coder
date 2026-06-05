@@ -1,8 +1,8 @@
 import { create } from 'zustand'
 
-export type ResourceType = 'wood' | 'stone' | 'flint' | 'twig' | 'grass'
+export type ResourceType = 'wood' | 'stone' | 'flint' | 'twig' | 'grass' | 'meat'
 export type ToolType = 'axe' | 'pickaxe' | 'torch'
-export type EquipmentType = 'helmet' | 'armor' | 'spear'
+export type EquipmentType = 'helmet' | 'armor' | 'spear' | 'backpack'
 export type ItemType = ResourceType | ToolType | EquipmentType
 export type BuildingType = 'campfire' | 'chest'
 export type EquipSlotType = 'head' | 'body' | 'hand'
@@ -49,7 +49,7 @@ export interface Monster {
   targetPosition: [number, number, number] | null
 }
 
-export const BASIC_RESOURCES: ResourceType[] = ['flint', 'twig', 'grass']
+export const BASIC_RESOURCES: ResourceType[] = ['flint', 'twig', 'grass', 'meat']
 export const TOOL_REQUIRED_RESOURCES: Record<ToolType, ResourceType[]> = {
   axe: ['wood'],
   pickaxe: ['stone'],
@@ -80,7 +80,8 @@ export interface GameState {
   playerStamina: number
   inventory: (InventoryItem | null)[]
   equipment: Record<EquipSlotType, InventoryItem | null>
-  equippedTool: ToolType | null
+  hasBackpack: boolean
+  baseInventorySize: number
   resources: ResourceNode[]
   buildings: PlacedBuilding[]
   monsters: Monster[]
@@ -101,7 +102,6 @@ export interface GameState {
   addToInventory: (type: ItemType, count?: number, durability?: number, maxDurability?: number) => boolean
   removeFromInventory: (index: number, count?: number) => void
   moveInventoryItem: (fromIndex: number, toIndex: number) => void
-  setEquippedTool: (tool: ToolType | null) => void
   equipItem: (inventoryIndex: number, slot: EquipSlotType) => void
   unequipItem: (slot: EquipSlotType) => void
   reduceDurability: (slot: EquipSlotType, amount?: number) => void
@@ -109,7 +109,7 @@ export interface GameState {
   takeDamage: (damage: number) => void
   setPlayerPosition: (pos: [number, number, number]) => void
   updatePlayerStats: (health?: number, hunger?: number, stamina?: number) => void
-  gatherResource: (id: string, equippedTool: ToolType | null) => { success: boolean; message: string }
+  gatherResource: (id: string) => { success: boolean; message: string }
   attack: () => void
   toggleMap: () => void
   toggleCrafting: () => void
@@ -136,6 +136,8 @@ export interface GameState {
   toggleDevTools: () => void
   updateMonster: (monsterId: string, updates: Partial<Monster>) => void
   damageMonster: (monsterId: string, damage: number) => void
+  updateBackpackStatus: () => void
+  getInventorySize: () => number
 }
 
 export const TOOL_RECIPES: Record<ToolType, Partial<Record<ResourceType, number>>> = {
@@ -144,16 +146,24 @@ export const TOOL_RECIPES: Record<ToolType, Partial<Record<ResourceType, number>
   torch: { twig: 3, grass: 2, flint: 1 },
 }
 
+export const TOOL_STATS: Record<ToolType, { durability: number; equipSlot: EquipSlotType }> = {
+  axe: { durability: 80, equipSlot: 'hand' },
+  pickaxe: { durability: 100, equipSlot: 'hand' },
+  torch: { durability: 60, equipSlot: 'hand' },
+}
+
 export const EQUIPMENT_RECIPES: Record<EquipmentType, Partial<Record<ResourceType, number>>> = {
   helmet: { stone: 5, wood: 3, grass: 2 },
   armor: { stone: 8, wood: 5, grass: 3 },
   spear: { wood: 6, flint: 4, grass: 2 },
+  backpack: { grass: 10, twig: 5, flint: 2 },
 }
 
-export const EQUIPMENT_STATS: Record<EquipmentType, { damageReduction?: number; damage?: number; durability: number; equipSlot: EquipSlotType }> = {
+export const EQUIPMENT_STATS: Record<EquipmentType, { damageReduction?: number; damage?: number; durability?: number; equipSlot: EquipSlotType; extraSlots?: number }> = {
   helmet: { damageReduction: 0.2, durability: 100, equipSlot: 'head' },
   armor: { damageReduction: 0.4, durability: 150, equipSlot: 'body' },
   spear: { damage: 25, durability: 80, equipSlot: 'hand' },
+  backpack: { equipSlot: 'body', extraSlots: 8 },
 }
 
 export const BUILDING_RECIPES: Record<BuildingType, Partial<Record<ResourceType, number>>> = {
@@ -171,6 +181,7 @@ export const EQUIPMENT_NAMES: Record<EquipmentType, string> = {
   helmet: '头盔',
   armor: '盔甲',
   spear: '长矛',
+  backpack: '背包',
 }
 
 export const BUILDING_NAMES: Record<BuildingType, string> = {
@@ -188,6 +199,7 @@ export const EQUIPMENT_DESCRIPTIONS: Record<EquipmentType, string> = {
   helmet: '保护头部，减少20%受到的伤害',
   armor: '保护身体，减少40%受到的伤害',
   spear: '近战武器，增加25点攻击力',
+  backpack: '装备后增加8格背包空间',
 }
 
 export const BUILDING_DESCRIPTIONS: Record<BuildingType, string> = {
@@ -201,6 +213,7 @@ export const RESOURCE_NAMES: Record<ResourceType, string> = {
   flint: '燧石',
   twig: '树枝',
   grass: '草',
+  meat: '肉',
 }
 
 export const ITEM_ICONS: Record<string, string> = {
@@ -209,12 +222,14 @@ export const ITEM_ICONS: Record<string, string> = {
   flint: '🔥',
   twig: '🌿',
   grass: '🌱',
+  meat: '🥩',
   axe: '🪓',
   pickaxe: '⛏️',
   torch: '🔦',
   helmet: '⛑️',
   armor: '🛡️',
   spear: '🔱',
+  backpack: '🎒',
   campfire: '🔥',
   chest: '📦',
 }
@@ -222,7 +237,7 @@ export const ITEM_ICONS: Record<string, string> = {
 export const RECIPES = { ...TOOL_RECIPES, ...EQUIPMENT_RECIPES, ...BUILDING_RECIPES }
 
 const GRID_SIZE = 1
-const INVENTORY_SIZE = 15
+const BASE_INVENTORY_SIZE = 15
 
 function snapToGrid(value: number): number {
   return Math.round(value / GRID_SIZE) * GRID_SIZE
@@ -254,7 +269,15 @@ function checkPlacementCollision(
 }
 
 function isEquipment(type: ItemType): type is EquipmentType {
-  return ['helmet', 'armor', 'spear'].includes(type)
+  return ['helmet', 'armor', 'spear', 'backpack'].includes(type)
+}
+
+function isTool(type: ItemType): type is ToolType {
+  return ['axe', 'pickaxe', 'torch'].includes(type)
+}
+
+function isResource(type: ItemType): type is ResourceType {
+  return !isEquipment(type) && !isTool(type)
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -263,13 +286,14 @@ export const useGameStore = create<GameState>((set, get) => ({
   playerMaxHealth: 100,
   playerHunger: 100,
   playerStamina: 100,
-  inventory: Array(INVENTORY_SIZE).fill(null),
+  inventory: Array(BASE_INVENTORY_SIZE).fill(null),
   equipment: {
     head: null,
     body: null,
     hand: null,
   },
-  equippedTool: null,
+  hasBackpack: false,
+  baseInventorySize: BASE_INVENTORY_SIZE,
   resources: [],
   buildings: [],
   monsters: [],
@@ -294,6 +318,35 @@ export const useGameStore = create<GameState>((set, get) => ({
   showDevTools: false,
   lastAttackTime: 0,
 
+  getInventorySize: () => {
+    const state = get()
+    return state.baseInventorySize + (state.hasBackpack ? 8 : 0)
+  },
+
+  updateBackpackStatus: () => {
+    const state = get()
+    const hasBackpack = state.equipment.body?.type === 'backpack'
+    const currentSize = state.inventory.length
+    const targetSize = BASE_INVENTORY_SIZE + (hasBackpack ? 8 : 0)
+
+    if (currentSize !== targetSize) {
+      if (targetSize > currentSize) {
+        const newSlots = Array(targetSize - currentSize).fill(null)
+        set({
+          inventory: [...state.inventory, ...newSlots],
+          hasBackpack,
+        })
+      } else {
+        set({
+          inventory: state.inventory.slice(0, targetSize),
+          hasBackpack,
+        })
+      }
+    } else {
+      set({ hasBackpack })
+    }
+  },
+
   showMessage: (text, type = 'info') => {
     set({ message: { text, type } })
     setTimeout(() => {
@@ -304,27 +357,36 @@ export const useGameStore = create<GameState>((set, get) => ({
   addToInventory: (type, count = 1, durability, maxDurability) => {
     const state = get()
     const isEquip = isEquipment(type)
+    const isToolItem = isTool(type)
 
-    if (isEquip) {
+    if (isEquip || isToolItem) {
+      const inventorySize = state.getInventorySize()
       const emptyIndex = state.inventory.findIndex((item) => item === null)
-      if (emptyIndex === -1) {
+      if (emptyIndex === -1 || emptyIndex >= inventorySize) {
         get().showMessage('❌ 背包已满', 'error')
         return false
       }
-      const stats = EQUIPMENT_STATS[type]
+      
+      let durabilityValue: number | undefined
+      if (isEquip) {
+        durabilityValue = EQUIPMENT_STATS[type].durability
+      } else if (isToolItem) {
+        durabilityValue = TOOL_STATS[type].durability
+      }
+      
       const newInventory = [...state.inventory]
       newInventory[emptyIndex] = {
         type,
         count: 1,
-        durability: durability ?? stats.durability,
-        maxDurability: maxDurability ?? stats.durability,
+        durability: durability ?? durabilityValue,
+        maxDurability: maxDurability ?? durabilityValue,
       }
       set({ inventory: newInventory })
       return true
     }
 
     const existingIndex = state.inventory.findIndex(
-      (item) => item !== null && item.type === type && !isEquipment(item.type)
+      (item) => item !== null && item.type === type && isResource(item.type)
     )
 
     if (existingIndex !== -1) {
@@ -337,7 +399,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       return true
     }
 
-    const emptyIndex = state.inventory.findIndex((item) => item === null)
+    const inventorySize = state.getInventorySize()
+    const emptyIndex = state.inventory.findIndex((item, idx) => item === null && idx < inventorySize)
     if (emptyIndex === -1) {
       get().showMessage('❌ 背包已满', 'error')
       return false
@@ -369,6 +432,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   moveInventoryItem: (fromIndex, toIndex) => {
     set((state) => {
       if (fromIndex === toIndex) return state
+      const inventorySize = state.getInventorySize()
+      if (toIndex >= inventorySize) return state
+      
       const newInventory = [...state.inventory]
       const temp = newInventory[fromIndex]
       newInventory[fromIndex] = newInventory[toIndex]
@@ -377,20 +443,37 @@ export const useGameStore = create<GameState>((set, get) => ({
     })
   },
 
-  setEquippedTool: (tool) => set({ equippedTool: tool }),
-
   equipItem: (inventoryIndex, slot) => {
     const state = get()
     const item = state.inventory[inventoryIndex]
     if (!item) return
 
-    const equipmentType = item.type as EquipmentType
-    if (!isEquipment(equipmentType)) return
+    const isEquip = isEquipment(item.type)
+    const isToolItem = isTool(item.type)
 
-    const stats = EQUIPMENT_STATS[equipmentType]
-    if (stats.equipSlot !== slot) {
-      get().showMessage('❌ 该装备不能放入此栏位', 'error')
+    if (!isEquip && !isToolItem) {
+      get().showMessage('❌ 该物品不能装备', 'error')
       return
+    }
+
+    if (slot === 'hand') {
+      if (isEquip && EQUIPMENT_STATS[item.type as EquipmentType].equipSlot !== 'hand') {
+        get().showMessage('❌ 该装备不能放入手持栏', 'error')
+        return
+      }
+      if (isToolItem && TOOL_STATS[item.type as ToolType].equipSlot !== 'hand') {
+        get().showMessage('❌ 该工具不能放入手持栏', 'error')
+        return
+      }
+    } else {
+      if (isToolItem) {
+        get().showMessage('❌ 工具只能放入手持栏', 'error')
+        return
+      }
+      if (isEquip && EQUIPMENT_STATS[item.type as EquipmentType].equipSlot !== slot) {
+        get().showMessage('❌ 该装备不能放入此栏位', 'error')
+        return
+      }
     }
 
     set((state) => {
@@ -408,7 +491,14 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     })
 
-    get().showMessage(`✅ 已装备 ${EQUIPMENT_NAMES[equipmentType]}`, 'success')
+    setTimeout(() => {
+      get().updateBackpackStatus()
+    }, 0)
+
+    const itemName = isEquip 
+      ? EQUIPMENT_NAMES[item.type as EquipmentType]
+      : TOOL_NAMES[item.type as ToolType]
+    get().showMessage(`✅ 已装备 ${itemName}`, 'success')
   },
 
   unequipItem: (slot) => {
@@ -416,7 +506,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     const item = state.equipment[slot]
     if (!item) return
 
-    const emptyIndex = state.inventory.findIndex((i) => i === null)
+    const inventorySize = state.getInventorySize()
+    const emptyIndex = state.inventory.findIndex((i, idx) => i === null && idx < inventorySize)
     if (emptyIndex === -1) {
       get().showMessage('❌ 背包已满，无法卸下装备', 'error')
       return
@@ -435,6 +526,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     })
 
+    setTimeout(() => {
+      get().updateBackpackStatus()
+    }, 0)
+
     get().showMessage(`✅ 已卸下装备`, 'success')
   },
 
@@ -445,7 +540,10 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       const newDurability = item.durability - amount
       if (newDurability <= 0) {
-        get().showMessage(`❌ ${EQUIPMENT_NAMES[item.type as EquipmentType]} 已损坏`, 'error')
+        const itemName = isEquipment(item.type)
+          ? EQUIPMENT_NAMES[item.type as EquipmentType]
+          : TOOL_NAMES[item.type as ToolType]
+        get().showMessage(`❌ ${itemName} 已损坏`, 'error')
         return {
           equipment: {
             ...state.equipment,
@@ -473,9 +571,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       damage *= (1 - reduction)
     }
 
-    const armor = state.equipment.body
-    if (armor) {
-      const reduction = EQUIPMENT_STATS[armor.type as EquipmentType].damageReduction || 0
+    const bodyItem = state.equipment.body
+    if (bodyItem && bodyItem.type !== 'backpack') {
+      const reduction = EQUIPMENT_STATS[bodyItem.type as EquipmentType].damageReduction || 0
       damage *= (1 - reduction)
     }
 
@@ -487,7 +585,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     const actualDamage = state.calculateDamage(damage)
     
     if (state.equipment.head) state.reduceDurability('head', Math.ceil(damage * 0.1))
-    if (state.equipment.body) state.reduceDurability('body', Math.ceil(damage * 0.15))
+    const bodyItem = state.equipment.body
+    if (bodyItem && bodyItem.type !== 'backpack') state.reduceDurability('body', Math.ceil(damage * 0.15))
 
     const newHealth = Math.max(0, state.playerHealth - actualDamage)
     set({ playerHealth: newHealth })
@@ -508,12 +607,14 @@ export const useGameStore = create<GameState>((set, get) => ({
       playerStamina: stamina ?? state.playerStamina,
     })),
 
-  gatherResource: (id, equippedTool) => {
+  gatherResource: (id) => {
     const state = get()
     const resource = state.resources.find((r) => r.id === id)
     if (!resource) return { success: false, message: '资源不存在' }
 
     const isBasic = BASIC_RESOURCES.includes(resource.type)
+    const handItem = state.equipment.hand
+    const equippedTool = handItem && isTool(handItem.type) ? handItem.type as ToolType : null
 
     if (!isBasic) {
       if (!equippedTool) {
@@ -534,6 +635,10 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const baseDamage = isBasic ? 15 : (equippedTool === 'axe' || equippedTool === 'pickaxe' ? 20 : 10)
     const damage = isBasic ? baseDamage : baseDamage
+
+    if (equippedTool) {
+      state.reduceDurability('hand', 1)
+    }
 
     const newHealth = resource.health - damage
     if (newHealth <= 0) {
@@ -564,9 +669,14 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     let baseDamage = 10
     const handItem = state.equipment.hand
-    if (handItem && handItem.type === 'spear') {
-      baseDamage = EQUIPMENT_STATS.spear.damage || 10
-      state.reduceDurability('hand', 2)
+    if (handItem) {
+      if (handItem.type === 'spear') {
+        baseDamage = EQUIPMENT_STATS.spear.damage || 10
+        state.reduceDurability('hand', 2)
+      } else if (isTool(handItem.type)) {
+        baseDamage = 12
+        state.reduceDurability('hand', 1)
+      }
     }
 
     for (const monster of state.monsters) {
@@ -576,11 +686,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       )
       if (dist < 3) {
         state.damageMonster(monster.id, baseDamage)
-        set((s) => ({
-          monsters: s.monsters.map((m) =>
-            m.id === monster.id ? { ...m, isAggro: true } : m
-          ),
-        }))
         get().showMessage(`⚔️ 攻击造成 ${baseDamage} 点伤害！`, 'info')
         break
       }
@@ -868,7 +973,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       const newHealth = monster.health - damage
       if (newHealth <= 0) {
-        get().addToInventory('meat' as ResourceType, 2)
+        get().addToInventory('meat', 2)
         get().showMessage('🎉 击败了猪人！获得2个肉', 'success')
         return {
           monsters: state.monsters.filter((m) => m.id !== monsterId),
@@ -922,7 +1027,7 @@ export function generateMonsters(mapSize: number, count: number = 5): Monster[] 
       maxHealth: 50,
       damage: 15,
       attackRange: 2,
-      detectRange: 8,
+      detectRange: 0,
       isAggro: false,
       lastAttackTime: 0,
       targetPosition: null,

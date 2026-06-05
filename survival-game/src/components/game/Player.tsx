@@ -22,7 +22,6 @@ export function Player() {
     gatherResource,
     attack,
     resources,
-    equippedTool,
     equipment,
     showMessage,
     buildings,
@@ -63,7 +62,7 @@ export function Player() {
         }
 
         if (nearestId) {
-          const result = gatherResource(nearestId, equippedTool)
+          const result = gatherResource(nearestId)
           showMessage(result.message, result.success ? 'success' : 'error')
         } else {
           showMessage('❌ 附近没有可采集的资源', 'error')
@@ -113,7 +112,7 @@ export function Player() {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [isAttacking, isGathering, gatherResource, attack, resources, playerPosition, equippedTool, showMessage, buildings, openContainer, placement.isActive])
+  }, [isAttacking, isGathering, gatherResource, attack, resources, playerPosition, showMessage, buildings, openContainer, placement.isActive])
 
   useFrame(() => {
     if (!meshRef.current) return
@@ -142,7 +141,8 @@ export function Player() {
 
   const hasHelmet = equipment.head?.type === 'helmet'
   const hasArmor = equipment.body?.type === 'armor'
-  const hasSpear = equipment.hand?.type === 'spear'
+  const hasBackpack = equipment.body?.type === 'backpack'
+  const handItem = equipment.hand
 
   return (
     <group ref={meshRef} position={playerPosition as [number, number, number]}>
@@ -155,6 +155,13 @@ export function Player() {
         <mesh position={[0, 0.5, 0]} castShadow>
           <capsuleGeometry args={[0.35, 0.85, 4, 8]} />
           <meshStandardMaterial color="#6b7280" transparent opacity={0.8} />
+        </mesh>
+      )}
+
+      {hasBackpack && (
+        <mesh position={[0, 0.5, -0.4]} castShadow>
+          <boxGeometry args={[0.4, 0.5, 0.25]} />
+          <meshStandardMaterial color="#8b4513" />
         </mesh>
       )}
 
@@ -184,12 +191,12 @@ export function Player() {
         <meshStandardMaterial color="#8b4513" />
       </mesh>
 
-      {equippedTool && (
+      {handItem && (
         <group
           position={[0.6, 0.7, isGathering ? -0.3 : 0.3]}
           rotation={[isGathering ? -Math.PI / 3 : 0, 0, Math.PI / 6]}
         >
-          {equippedTool === 'axe' && (
+          {handItem.type === 'axe' && (
             <>
               <mesh position={[0, 0, -0.1]}>
                 <boxGeometry args={[0.08, 0.08, 0.5]} />
@@ -201,7 +208,7 @@ export function Player() {
               </mesh>
             </>
           )}
-          {equippedTool === 'pickaxe' && (
+          {handItem.type === 'pickaxe' && (
             <>
               <mesh position={[0, 0, -0.1]}>
                 <boxGeometry args={[0.08, 0.08, 0.5]} />
@@ -213,7 +220,7 @@ export function Player() {
               </mesh>
             </>
           )}
-          {equippedTool === 'torch' && (
+          {handItem.type === 'torch' && (
             <>
               <mesh position={[0, 0, -0.1]}>
                 <cylinderGeometry args={[0.03, 0.03, 0.5]} />
@@ -226,22 +233,18 @@ export function Player() {
               <pointLight position={[0, 0.35, -0.3]} color="#ff6600" intensity={1} distance={8} />
             </>
           )}
-        </group>
-      )}
-
-      {hasSpear && (
-        <group
-          position={[0.7, 0.8, isAttacking ? -0.5 : 0.5]}
-          rotation={[isAttacking ? -Math.PI / 3 : 0, 0, Math.PI / 6]}
-        >
-          <mesh position={[0, 0, -0.2]}>
-            <cylinderGeometry args={[0.03, 0.03, 1.2]} />
-            <meshStandardMaterial color="#8b4513" />
-          </mesh>
-          <mesh position={[0, 0.5, -0.2]} rotation={[Math.PI / 2, 0, 0]}>
-            <coneGeometry args={[0.08, 0.25, 8]} />
-            <meshStandardMaterial color="#708090" metalness={0.9} />
-          </mesh>
+          {handItem.type === 'spear' && (
+            <>
+              <mesh position={[0, 0, -0.2]}>
+                <cylinderGeometry args={[0.03, 0.03, 1.2]} />
+                <meshStandardMaterial color="#8b4513" />
+              </mesh>
+              <mesh position={[0, 0.5, -0.2]} rotation={[Math.PI / 2, 0, 0]}>
+                <coneGeometry args={[0.08, 0.25, 8]} />
+                <meshStandardMaterial color="#708090" metalness={0.9} />
+              </mesh>
+            </>
+          )}
         </group>
       )}
 
