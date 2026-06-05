@@ -237,7 +237,7 @@ export const ITEM_ICONS: Record<string, string> = {
 export const RECIPES = { ...TOOL_RECIPES, ...EQUIPMENT_RECIPES, ...BUILDING_RECIPES }
 
 const GRID_SIZE = 1
-const BASE_INVENTORY_SIZE = 9
+const BASE_INVENTORY_SIZE = 15
 const BACKPACK_EXTRA_SLOTS = 9
 
 function snapToGrid(value: number): number {
