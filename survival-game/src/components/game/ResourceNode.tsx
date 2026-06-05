@@ -3,10 +3,116 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { ResourceNode as ResourceNodeType } from '@/store/gameStore'
+import { ResourceNode as ResourceNodeType, TreeGrowthStage, TreeState } from '@/store/gameStore'
 
 interface ResourceNodeProps {
   resource: ResourceNodeType
+}
+
+function renderTree(stage: TreeGrowthStage, state: TreeState) {
+  const trunkHeight: Record<TreeGrowthStage, number> = {
+    sapling: 0.3,
+    small: 1,
+    medium: 2,
+    large: 3,
+    old: 2.5,
+  }
+  const trunkRadius: Record<TreeGrowthStage, number> = {
+    sapling: 0.05,
+    small: 0.12,
+    medium: 0.2,
+    large: 0.35,
+    old: 0.4,
+  }
+  const foliageRadius: Record<TreeGrowthStage, number> = {
+    sapling: 0.2,
+    small: 0.7,
+    medium: 1.2,
+    large: 1.8,
+    old: 1.5,
+  }
+  const foliageHeight: Record<TreeGrowthStage, number> = {
+    sapling: 0.3,
+    small: 1,
+    medium: 2,
+    large: 3,
+    old: 2.5,
+  }
+
+  const h = trunkHeight[stage]
+  const r = trunkRadius[stage]
+  const fr = foliageRadius[stage]
+  const fh = foliageHeight[stage]
+
+  if (state === 'stump') {
+    return (
+      <>
+        <mesh position={[0, 0.2, 0]} castShadow>
+          <cylinderGeometry args={[0.25, 0.3, 0.4, 8]} />
+          <meshStandardMaterial color="#5d4037" />
+        </mesh>
+        <mesh position={[0, 0.45, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[0.25, 8]} />
+          <meshStandardMaterial color="#8d6e63" />
+        </mesh>
+      </>
+    )
+  }
+
+  if (state === 'charred') {
+    return (
+      <>
+        <mesh position={[0, h / 2, 0]} castShadow>
+          <cylinderGeometry args={[r * 0.8, r * 1.1, h, 8]} />
+          <meshStandardMaterial color="#2d2d2d" />
+        </mesh>
+        <mesh position={[0, h + fh * 0.3, 0]} castShadow>
+          <coneGeometry args={[fr * 0.6, fh * 0.5, 8]} />
+          <meshStandardMaterial color="#1a1a1a" />
+        </mesh>
+      </>
+    )
+  }
+
+  const trunkColor = state === 'burning' ? '#ff4500' : '#8b4513'
+  const foliageColor1 = state === 'burning' ? '#ff6600' : (stage === 'old' ? '#556b2f' : '#228b22')
+  const foliageColor2 = state === 'burning' ? '#ffaa00' : (stage === 'old' ? '#6b8e23' : '#32cd32')
+
+  return (
+    <>
+      <mesh position={[0, h / 2, 0]} castShadow>
+        <cylinderGeometry args={[r * 0.8, r * 1.1, h, 8]} />
+        <meshStandardMaterial color={trunkColor} />
+      </mesh>
+      {stage !== 'sapling' && (
+        <mesh position={[0, h + fh * 0.5, 0]} castShadow>
+          <coneGeometry args={[fr, fh, 8]} />
+          <meshStandardMaterial color={foliageColor1} />
+        </mesh>
+      )}
+      {stage !== 'sapling' && stage !== 'small' && (
+        <mesh position={[0, h + fh * 0.85, 0]} castShadow>
+          <coneGeometry args={[fr * 0.7, fh * 0.6, 8]} />
+          <meshStandardMaterial color={foliageColor2} />
+        </mesh>
+      )}
+      {stage === 'sapling' && (
+        <mesh position={[0, h + 0.15, 0]} castShadow>
+          <coneGeometry args={[fr, 0.3, 4]} />
+          <meshStandardMaterial color={foliageColor2} />
+        </mesh>
+      )}
+      {state === 'burning' && (
+        <>
+          <pointLight position={[0, h + fh * 0.5, 0]} color="#ff4400" intensity={2} distance={8} />
+          <mesh position={[0, h + fh * 0.6, 0]}>
+            <sphereGeometry args={[fr * 0.5, 8, 8]} />
+            <meshBasicMaterial color="#ff6600" transparent opacity={0.6} />
+          </mesh>
+        </>
+      )}
+    </>
+  )
 }
 
 export function ResourceNode({ resource }: ResourceNodeProps) {
@@ -21,22 +127,15 @@ export function ResourceNode({ resource }: ResourceNodeProps) {
   const healthPercent = resource.health / resource.maxHealth
 
   if (resource.type === 'wood') {
+    const stage = resource.treeGrowthStage || 'medium'
+    const state = resource.treeState || 'normal'
+    const totalHeight = state === 'stump' ? 0.5 : (state === 'charred' ? 3 : (stage === 'sapling' ? 0.8 : stage === 'small' ? 2.5 : stage === 'medium' ? 4.5 : 6))
+
     return (
       <group ref={meshRef} position={resource.position as [number, number, number]}>
-        <mesh position={[0, 1.5, 0]} castShadow>
-          <cylinderGeometry args={[0.2, 0.3, 3, 8]} />
-          <meshStandardMaterial color="#8b4513" />
-        </mesh>
-        <mesh position={[0, 4, 0]} castShadow>
-          <coneGeometry args={[1.5, 2.5, 8]} />
-          <meshStandardMaterial color="#228b22" />
-        </mesh>
-        <mesh position={[0, 5.2, 0]} castShadow>
-          <coneGeometry args={[1.2, 2, 8]} />
-          <meshStandardMaterial color="#32cd32" />
-        </mesh>
+        {renderTree(stage, state)}
         {healthPercent < 1 && (
-          <mesh position={[0, 5.5, 0]}>
+          <mesh position={[0, totalHeight + 0.3, 0]}>
             <planeGeometry args={[1, 0.1]} />
             <meshBasicMaterial color="red" />
           </mesh>

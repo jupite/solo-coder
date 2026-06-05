@@ -8,6 +8,7 @@ import { Ground } from './Ground'
 import { ResourceNode } from './ResourceNode'
 import { Building, PlacementPreview } from './Building'
 import { MonsterManager } from './Monster'
+import { DroppedItem } from './DroppedItem'
 import { useGameStore, generateResources, generateMonsters, TimeOfDay } from '@/store/gameStore'
 import * as THREE from 'three'
 
@@ -97,7 +98,7 @@ function PlacementHandler() {
 }
 
 function DayNightCycle() {
-  const { gameTime, timeOfDay, updateGameTime } = useGameStore()
+  const { gameTime, timeOfDay, updateGameTime, updateTreeGrowth } = useGameStore()
   const directionalLightRef = useRef<THREE.DirectionalLight>(null)
   const ambientLightRef = useRef<THREE.AmbientLight>(null)
   const skyRef = useRef<any>(null)
@@ -146,6 +147,7 @@ function DayNightCycle() {
   useFrame((state, delta) => {
     const timeDelta = delta / 30
     updateGameTime(timeDelta)
+    updateTreeGrowth(timeDelta)
 
     const params = getLightingParams(gameTime, timeOfDay)
 
@@ -207,7 +209,7 @@ function DayNightCycle() {
 }
 
 function SceneContent() {
-  const { resources, buildings, placement, openContainer, showMessage } = useGameStore()
+  const { resources, buildings, placement, openContainer, showMessage, droppedItems, pickupDroppedItem } = useGameStore()
 
   useEffect(() => {
     useGameStore.setState({ 
@@ -240,6 +242,10 @@ function SceneContent() {
 
       {resources.map((resource) => (
         <ResourceNode key={resource.id} resource={resource} />
+      ))}
+
+      {droppedItems.map((item) => (
+        <DroppedItem key={item.id} item={item} onClick={() => pickupDroppedItem(item.id)} />
       ))}
 
       <MonsterManager />

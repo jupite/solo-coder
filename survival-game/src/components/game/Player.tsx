@@ -27,6 +27,7 @@ export function Player() {
     buildings,
     openContainer,
     placement,
+    plantSeed,
   } = useGameStore()
 
   useEffect(() => {
@@ -99,6 +100,10 @@ export function Player() {
       if (key === 'm') {
         useGameStore.getState().toggleMap()
       }
+
+      if (key === 'p') {
+        plantSeed(playerPosition)
+      }
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -112,7 +117,7 @@ export function Player() {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [isAttacking, isGathering, gatherResource, attack, resources, playerPosition, showMessage, buildings, openContainer, placement.isActive])
+  }, [isAttacking, isGathering, gatherResource, attack, resources, playerPosition, showMessage, buildings, openContainer, placement.isActive, plantSeed])
 
   useFrame(() => {
     if (!meshRef.current) return

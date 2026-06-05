@@ -1,11 +1,14 @@
 import { create } from 'zustand'
 
-export type ResourceType = 'wood' | 'stone' | 'flint' | 'twig' | 'grass' | 'meat'
+export type ResourceType = 'wood' | 'stone' | 'flint' | 'twig' | 'grass' | 'meat' | 'seed' | 'charcoal'
 export type ToolType = 'axe' | 'pickaxe' | 'torch'
 export type EquipmentType = 'helmet' | 'armor' | 'spear' | 'backpack'
 export type ItemType = ResourceType | ToolType | EquipmentType
 export type BuildingType = 'campfire' | 'chest'
 export type EquipSlotType = 'head' | 'body' | 'hand'
+
+export type TreeGrowthStage = 'sapling' | 'small' | 'medium' | 'large' | 'old'
+export type TreeState = 'normal' | 'burning' | 'charred' | 'stump'
 
 export interface InventoryItem {
   type: ItemType
@@ -25,6 +28,17 @@ export interface ResourceNode {
   position: [number, number, number]
   health: number
   maxHealth: number
+  treeGrowthStage?: TreeGrowthStage
+  treeState?: TreeState
+  growthTimer?: number
+}
+
+export interface DroppedItem {
+  id: string
+  type: ItemType
+  position: [number, number, number]
+  count: number
+  spawnTime: number
 }
 
 export interface PlacedBuilding {
@@ -85,6 +99,7 @@ export interface GameState {
   resources: ResourceNode[]
   buildings: PlacedBuilding[]
   monsters: Monster[]
+  droppedItems: DroppedItem[]
   showMap: boolean
   showCrafting: boolean
   mapSize: number
@@ -138,6 +153,11 @@ export interface GameState {
   damageMonster: (monsterId: string, damage: number) => void
   updateBackpackStatus: () => void
   getInventorySize: () => number
+  updateTreeGrowth: (delta: number) => void
+  igniteTree: (resourceId: string) => boolean
+  dropItem: (type: ItemType, position: [number, number, number], count?: number) => void
+  pickupDroppedItem: (itemId: string) => boolean
+  plantSeed: (position: [number, number, number]) => boolean
 }
 
 export const TOOL_RECIPES: Record<ToolType, Partial<Record<ResourceType, number>>> = {
@@ -214,6 +234,8 @@ export const RESOURCE_NAMES: Record<ResourceType, string> = {
   twig: '树枝',
   grass: '草',
   meat: '肉',
+  seed: '树种',
+  charcoal: '木炭',
 }
 
 export const ITEM_ICONS: Record<string, string> = {
@@ -223,6 +245,8 @@ export const ITEM_ICONS: Record<string, string> = {
   twig: '🌿',
   grass: '🌱',
   meat: '🥩',
+  seed: '🌰',
+  charcoal: '⚫',
   axe: '🪓',
   pickaxe: '⛏️',
   torch: '🔦',
@@ -298,6 +322,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   resources: [],
   buildings: [],
   monsters: [],
+  droppedItems: [],
   showMap: false,
   showCrafting: false,
   mapSize: 100,
@@ -617,6 +642,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     const handItem = state.equipment.hand
     const equippedTool = handItem && isTool(handItem.type) ? handItem.type as ToolType : null
 
+    if (resource.type === 'wood' && equippedTool === 'torch') {
+      const success = get().igniteTree(id)
+      return success ? { success: true, message: '🔥 点燃了树木！' } : { success: false, message: '❌ 无法点燃这棵树' }
+    }
+
     if (!isBasic) {
       if (!equippedTool) {
         return { success: false, message: `需要工具才能采集${RESOURCE_NAMES[resource.type]}` }
@@ -643,6 +673,62 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const newHealth = resource.health - damage
     if (newHealth <= 0) {
+      if (resource.type === 'wood') {
+        const treeStage = resource.treeGrowthStage || 'medium'
+        const treeState = resource.treeState || 'normal'
+
+        if (treeState === 'charred') {
+          const charcoalCount = Math.floor(Math.random() * 2) + 2
+          get().addToInventory('charcoal', charcoalCount)
+          set({
+            resources: state.resources.filter((r) => r.id !== id),
+          })
+          return { success: true, message: `获得 ${charcoalCount} 个木炭` }
+        }
+
+        if (treeState === 'stump') {
+          get().addToInventory('wood', 1)
+          set({
+            resources: state.resources.filter((r) => r.id !== id),
+          })
+          return { success: true, message: '获得 1 个木材' }
+        }
+
+        const woodDrops: Record<TreeGrowthStage, number> = {
+          sapling: 1,
+          small: 2,
+          medium: 3,
+          large: 5,
+          old: 4,
+        }
+
+        const woodCount = woodDrops[treeStage] || 3
+        get().addToInventory('wood', woodCount)
+
+        if (treeStage === 'large') {
+          get().dropItem('seed', resource.position, 1)
+          if (Math.random() < 0.5) {
+            get().dropItem('seed', resource.position, 1)
+          }
+        }
+
+        if (treeState === 'normal') {
+          set({
+            resources: state.resources.map((r) =>
+              r.id === id
+                ? { ...r, type: 'wood', treeState: 'stump' as TreeState, health: 15, maxHealth: 15 }
+                : r
+            ),
+          })
+          return { success: true, message: `获得 ${woodCount} 个木材，留下了树桩` }
+        } else {
+          set({
+            resources: state.resources.filter((r) => r.id !== id),
+          })
+          return { success: true, message: `获得 ${woodCount} 个木材` }
+        }
+      }
+
       const dropCount = isBasic
         ? Math.floor(Math.random() * 3) + 2
         : Math.floor(Math.random() * 2) + 3
@@ -1008,24 +1094,196 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     })
   },
+
+  updateTreeGrowth: (delta) => {
+    set((state) => {
+      const growthInterval = 30
+      const stageOrder: TreeGrowthStage[] = ['sapling', 'small', 'medium', 'large', 'old']
+      
+      const newResources = state.resources.map((resource) => {
+        if (resource.type !== 'wood' || resource.treeState === 'charred' || resource.treeState === 'stump') {
+          return resource
+        }
+
+        const currentTimer = (resource.growthTimer || 0) + delta * state.timeSpeed
+        const currentStage = resource.treeGrowthStage || 'medium'
+        const currentStageIndex = stageOrder.indexOf(currentStage)
+
+        if (currentTimer >= growthInterval) {
+          let nextStage: TreeGrowthStage
+          if (currentStage === 'old') {
+            if (Math.random() < 0.5) {
+              get().dropItem('seed', resource.position, 1)
+            }
+            nextStage = 'old'
+          } else {
+            nextStage = stageOrder[currentStageIndex + 1] || 'old'
+          }
+
+          const stageHealthMap: Record<TreeGrowthStage, number> = {
+            sapling: 15,
+            small: 30,
+            medium: 45,
+            large: 60,
+            old: 50,
+          }
+          const newHealth = stageHealthMap[nextStage]
+
+          return {
+            ...resource,
+            treeGrowthStage: nextStage,
+            growthTimer: currentStage === 'old' ? 0 : currentTimer - growthInterval,
+            health: resource.treeState === 'normal' ? newHealth : resource.health,
+            maxHealth: newHealth,
+          }
+        }
+
+        return {
+          ...resource,
+          growthTimer: currentTimer,
+        }
+      })
+
+      return { resources: newResources }
+    })
+  },
+
+  igniteTree: (resourceId) => {
+    const state = get()
+    const resource = state.resources.find((r) => r.id === resourceId)
+    
+    if (!resource || resource.type !== 'wood') {
+      return false
+    }
+
+    if (resource.treeState === 'charred' || resource.treeState === 'stump') {
+      return false
+    }
+
+    set((s) => ({
+      resources: s.resources.map((r) =>
+        r.id === resourceId ? { ...r, treeState: 'burning' } : r
+      ),
+    }))
+
+    setTimeout(() => {
+      set((s) => ({
+        resources: s.resources.map((r) =>
+          r.id === resourceId ? { ...r, treeState: 'charred', health: 30, maxHealth: 30 } : r
+        ),
+      }))
+    }, 3000)
+
+    get().showMessage('🔥 树木被点燃了！', 'info')
+    return true
+  },
+
+  dropItem: (type, position, count = 1) => {
+    const newItem: DroppedItem = {
+      id: `drop-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type,
+      position: [
+        position[0] + (Math.random() - 0.5) * 0.5,
+        position[1] + 0.5,
+        position[2] + (Math.random() - 0.5) * 0.5,
+      ],
+      count,
+      spawnTime: Date.now(),
+    }
+
+    set((state) => ({
+      droppedItems: [...state.droppedItems, newItem],
+    }))
+  },
+
+  pickupDroppedItem: (itemId) => {
+    const state = get()
+    const item = state.droppedItems.find((i) => i.id === itemId)
+    
+    if (!item) return false
+
+    const success = get().addToInventory(item.type, item.count)
+    if (success) {
+      set((s) => ({
+        droppedItems: s.droppedItems.filter((i) => i.id !== itemId),
+      }))
+      get().showMessage(`📦 拾取了 ${item.count} 个${RESOURCE_NAMES[item.type as ResourceType] || item.type}`, 'success')
+    }
+    
+    return success
+  },
+
+  plantSeed: (position) => {
+    const state = get()
+    const seedIndex = state.inventory.findIndex((i) => i?.type === 'seed' && i.count > 0)
+    
+    if (seedIndex === -1) {
+      get().showMessage('❌ 没有树种可以种植', 'error')
+      return false
+    }
+
+    get().removeFromInventory(seedIndex, 1)
+
+    const newTree: ResourceNode = {
+      id: `tree-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type: 'wood',
+      position: [position[0], 0, position[2]],
+      health: 15,
+      maxHealth: 15,
+      treeGrowthStage: 'sapling',
+      treeState: 'normal',
+      growthTimer: 0,
+    }
+
+    set((s) => ({
+      resources: [...s.resources, newTree],
+    }))
+
+    get().showMessage('🌱 种下了一颗树苗！', 'success')
+    return true
+  },
 }))
 
 export function generateResources(mapSize: number): ResourceNode[] {
   const resources: ResourceNode[] = []
   const types: ResourceType[] = ['wood', 'stone', 'flint', 'twig', 'grass']
+  const treeStages: TreeGrowthStage[] = ['small', 'medium', 'large', 'old']
 
   for (let i = 0; i < 100; i++) {
     const type = types[Math.floor(Math.random() * types.length)]
     const x = (Math.random() - 0.5) * mapSize * 0.9
     const z = (Math.random() - 0.5) * mapSize * 0.9
 
-    resources.push({
-      id: `resource-${i}`,
-      type,
-      position: [x, 0, z],
-      health: type === 'wood' ? 60 : type === 'stone' ? 50 : 20,
-      maxHealth: type === 'wood' ? 60 : type === 'stone' ? 50 : 20,
-    })
+    const stageHealthMap: Record<TreeGrowthStage, number> = {
+      sapling: 15,
+      small: 30,
+      medium: 45,
+      large: 60,
+      old: 50,
+    }
+
+    if (type === 'wood') {
+      const randomStage = treeStages[Math.floor(Math.random() * treeStages.length)]
+      const health = stageHealthMap[randomStage]
+      resources.push({
+        id: `resource-${i}`,
+        type,
+        position: [x, 0, z],
+        health,
+        maxHealth: health,
+        treeGrowthStage: randomStage,
+        treeState: 'normal',
+        growthTimer: Math.random() * 20,
+      })
+    } else {
+      resources.push({
+        id: `resource-${i}`,
+        type,
+        position: [x, 0, z],
+        health: type === 'stone' ? 50 : 20,
+        maxHealth: type === 'stone' ? 50 : 20,
+      })
+    }
   }
 
   return resources
