@@ -619,6 +619,27 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
     setHasCompletedPlaythrough(false);
   }, [grid, boxes, targets, bluePlayer, redPlayer, redGates, switches]);
 
+  const hasDuoCollision = useCallback((x: number, y: number, excludeType?: DuoToolType): boolean => {
+    const hasWall = grid[y]?.[x] === CellType.WALL;
+    const hasBox = boxes.some((b) => b.x === x && b.y === y);
+    const hasBluePlayer = bluePlayer && bluePlayer.x === x && bluePlayer.y === y;
+    const hasRedPlayer = redPlayer && redPlayer.x === x && redPlayer.y === y;
+    const hasRedGate = redGates.some((g) => g.x === x && g.y === y);
+    const hasSwitch = switches.some((s) => s.x === x && s.y === y);
+    const hasTarget = targets.some((t) => t.x === x && t.y === y);
+
+    if (excludeType === 'wall') return false;
+    if (excludeType === 'target') return hasWall || hasBox || !!hasBluePlayer || !!hasRedPlayer || hasRedGate || hasSwitch;
+    if (excludeType === 'box') return hasWall || !!hasBluePlayer || !!hasRedPlayer || hasRedGate || hasSwitch;
+    if (excludeType === 'bluePlayer' || excludeType === 'redPlayer') return hasWall || hasBox || hasRedGate || hasSwitch;
+    if (excludeType === 'redGate') return hasWall || hasBox || !!hasBluePlayer || !!hasRedPlayer || hasSwitch;
+    if (excludeType === 'switch') return hasWall || hasBox || !!hasBluePlayer || !!hasRedPlayer || hasRedGate;
+    if (excludeType === 'floor') return false;
+    if (excludeType === 'erase') return false;
+
+    return hasWall || hasBox || !!hasBluePlayer || !!hasRedPlayer || hasRedGate || hasSwitch;
+  }, [grid, boxes, targets, bluePlayer, redPlayer, redGates, switches]);
+
   const placeTool = useCallback((x: number, y: number) => {
     if (isPlaying) return;
 
@@ -644,7 +665,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
     if (selectedTool === 'box') {
       if (boxes.some((b) => b.x === x && b.y === y)) {
         setBoxes(boxes.filter((b) => !(b.x === x && b.y === y)));
-      } else {
+      } else if (!hasDuoCollision(x, y, 'box')) {
         setBoxes([...boxes, { x, y }]);
       }
       setHasCompletedPlaythrough(false);
@@ -654,7 +675,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
     if (selectedTool === 'bluePlayer') {
       if (bluePlayer && bluePlayer.x === x && bluePlayer.y === y) {
         setBluePlayer(null);
-      } else {
+      } else if (!hasDuoCollision(x, y, 'bluePlayer')) {
         setBluePlayer({ x, y });
       }
       setHasCompletedPlaythrough(false);
@@ -664,7 +685,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
     if (selectedTool === 'redPlayer') {
       if (redPlayer && redPlayer.x === x && redPlayer.y === y) {
         setRedPlayer(null);
-      } else {
+      } else if (!hasDuoCollision(x, y, 'redPlayer')) {
         setRedPlayer({ x, y });
       }
       setHasCompletedPlaythrough(false);
@@ -674,7 +695,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
     if (selectedTool === 'redGate') {
       if (redGates.some((g) => g.x === x && g.y === y)) {
         setRedGates(redGates.filter((g) => !(g.x === x && g.y === y)));
-      } else {
+      } else if (!hasDuoCollision(x, y, 'redGate')) {
         setRedGates([...redGates, { x, y, switchId: 0 }]);
       }
       setHasCompletedPlaythrough(false);
@@ -684,7 +705,7 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
     if (selectedTool === 'switch') {
       if (switches.some((s) => s.x === x && s.y === y)) {
         setSwitches(switches.filter((s) => !(s.x === x && s.y === y)));
-      } else {
+      } else if (!hasDuoCollision(x, y, 'switch')) {
         const swId = nextSwitchIdRef.current++;
         setSwitches([...switches, { x, y, id: swId }]);
       }
@@ -698,18 +719,35 @@ export function DuoLevelEditor({ editingLevelId }: { editingLevelId?: string | n
       setTargets(targets.filter((t) => !(t.x === x && t.y === y)));
       setRedGates(redGates.filter((g) => !(g.x === x && g.y === y)));
       setSwitches(switches.filter((s) => !(s.x === x && s.y === y)));
+      setGrid(newGrid);
+      setHasCompletedPlaythrough(false);
     } else if (selectedTool === 'wall') {
-      newGrid[y][x] = CellType.WALL;
-      setTargets(targets.filter((t) => !(t.x === x && t.y === y)));
+      if (!hasDuoCollision(x, y, 'wall')) {
+        newGrid[y][x] = CellType.WALL;
+        setTargets(targets.filter((t) => !(t.x === x && t.y === y)));
+        setBoxes(boxes.filter((b) => !(b.x === x && b.y === y)));
+        setRedGates(redGates.filter((g) => !(g.x === x && g.y === y)));
+        setSwitches(switches.filter((s) => !(s.x === x && s.y === y)));
+        if (bluePlayer && bluePlayer.x === x && bluePlayer.y === y) {
+          setBluePlayer(null);
+        }
+        if (redPlayer && redPlayer.x === x && redPlayer.y === y) {
+          setRedPlayer(null);
+        }
+        setGrid(newGrid);
+        setHasCompletedPlaythrough(false);
+      }
     } else if (selectedTool === 'target') {
-      newGrid[y][x] = CellType.TARGET;
-      if (!targets.some((t) => t.x === x && t.y === y)) {
-        setTargets([...targets, { x, y }]);
+      if (!hasDuoCollision(x, y, 'target')) {
+        newGrid[y][x] = CellType.TARGET;
+        if (!targets.some((t) => t.x === x && t.y === y)) {
+          setTargets([...targets, { x, y }]);
+        }
+        setGrid(newGrid);
+        setHasCompletedPlaythrough(false);
       }
     }
-    setGrid(newGrid);
-    setHasCompletedPlaythrough(false);
-  }, [grid, boxes, targets, bluePlayer, redPlayer, redGates, switches, selectedTool, isPlaying]);
+  }, [grid, boxes, targets, bluePlayer, redPlayer, redGates, switches, selectedTool, isPlaying, hasDuoCollision]);
 
   const handleCellClick = useCallback((x: number, y: number) => {
     if (isPlaying) return;

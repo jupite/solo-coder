@@ -325,6 +325,22 @@ export function LevelEditor({ editingLevelId }: { editingLevelId?: string | null
     setHasCompletedPlaythrough(false);
   }, [grid, boxes, targets, player]);
 
+  const hasCollision = useCallback((x: number, y: number, excludeType?: ToolType): boolean => {
+    const hasWall = grid[y]?.[x] === CellType.WALL;
+    const hasBox = boxes.some((b) => b.x === x && b.y === y);
+    const hasPlayer = player && player.x === x && player.y === y;
+    const hasTarget = targets.some((t) => t.x === x && t.y === y);
+
+    if (excludeType === 'wall') return false;
+    if (excludeType === 'target') return hasWall || hasBox || !!hasPlayer;
+    if (excludeType === 'box') return hasWall || !!hasPlayer;
+    if (excludeType === 'player') return hasWall || hasBox;
+    if (excludeType === 'floor') return false;
+    if (excludeType === 'erase') return false;
+
+    return hasWall || hasBox || !!hasPlayer;
+  }, [grid, boxes, targets, player]);
+
   const placeTool = useCallback((x: number, y: number) => {
     if (isPlaying) return;
 
@@ -344,7 +360,7 @@ export function LevelEditor({ editingLevelId }: { editingLevelId?: string | null
     if (selectedTool === 'box') {
       if (boxes.some((b) => b.x === x && b.y === y)) {
         setBoxes(boxes.filter((b) => !(b.x === x && b.y === y)));
-      } else {
+      } else if (!hasCollision(x, y, 'box')) {
         setBoxes([...boxes, { x, y }]);
       }
       setHasCompletedPlaythrough(false);
@@ -354,7 +370,7 @@ export function LevelEditor({ editingLevelId }: { editingLevelId?: string | null
     if (selectedTool === 'player') {
       if (player && player.x === x && player.y === y) {
         setPlayer(null);
-      } else {
+      } else if (!hasCollision(x, y, 'player')) {
         setPlayer({ x, y });
       }
       setHasCompletedPlaythrough(false);
@@ -365,18 +381,30 @@ export function LevelEditor({ editingLevelId }: { editingLevelId?: string | null
     if (selectedTool === 'floor') {
       newGrid[y][x] = CellType.FLOOR;
       setTargets(targets.filter((t) => !(t.x === x && t.y === y)));
+      setGrid(newGrid);
+      setHasCompletedPlaythrough(false);
     } else if (selectedTool === 'wall') {
-      newGrid[y][x] = CellType.WALL;
-      setTargets(targets.filter((t) => !(t.x === x && t.y === y)));
+      if (!hasCollision(x, y, 'wall')) {
+        newGrid[y][x] = CellType.WALL;
+        setTargets(targets.filter((t) => !(t.x === x && t.y === y)));
+        setBoxes(boxes.filter((b) => !(b.x === x && b.y === y)));
+        if (player && player.x === x && player.y === y) {
+          setPlayer(null);
+        }
+        setGrid(newGrid);
+        setHasCompletedPlaythrough(false);
+      }
     } else if (selectedTool === 'target') {
-      newGrid[y][x] = CellType.TARGET;
-      if (!targets.some((t) => t.x === x && t.y === y)) {
-        setTargets([...targets, { x, y }]);
+      if (!hasCollision(x, y, 'target')) {
+        newGrid[y][x] = CellType.TARGET;
+        if (!targets.some((t) => t.x === x && t.y === y)) {
+          setTargets([...targets, { x, y }]);
+        }
+        setGrid(newGrid);
+        setHasCompletedPlaythrough(false);
       }
     }
-    setGrid(newGrid);
-    setHasCompletedPlaythrough(false);
-  }, [grid, boxes, targets, player, selectedTool, isPlaying]);
+  }, [grid, boxes, targets, player, selectedTool, isPlaying, hasCollision]);
 
   const handleCellClick = useCallback((x: number, y: number) => {
     if (isPlaying) return;

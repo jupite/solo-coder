@@ -55,7 +55,8 @@ export default function ProfilePage() {
   const [records, setRecords] = useState<RecordEntry[]>([]);
   const [duoRecords, setDuoRecords] = useState<DuoRecordEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'solo' | 'duo' | 'skins'>('solo');
+  const [activeTab, setActiveTab] = useState<'skins' | 'records'>('records');
+  const [recordMode, setRecordMode] = useState<'solo' | 'duo'>('solo');
   const { currentSkinId, currentSkin, setSkin } = useSkin();
 
   useEffect(() => {
@@ -134,8 +135,9 @@ export default function ProfilePage() {
     (r) => r.bestTime != null || r.bestSteps != null
   ).length;
 
-  const currentRecords = activeTab === 'solo' ? records : duoRecords;
-  const currentCompletedCount = activeTab === 'solo' ? completedCount : duoCompletedCount;
+  const currentRecords = recordMode === 'solo' ? records : duoRecords;
+  const currentCompletedCount = recordMode === 'solo' ? completedCount : duoCompletedCount;
+  const currentRecordsLength = recordMode === 'solo' ? records.length : duoRecords.length;
 
   return (
     <main className="relative min-h-screen px-4 py-10 md:py-16 overflow-hidden">
@@ -161,9 +163,33 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              {activeTab === 'records' && (
+                <div className="flex items-center gap-1 glass-card p-1">
+                  <button
+                    onClick={() => setRecordMode('solo')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${recordMode === 'solo'
+                      ? 'bg-indigo-500/30 text-indigo-300 border border-indigo-500/50'
+                      : 'text-slate-400 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <Gamepad2 className="w-4 h-4 inline mr-1" />
+                    单人
+                  </button>
+                  <button
+                    onClick={() => setRecordMode('duo')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${recordMode === 'duo'
+                      ? 'bg-red-500/30 text-red-300 border border-red-500/50'
+                      : 'text-slate-400 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <Users className="w-4 h-4 inline mr-1" />
+                    双人
+                  </button>
+                </div>
+              )}
               <button
-                onClick={() => setActiveTab('skins')}
+                onClick={() => setActiveTab(activeTab === 'skins' ? 'records' : 'skins')}
                 className={`inline-flex items-center gap-2 ${activeTab === 'skins' ? 'btn-primary' : 'btn-secondary'}`}
               >
                 <Palette className="w-4 h-4" />
@@ -186,36 +212,24 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-3 mt-6">
-            <div className="glass-card p-4 text-center">
-              <Trophy className="w-5 h-5 text-yellow-400 mx-auto mb-1" />
-              <p className="text-xs text-slate-400 mb-1">单人完成</p>
-              <p className="text-xl font-bold text-white font-[var(--font-orbitron)]">
-                {completedCount}
-              </p>
+          {activeTab === 'records' && (
+            <div className="grid grid-cols-2 gap-3 mt-6">
+              <div className="glass-card p-4 text-center">
+                <Trophy className="w-5 h-5 text-yellow-400 mx-auto mb-1" />
+                <p className="text-xs text-slate-400 mb-1">已完成</p>
+                <p className="text-xl font-bold text-white font-[var(--font-orbitron)]">
+                  {currentCompletedCount}
+                </p>
+              </div>
+              <div className="glass-card p-4 text-center">
+                <Clock className="w-5 h-5 text-cyan-400 mx-auto mb-1" />
+                <p className="text-xs text-slate-400 mb-1">挑战记录</p>
+                <p className="text-xl font-bold text-white font-[var(--font-orbitron)]">
+                  {currentRecordsLength}
+                </p>
+              </div>
             </div>
-            <div className="glass-card p-4 text-center">
-              <Clock className="w-5 h-5 text-cyan-400 mx-auto mb-1" />
-              <p className="text-xs text-slate-400 mb-1">单人记录</p>
-              <p className="text-xl font-bold text-white font-[var(--font-orbitron)]">
-                {records.length}
-              </p>
-            </div>
-            <div className="glass-card p-4 text-center">
-              <Users className="w-5 h-5 text-red-400 mx-auto mb-1" />
-              <p className="text-xs text-slate-400 mb-1">双人完成</p>
-              <p className="text-xl font-bold text-white font-[var(--font-orbitron)]">
-                {duoCompletedCount}
-              </p>
-            </div>
-            <div className="glass-card p-4 text-center">
-              <Gamepad2 className="w-5 h-5 text-purple-400 mx-auto mb-1" />
-              <p className="text-xs text-slate-400 mb-1">双人记录</p>
-              <p className="text-xl font-bold text-white font-[var(--font-orbitron)]">
-                {duoRecords.length}
-              </p>
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="glass-card p-6 md:p-8">
@@ -224,29 +238,9 @@ export default function ProfilePage() {
               {activeTab === 'skins' ? (
                 <><Palette className="w-5 h-5 text-purple-400" />模型换肤</>
               ) : (
-                <><Trophy className="w-5 h-5 text-yellow-400" />最佳成绩</>
+                <><Trophy className="w-5 h-5 text-yellow-400" />{recordMode === 'solo' ? '单人最佳成绩' : '双人最佳成绩'}</>
               )}
             </h2>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setActiveTab('solo')}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${activeTab === 'solo'
-                  ? 'bg-indigo-500/30 text-indigo-300 border border-indigo-500/50'
-                  : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                单人
-              </button>
-              <button
-                onClick={() => setActiveTab('duo')}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${activeTab === 'duo'
-                  ? 'bg-red-500/30 text-red-300 border border-red-500/50'
-                  : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                双人
-              </button>
-            </div>
           </div>
 
           {activeTab === 'skins' ? (
@@ -362,10 +356,10 @@ export default function ProfilePage() {
             <div className="text-center py-12">
               <Trophy className="w-12 h-12 text-slate-600 mx-auto mb-3" />
               <p className="text-slate-400 mb-4">
-                {activeTab === 'solo' ? '暂无单人游戏记录' : '暂无双人游戏记录'}
+                {recordMode === 'solo' ? '暂无单人游戏记录' : '暂无双人游戏记录'}
               </p>
               <button
-                onClick={() => router.push(activeTab === 'solo' ? '/solo-levels' : '/duo-levels')}
+                onClick={() => router.push(recordMode === 'solo' ? '/solo-levels' : '/duo-levels')}
                 className="btn-primary inline-flex items-center gap-2"
               >
                 <Grid3X3 className="w-4 h-4" />
