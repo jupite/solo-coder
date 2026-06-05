@@ -7,7 +7,8 @@ import { Player } from './Player'
 import { Ground } from './Ground'
 import { ResourceNode } from './ResourceNode'
 import { Building, PlacementPreview } from './Building'
-import { useGameStore, generateResources, TimeOfDay } from '@/store/gameStore'
+import { MonsterManager } from './Monster'
+import { useGameStore, generateResources, generateMonsters, TimeOfDay } from '@/store/gameStore'
 import * as THREE from 'three'
 
 function PlacementHandler() {
@@ -209,7 +210,10 @@ function SceneContent() {
   const { resources, buildings, placement, openContainer, showMessage } = useGameStore()
 
   useEffect(() => {
-    useGameStore.setState({ resources: generateResources(100) })
+    useGameStore.setState({ 
+      resources: generateResources(100),
+      monsters: generateMonsters(100, 5)
+    })
   }, [])
 
   const handleBuildingInteract = useCallback(
@@ -237,6 +241,8 @@ function SceneContent() {
       {resources.map((resource) => (
         <ResourceNode key={resource.id} resource={resource} />
       ))}
+
+      <MonsterManager />
 
       {buildings.map((building) => (
         <Building key={building.id} building={building} onInteract={handleBuildingInteract} />

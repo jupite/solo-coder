@@ -4,19 +4,23 @@ import { useState, useMemo } from 'react'
 import {
   useGameStore,
   ToolType,
+  EquipmentType,
   BuildingType,
   TOOL_NAMES,
+  EQUIPMENT_NAMES,
   BUILDING_NAMES,
   TOOL_DESCRIPTIONS,
+  EQUIPMENT_DESCRIPTIONS,
   BUILDING_DESCRIPTIONS,
   TOOL_RECIPES,
+  EQUIPMENT_RECIPES,
   BUILDING_RECIPES,
   RESOURCE_NAMES,
   ITEM_ICONS,
   TOOL_REQUIRED_RESOURCES,
 } from '@/store/gameStore'
 
-type SidebarTab = 'tools' | 'buildings'
+type SidebarTab = 'tools' | 'equipment' | 'buildings'
 
 const ITEMS_PER_PAGE = 8
 
@@ -27,6 +31,7 @@ interface CraftableItem {
   description: string
   requirements: Partial<Record<string, number>>
   canGatherStr?: string
+  statsStr?: string
 }
 
 export function Sidebar() {
@@ -37,6 +42,7 @@ export function Sidebar() {
   const {
     inventory,
     craftTool,
+    craftEquipment,
     craftBuilding,
     hasResources,
     showMessage,
@@ -49,12 +55,18 @@ export function Sidebar() {
     { type: 'torch', icon: ITEM_ICONS.torch, name: TOOL_NAMES.torch, description: TOOL_DESCRIPTIONS.torch, requirements: TOOL_RECIPES.torch },
   ], [])
 
+  const equipmentItems: CraftableItem[] = useMemo(() => [
+    { type: 'helmet', icon: ITEM_ICONS.helmet, name: EQUIPMENT_NAMES.helmet, description: EQUIPMENT_DESCRIPTIONS.helmet, requirements: EQUIPMENT_RECIPES.helmet, statsStr: '头部装备 · 减伤20% · 耐久100' },
+    { type: 'armor', icon: ITEM_ICONS.armor, name: EQUIPMENT_NAMES.armor, description: EQUIPMENT_DESCRIPTIONS.armor, requirements: EQUIPMENT_RECIPES.armor, statsStr: '身体装备 · 减伤40% · 耐久150' },
+    { type: 'spear', icon: ITEM_ICONS.spear, name: EQUIPMENT_NAMES.spear, description: EQUIPMENT_DESCRIPTIONS.spear, requirements: EQUIPMENT_RECIPES.spear, statsStr: '手持武器 · 伤害25 · 耐久80' },
+  ], [])
+
   const buildingItems: CraftableItem[] = useMemo(() => [
     { type: 'campfire', icon: ITEM_ICONS.campfire, name: BUILDING_NAMES.campfire, description: BUILDING_DESCRIPTIONS.campfire, requirements: BUILDING_RECIPES.campfire },
     { type: 'chest', icon: ITEM_ICONS.chest, name: BUILDING_NAMES.chest, description: BUILDING_DESCRIPTIONS.chest, requirements: BUILDING_RECIPES.chest },
   ], [])
 
-  const currentItems = activeTab === 'tools' ? tools : activeTab === 'buildings' ? buildingItems : []
+  const currentItems = activeTab === 'tools' ? tools : activeTab === 'equipment' ? equipmentItems : activeTab === 'buildings' ? buildingItems : []
   const totalPages = Math.ceil(currentItems.length / ITEMS_PER_PAGE)
   const pageItems = currentItems.slice(currentPage * ITEMS_PER_PAGE, (currentPage + 1) * ITEMS_PER_PAGE)
 
@@ -68,7 +80,7 @@ export function Sidebar() {
     } else {
       setActiveTab(tab)
       setCurrentPage(0)
-      const items = tab === 'tools' ? tools : buildingItems
+      const items = tab === 'tools' ? tools : tab === 'equipment' ? equipmentItems : buildingItems
       setSelectedItem(items[0]?.type || null)
     }
   }
@@ -77,6 +89,13 @@ export function Sidebar() {
     if (!selected) return
     if (activeTab === 'tools') {
       const success = craftTool(selected.type as ToolType)
+      if (success) {
+        showMessage(`✅ 成功制作 ${selected.name}！已放入背包`, 'success')
+      } else {
+        showMessage(`❌ 材料不足，无法制作 ${selected.name}`, 'error')
+      }
+    } else if (activeTab === 'equipment') {
+      const success = craftEquipment(selected.type as EquipmentType)
       if (success) {
         showMessage(`✅ 成功制作 ${selected.name}！已放入背包`, 'success')
       } else {
@@ -98,14 +117,14 @@ export function Sidebar() {
         <div className="w-72 bg-gray-900/95 border border-gray-700 border-l-0 rounded-l-lg shadow-2xl flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700">
             <h3 className="text-white font-bold text-sm">
-              {activeTab === 'tools' ? '🪓 工具制作' : '🏠 建筑制作'}
+              {activeTab === 'tools' ? '🪓 工具制作' : activeTab === 'equipment' ? '⚔️ 装备制作' : '🏠 建筑制作'}
             </h3>
           </div>
 
           <div className="p-2 border-b border-gray-700">
             <div className="grid grid-cols-4 gap-1.5">
               {pageItems.map((item) => {
-                const owned = inventory.find((i) => i.type === item.type)?.count || 0
+                const owned = inventory.find((i) => i?.type === item.type)?.count || 0
                 const canCraft = hasResources(item.requirements)
                 return (
                   <button
@@ -168,6 +187,9 @@ export function Sidebar() {
                     {selected.canGatherStr && (
                       <div className="text-xs text-green-400">可采集：{selected.canGatherStr}</div>
                     )}
+                    {selected.statsStr && (
+                      <div className="text-xs text-purple-400">{selected.statsStr}</div>
+                    )}
                   </div>
                 </div>
 
@@ -177,7 +199,7 @@ export function Sidebar() {
                   <div className="text-xs text-gray-500 mb-1">所需材料：</div>
                   <div className="flex flex-wrap gap-1">
                     {Object.entries(selected.requirements).map(([type, count]) => {
-                      const item = inventory.find((i) => i.type === type)
+                      const item = inventory.find((i) => i?.type === type)
                       const hasEnough = infiniteBuild || (item && item.count >= (count || 0))
                       return (
                         <div
@@ -231,6 +253,17 @@ export function Sidebar() {
           title="工具"
         >
           🪓
+        </button>
+        <button
+          onClick={() => handleTabClick('equipment')}
+          className={`w-11 h-11 rounded-lg flex items-center justify-center text-xl transition-all border-2 ${
+            activeTab === 'equipment'
+              ? 'bg-purple-800/80 border-purple-500'
+              : 'bg-gray-800/60 border-gray-600 hover:border-gray-400'
+          }`}
+          title="装备"
+        >
+          ⚔️
         </button>
         <button
           onClick={() => handleTabClick('buildings')}

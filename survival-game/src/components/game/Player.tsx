@@ -23,6 +23,7 @@ export function Player() {
     attack,
     resources,
     equippedTool,
+    equipment,
     showMessage,
     buildings,
     openContainer,
@@ -40,8 +41,7 @@ export function Player() {
         e.preventDefault()
         setIsAttacking(true)
         attack()
-        setTimeout(() => setIsAttacking(false), 300)
-        showMessage('⚔️ 攻击！', 'info')
+        setTimeout(() => setIsAttacking(false), 500)
       }
 
       if (e.key === ' ' && !isGathering) {
@@ -140,17 +140,41 @@ export function Player() {
     camera.lookAt(newX, 0, newZ)
   })
 
+  const hasHelmet = equipment.head?.type === 'helmet'
+  const hasArmor = equipment.body?.type === 'armor'
+  const hasSpear = equipment.hand?.type === 'spear'
+
   return (
     <group ref={meshRef} position={playerPosition as [number, number, number]}>
       <mesh position={[0, 0.5, 0]} castShadow>
         <capsuleGeometry args={[0.3, 0.8, 4, 8]} />
-        <meshStandardMaterial color="#4a90d9" />
+        <meshStandardMaterial color={hasArmor ? '#4a5568' : '#4a90d9'} />
       </mesh>
+
+      {hasArmor && (
+        <mesh position={[0, 0.5, 0]} castShadow>
+          <capsuleGeometry args={[0.35, 0.85, 4, 8]} />
+          <meshStandardMaterial color="#6b7280" transparent opacity={0.8} />
+        </mesh>
+      )}
 
       <mesh position={[0, 1.3, 0]} castShadow>
         <sphereGeometry args={[0.25, 16, 16]} />
         <meshStandardMaterial color="#f5cba7" />
       </mesh>
+
+      {hasHelmet && (
+        <group position={[0, 1.4, 0]}>
+          <mesh castShadow>
+            <sphereGeometry args={[0.28, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
+            <meshStandardMaterial color="#718096" metalness={0.5} />
+          </mesh>
+          <mesh position={[0, -0.1, 0.2]}>
+            <boxGeometry args={[0.5, 0.1, 0.1]} />
+            <meshStandardMaterial color="#4a5568" />
+          </mesh>
+        </group>
+      )}
 
       <mesh
         position={[0.4, 0.5, isAttacking ? -0.5 : 0.2]}
@@ -205,10 +229,33 @@ export function Player() {
         </group>
       )}
 
+      {hasSpear && (
+        <group
+          position={[0.7, 0.8, isAttacking ? -0.5 : 0.5]}
+          rotation={[isAttacking ? -Math.PI / 3 : 0, 0, Math.PI / 6]}
+        >
+          <mesh position={[0, 0, -0.2]}>
+            <cylinderGeometry args={[0.03, 0.03, 1.2]} />
+            <meshStandardMaterial color="#8b4513" />
+          </mesh>
+          <mesh position={[0, 0.5, -0.2]} rotation={[Math.PI / 2, 0, 0]}>
+            <coneGeometry args={[0.08, 0.25, 8]} />
+            <meshStandardMaterial color="#708090" metalness={0.9} />
+          </mesh>
+        </group>
+      )}
+
       {isGathering && (
         <mesh position={[0, 2.5, 0]}>
           <sphereGeometry args={[0.3, 8, 8]} />
           <meshBasicMaterial color="yellow" transparent opacity={0.6} />
+        </mesh>
+      )}
+
+      {isAttacking && (
+        <mesh position={[0, 2.5, 0]}>
+          <sphereGeometry args={[0.25, 8, 8]} />
+          <meshBasicMaterial color="red" transparent opacity={0.6} />
         </mesh>
       )}
     </group>
