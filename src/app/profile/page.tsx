@@ -164,32 +164,30 @@ export default function ProfilePage() {
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
-              {activeTab === 'records' && (
-                <div className="flex items-center gap-1 glass-card p-1">
-                  <button
-                    onClick={() => setRecordMode('solo')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${recordMode === 'solo'
-                      ? 'bg-indigo-500/30 text-indigo-300 border border-indigo-500/50'
-                      : 'text-slate-400 hover:text-white hover:bg-white/10'
-                    }`}
-                  >
-                    <Gamepad2 className="w-4 h-4 inline mr-1" />
-                    单人
-                  </button>
-                  <button
-                    onClick={() => setRecordMode('duo')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${recordMode === 'duo'
-                      ? 'bg-red-500/30 text-red-300 border border-red-500/50'
-                      : 'text-slate-400 hover:text-white hover:bg-white/10'
-                    }`}
-                  >
-                    <Users className="w-4 h-4 inline mr-1" />
-                    双人
-                  </button>
-                </div>
-              )}
+              <div className="flex items-center gap-1 glass-card p-1">
+                <button
+                  onClick={() => { setRecordMode('solo'); setActiveTab('records'); }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'records' && recordMode === 'solo'
+                    ? 'bg-indigo-500/30 text-indigo-300 border border-indigo-500/50'
+                    : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Gamepad2 className="w-4 h-4 inline mr-1" />
+                  单人
+                </button>
+                <button
+                  onClick={() => { setRecordMode('duo'); setActiveTab('records'); }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'records' && recordMode === 'duo'
+                    ? 'bg-red-500/30 text-red-300 border border-red-500/50'
+                    : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Users className="w-4 h-4 inline mr-1" />
+                  双人
+                </button>
+              </div>
               <button
-                onClick={() => setActiveTab(activeTab === 'skins' ? 'records' : 'skins')}
+                onClick={() => setActiveTab('skins')}
                 className={`inline-flex items-center gap-2 ${activeTab === 'skins' ? 'btn-primary' : 'btn-secondary'}`}
               >
                 <Palette className="w-4 h-4" />
