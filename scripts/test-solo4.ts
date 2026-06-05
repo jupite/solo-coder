@@ -1,5 +1,5 @@
-import { Direction, GameState, LevelData, Position } from './types';
-import { createGameState, movePlayer } from './engine';
+import { LevelData, GameState, Direction, Position } from '../src/lib/game/types';
+import { createGameState, movePlayer } from '../src/lib/game/engine';
 
 const MAX_STEPS = 200;
 const MAX_ITERATIONS = 100000;
@@ -25,35 +25,7 @@ function stateHash(state: GameState): string {
   return `${state.player.x},${state.player.y}|${sortedBoxes}`;
 }
 
-function isBoxStuck(state: GameState, boxX: number, boxY: number): boolean {
-  const grid = state.grid;
-  const targets = state.targets;
-  
-  const isOnTarget = targets.some(t => t.x === boxX && t.y === boxY);
-  if (isOnTarget) return false;
-  
-  const wallUp = grid[boxY - 1]?.[boxX] === 1;
-  const wallDown = grid[boxY + 1]?.[boxX] === 1;
-  const wallLeft = grid[boxY]?.[boxX - 1] === 1;
-  const wallRight = grid[boxY]?.[boxX + 1] === 1;
-  
-  if ((wallUp || wallDown) && (wallLeft || wallRight)) {
-    return true;
-  }
-  
-  return false;
-}
-
-function hasDeadlock(state: GameState): boolean {
-  for (const box of state.boxes) {
-    if (isBoxStuck(state, box.x, box.y)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-export function solveLevel(
+function solveLevelNoDeadlock(
   levelData: LevelData,
   maxSteps: number = MAX_STEPS,
 ): Direction[] | null {
@@ -74,6 +46,7 @@ export function solveLevel(
     iterations++;
     
     if (iterations > MAX_ITERATIONS || queue.length > MAX_QUEUE_SIZE) {
+      console.log(`Limit reached after ${iterations} iterations, queue size: ${queue.length}`);
       return null;
     }
 
@@ -99,10 +72,6 @@ export function solveLevel(
         return newMoves;
       }
 
-      if (hasDeadlock(nextState)) {
-        continue;
-      }
-
       if (newMoves.length < maxSteps) {
         queue.push({ state: nextState, moves: newMoves });
       }
@@ -110,4 +79,26 @@ export function solveLevel(
   }
 
   return null;
+}
+
+const testLevel: LevelData = {
+  grid: [
+    [1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1],
+  ],
+  player: { x: 1, y: 1 },
+  boxes: [{ x: 3, y: 1 }, { x: 3, y: 2 }, { x: 3, y: 3 }, { x: 3, y: 4 }],
+  targets: [{ x: 5, y: 1 }, { x: 5, y: 2 }, { x: 5, y: 3 }, { x: 5, y: 4 }],
+};
+
+console.log('Testing 4-box level (even smaller, no deadlock detection)...');
+const solution = solveLevelNoDeadlock(testLevel, 200);
+if (solution) {
+  console.log(`✓ Solution found in ${solution.length} steps`);
+} else {
+  console.log('✗ NO SOLUTION');
 }

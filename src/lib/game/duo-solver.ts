@@ -7,6 +7,10 @@ import {
 } from './types';
 import { createDuoGameState, moveDuoPlayer, toggleSwitch } from './duo-engine';
 
+const MAX_STEPS = 200;
+const MAX_ITERATIONS = 100000;
+const MAX_HEAP_SIZE = 30000;
+
 export interface DuoSolveStep {
   color: PlayerColor;
   direction: Direction;
@@ -85,29 +89,29 @@ function isDeadlock(state: DuoGameState): boolean {
   const directions: Direction[] = ['up', 'down', 'left', 'right'];
 
   if (!bp.isGone) {
-    const blueMoves = [];
+    let hasValidMove = false;
     for (const dir of directions) {
       const next = moveDuoPlayer(state, 'blue', dir);
       if (next !== state) {
-        blueMoves.push(dir);
+        hasValidMove = true;
         break;
       }
     }
-    if (blueMoves.length === 0 && bp.stepsRemaining <= 0) {
+    if (!hasValidMove && bp.stepsRemaining <= 0) {
       return true;
     }
   }
 
   if (!rp.isGone) {
-    const redMoves = [];
+    let hasValidMove = false;
     for (const dir of directions) {
       const next = moveDuoPlayer(state, 'red', dir);
       if (next !== state) {
-        redMoves.push(dir);
+        hasValidMove = true;
         break;
       }
     }
-    if (redMoves.length === 0 && rp.stepsRemaining <= 0) {
+    if (!hasValidMove && rp.stepsRemaining <= 0) {
       return true;
     }
   }
@@ -119,7 +123,7 @@ function isDeadlock(state: DuoGameState): boolean {
     for (const t of targets) {
       if (!rp.isGone && t.x === rp.position.x && t.y === rp.position.y) continue;
       const dist = manhattanDistance(bp.position, t);
-      if (dist <= bp.stepsRemaining + 5) {
+      if (dist <= bp.stepsRemaining + 10) {
         canReachAny = true;
         break;
       }
@@ -132,7 +136,7 @@ function isDeadlock(state: DuoGameState): boolean {
     for (const t of targets) {
       if (!bp.isGone && t.x === bp.position.x && t.y === bp.position.y) continue;
       const dist = manhattanDistance(rp.position, t);
-      if (dist <= rp.stepsRemaining + 5) {
+      if (dist <= rp.stepsRemaining + 10) {
         canReachAny = true;
         break;
       }
@@ -149,15 +153,15 @@ function comparePriority(a: BFSNode, b: BFSNode): number {
 
 export function solveDuoLevel(
   levelData: DuoLevelData,
-  maxIterations: number = 300000,
+  maxSteps: number = MAX_STEPS,
 ): DuoSolveStep[] | null {
   const initialState = createDuoGameState(levelData);
-  return solveDuoFromState(initialState, maxIterations);
+  return solveDuoFromState(initialState, maxSteps);
 }
 
 export function solveDuoFromState(
   startState: DuoGameState,
-  maxIterations: number = 300000,
+  maxSteps: number = MAX_STEPS,
 ): DuoSolveStep[] | null {
   if (startState.isWin) {
     return [];
@@ -172,11 +176,19 @@ export function solveDuoFromState(
   const directions: Direction[] = ['up', 'down', 'left', 'right'];
   let iterations = 0;
 
-  while (heap.length > 0 && iterations < maxIterations) {
+  while (heap.length > 0) {
     iterations++;
+
+    if (iterations > MAX_ITERATIONS || heap.length > MAX_HEAP_SIZE) {
+      return null;
+    }
 
     heap.sort(comparePriority);
     const current = heap.shift()!;
+
+    if (current.moves.length >= maxSteps) {
+      continue;
+    }
 
     if (current.state.isWin) {
       return current.moves;
@@ -192,29 +204,37 @@ export function solveDuoFromState(
 
     for (const color of activeColors) {
       for (const dir of directions) {
-      iterations++;
-      if (iterations >= maxIterations) break;
+        iterations++;
+        if (iterations > MAX_ITERATIONS) return null;
 
-      const nextState = moveDuoPlayer(current.state, color, dir);
-      if (nextState === current.state) continue;
+        const nextState = moveDuoPlayer(current.state, color, dir);
+        if (nextState === current.state) continue;
 
-      const hash = compactHash(nextState);
-      const nextMoves = [...current.moves, { color, direction: dir }];
-      const nextH = heuristic(nextState);
-      const nextPriority = nextMoves.length + nextH;
+        const hash = compactHash(nextState);
+        const nextMoves = [...current.moves, { color, direction: dir }];
+        
+        if (nextMoves.length >= maxSteps) {
+          if (nextState.isWin) {
+            return nextMoves;
+          }
+          continue;
+        }
 
-      const existing = visited.get(hash);
-      if (existing !== undefined && existing <= nextPriority) {
-        continue;
+        const nextH = heuristic(nextState);
+        const nextPriority = nextMoves.length + nextH;
+
+        const existing = visited.get(hash);
+        if (existing !== undefined && existing <= nextPriority) {
+          continue;
+        }
+        visited.set(hash, nextPriority);
+
+        if (nextState.isWin) {
+          return nextMoves;
+        }
+
+        heap.push({ state: nextState, moves: nextMoves, priority: nextPriority });
       }
-      visited.set(hash, nextPriority);
-
-      if (nextState.isWin) {
-        return nextMoves;
-      }
-
-      heap.push({ state: nextState, moves: nextMoves, priority: nextPriority });
-    }
     }
 
     for (const sw of current.state.switches) {
@@ -224,13 +244,18 @@ export function solveDuoFromState(
         const dy = Math.abs(player.position.y - sw.y);
         if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
           iterations++;
-          if (iterations >= maxIterations) break;
+          if (iterations > MAX_ITERATIONS) return null;
 
           const nextState = toggleSwitch(current.state, sw.x, sw.y, color);
           if (nextState === current.state) continue;
 
           const hash = compactHash(nextState);
           const nextMoves = [...current.moves, { color, direction: 'up' as Direction, isSwitchToggle: true, switchX: sw.x, switchY: sw.y }];
+          
+          if (nextMoves.length >= maxSteps) {
+            continue;
+          }
+
           const nextH = heuristic(nextState);
           const nextPriority = nextMoves.length + nextH;
 
