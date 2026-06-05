@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { levels as soloLevels } from '@/lib/game/levels';
 import { duoLevels } from '@/lib/game/duo-levels';
+import { duoGravityLevels } from '@/lib/game/duo-gravity-levels';
 
 const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60);
@@ -25,6 +26,7 @@ const formatTime = (seconds: number) => {
 
 const SOLO_LEVEL_NAMES = ['初级训练', '小试牛刀', '经典关卡'];
 const DUO_LEVEL_NAMES = ['双人同行', '机关初遇', '推箱协作'];
+const DUO_GRAVITY_LEVEL_NAMES = ['重力初识', '平台跳跃', '协作攀登'];
 
 export default function ResultPage() {
   const router = useRouter();
@@ -43,8 +45,16 @@ export default function ResultPage() {
 
   const numericLevelId = Number(levelId);
   const isOfficialLevel = !isNaN(numericLevelId) && numericLevelId >= 1;
-  const totalOfficialLevels = mode === 'duo' ? duoLevels.length : soloLevels.length;
-  const levelNames = mode === 'duo' ? DUO_LEVEL_NAMES : SOLO_LEVEL_NAMES;
+  const totalOfficialLevels = mode === 'duo'
+    ? duoLevels.length
+    : mode === 'duo-gravity'
+      ? duoGravityLevels.length
+      : soloLevels.length;
+  const levelNames = mode === 'duo'
+    ? DUO_LEVEL_NAMES
+    : mode === 'duo-gravity'
+      ? DUO_GRAVITY_LEVEL_NAMES
+      : SOLO_LEVEL_NAMES;
 
   let levelName = `关卡 ${levelId}`;
   if (isOfficialLevel && numericLevelId <= levelNames.length) {
@@ -147,7 +157,15 @@ export default function ResultPage() {
 
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <button
-              onClick={() => router.push(mode === 'duo' ? `/duo-game/${levelId}` : `/game/${levelId}`)}
+              onClick={() => {
+                if (mode === 'duo-gravity') {
+                  router.push(`/duo-gravity-game/${levelId}`);
+                } else if (mode === 'duo') {
+                  router.push(`/duo-game/${levelId}`);
+                } else {
+                  router.push(`/game/${levelId}`);
+                }
+              }}
               className="btn-secondary flex-1 inline-flex items-center justify-center gap-2"
             >
               <RotateCcw className="w-4 h-4" />
@@ -155,7 +173,15 @@ export default function ResultPage() {
             </button>
             {hasNextLevel && (
               <button
-                onClick={() => router.push(mode === 'duo' ? `/duo-game/${numericLevelId + 1}` : `/game/${numericLevelId + 1}`)}
+                onClick={() => {
+                  if (mode === 'duo-gravity') {
+                    router.push(`/duo-gravity-game/${numericLevelId + 1}`);
+                  } else if (mode === 'duo') {
+                    router.push(`/duo-game/${numericLevelId + 1}`);
+                  } else {
+                    router.push(`/game/${numericLevelId + 1}`);
+                  }
+                }}
                 className="btn-primary flex-1 inline-flex items-center justify-center gap-2"
               >
                 下一关
@@ -165,7 +191,15 @@ export default function ResultPage() {
           </div>
 
           <button
-            onClick={() => router.push(mode === 'duo' ? '/duo-levels' : '/solo-levels')}
+            onClick={() => {
+              if (mode === 'duo-gravity') {
+                router.push('/duo-gravity-levels');
+              } else if (mode === 'duo') {
+                router.push('/duo-levels');
+              } else {
+                router.push('/solo-levels');
+              }
+            }}
             className="btn-ghost w-full inline-flex items-center justify-center gap-2"
           >
             <Grid3X3 className="w-4 h-4" />

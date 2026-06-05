@@ -9,6 +9,7 @@ import {
   Crown,
   ArrowLeft,
   Loader2,
+  MoveDown,
 } from 'lucide-react';
 
 interface ModeCardProps {
@@ -96,7 +97,7 @@ export default function LevelsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <ModeCard
             icon={<Gamepad2 className="w-8 h-8 text-white" />}
             title="单人推箱子"
@@ -112,6 +113,14 @@ export default function LevelsPage() {
             color="bg-gradient-to-br from-red-500 to-blue-500 shadow-red-500/30"
             glowColor="shadow-red-500/20"
             onClick={() => router.push('/duo-levels')}
+          />
+          <ModeCard
+            icon={<MoveDown className="w-8 h-8 text-white" />}
+            title="双人重力"
+            description="重力解谜，协作攀登，全新玩法"
+            color="bg-gradient-to-br from-purple-500 to-cyan-500 shadow-purple-500/30"
+            glowColor="shadow-purple-500/20"
+            onClick={() => router.push('/duo-gravity-levels')}
           />
         </div>
 

@@ -105,3 +105,38 @@ export interface DuoGameState {
   isWin: boolean;
   history: MoveHistoryEntry[];
 }
+
+export interface DuoGravityLevelData {
+  grid: CellType[][];
+  bluePlayer: Position;
+  redPlayer: Position;
+  boxes: Position[];
+  targets: Position[];
+}
+
+export interface DuoGravityPlayerState {
+  position: Position;
+  origin: Position;
+  onTarget: boolean;
+}
+
+export interface DuoGravityMoveHistoryEntry {
+  color: PlayerColor;
+  from: Position;
+  to: Position;
+  boxesMoved: { from: Position; to: Position }[];
+  blueOnTarget: boolean;
+  redOnTarget: boolean;
+}
+
+export interface DuoGravityGameState {
+  grid: CellType[][];
+  bluePlayer: DuoGravityPlayerState;
+  redPlayer: DuoGravityPlayerState;
+  boxes: Position[];
+  targets: Position[];
+  currentTurn: PlayerColor;
+  steps: number;
+  isWin: boolean;
+  history: DuoGravityMoveHistoryEntry[];
+}
