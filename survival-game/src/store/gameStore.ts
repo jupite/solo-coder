@@ -163,7 +163,7 @@ export const EQUIPMENT_STATS: Record<EquipmentType, { damageReduction?: number; 
   helmet: { damageReduction: 0.2, durability: 100, equipSlot: 'head' },
   armor: { damageReduction: 0.4, durability: 150, equipSlot: 'body' },
   spear: { damage: 25, durability: 80, equipSlot: 'hand' },
-  backpack: { equipSlot: 'body', extraSlots: 8 },
+  backpack: { equipSlot: 'body', extraSlots: 9 },
 }
 
 export const BUILDING_RECIPES: Record<BuildingType, Partial<Record<ResourceType, number>>> = {
@@ -237,7 +237,8 @@ export const ITEM_ICONS: Record<string, string> = {
 export const RECIPES = { ...TOOL_RECIPES, ...EQUIPMENT_RECIPES, ...BUILDING_RECIPES }
 
 const GRID_SIZE = 1
-const BASE_INVENTORY_SIZE = 15
+const BASE_INVENTORY_SIZE = 9
+const BACKPACK_EXTRA_SLOTS = 9
 
 function snapToGrid(value: number): number {
   return Math.round(value / GRID_SIZE) * GRID_SIZE
@@ -320,14 +321,14 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   getInventorySize: () => {
     const state = get()
-    return state.baseInventorySize + (state.hasBackpack ? 8 : 0)
+    return state.baseInventorySize + (state.hasBackpack ? BACKPACK_EXTRA_SLOTS : 0)
   },
 
   updateBackpackStatus: () => {
     const state = get()
     const hasBackpack = state.equipment.body?.type === 'backpack'
     const currentSize = state.inventory.length
-    const targetSize = BASE_INVENTORY_SIZE + (hasBackpack ? 8 : 0)
+    const targetSize = BASE_INVENTORY_SIZE + (hasBackpack ? BACKPACK_EXTRA_SLOTS : 0)
 
     if (currentSize !== targetSize) {
       if (targetSize > currentSize) {
@@ -685,7 +686,27 @@ export const useGameStore = create<GameState>((set, get) => ({
         Math.pow(monster.position[2] - state.playerPosition[2], 2)
       )
       if (dist < 3) {
-        state.damageMonster(monster.id, baseDamage)
+        set((s) => {
+          const targetMonster = s.monsters.find((m) => m.id === monster.id)
+          if (!targetMonster) return s
+
+          const newHealth = targetMonster.health - baseDamage
+          if (newHealth <= 0) {
+            setTimeout(() => {
+              get().addToInventory('meat', 2)
+              get().showMessage('🎉 击败了猪人！获得2个肉', 'success')
+            }, 0)
+            return {
+              monsters: s.monsters.filter((m) => m.id !== monster.id),
+            }
+          }
+
+          return {
+            monsters: s.monsters.map((m) =>
+              m.id === monster.id ? { ...m, health: newHealth, isAggro: true } : m
+            ),
+          }
+        })
         get().showMessage(`⚔️ 攻击造成 ${baseDamage} 点伤害！`, 'info')
         break
       }
