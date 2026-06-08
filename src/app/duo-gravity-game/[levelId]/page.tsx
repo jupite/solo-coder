@@ -53,10 +53,16 @@ export default function DuoGravityGamePage() {
   const [time, setTime] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerColor>('blue');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
   const completedRef = useRef(false);
   const gameStateRef = useRef<DuoGravityGameState | null>(null);
+  const selectedPlayerRef = useRef<PlayerColor>('blue');
+
+  useEffect(() => {
+    selectedPlayerRef.current = selectedPlayer;
+  }, [selectedPlayer]);
 
   useEffect(() => {
     completedRef.current = completed;
@@ -119,6 +125,7 @@ export default function DuoGravityGamePage() {
     setTime(0);
     setCompleted(false);
     setSubmitting(false);
+    setSelectedPlayer('blue');
     startTimeRef.current = Date.now();
   }, [status, levelData]);
 
@@ -150,9 +157,10 @@ export default function DuoGravityGamePage() {
 
   const handleMove = useCallback((direction: Direction) => {
     if (completedRef.current) return;
+    const player = selectedPlayerRef.current;
     setGameState((prev) => {
       if (!prev) return prev;
-      return moveDuoGravityPlayer(prev, prev.currentTurn, direction);
+      return moveDuoGravityPlayer(prev, player, direction);
     });
   }, []);
 
@@ -163,6 +171,7 @@ export default function DuoGravityGamePage() {
     setTime(0);
     setCompleted(false);
     setSubmitting(false);
+    setSelectedPlayer('blue');
     startTimeRef.current = Date.now();
   }, [levelData]);
 
@@ -205,11 +214,21 @@ export default function DuoGravityGamePage() {
     }
   }, [submitting, levelId, time, gameState, router]);
 
+  const handleSwitchPlayer = useCallback(() => {
+    setSelectedPlayer((prev) => (prev === 'blue' ? 'red' : 'blue'));
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!gameStateRef.current || completedRef.current) return;
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        handleSwitchPlayer();
+        return;
+      }
       if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') handleMove('left');
       if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') handleMove('right');
+      if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') handleMove('up');
       if (e.key === 'z' || e.key === 'Z') handleUndo();
       if (e.key === 'r' || e.key === 'R') handleReset();
       if (e.key === 'Escape') handleExit();
@@ -217,7 +236,7 @@ export default function DuoGravityGamePage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleMove, handleUndo, handleReset, handleExit]);
+  }, [handleMove, handleUndo, handleReset, handleExit, handleSwitchPlayer]);
 
   if (status === 'loading' || loadingLevel) {
     return (
@@ -359,15 +378,16 @@ export default function DuoGravityGamePage() {
             <div className="glass-card p-4 space-y-3">
               <div className="flex items-center gap-2 mb-2">
                 <Users className="w-4 h-4 text-slate-400" />
-                <span className="text-sm text-slate-400">当前轮次</span>
+                <span className="text-sm text-slate-400">当前角色</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div
-                  className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all border-2 ${gameState?.currentTurn === 'blue' ? '' : 'border-transparent opacity-60'} bg-white/5`}
+                <button
+                  onClick={() => setSelectedPlayer('blue')}
+                  className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all border-2 ${selectedPlayer === 'blue' ? '' : 'border-transparent hover:bg-white/10'} bg-white/5`}
                   style={{
-                    backgroundColor: gameState?.currentTurn === 'blue' ? `${currentSkin.player.color}30` : undefined,
-                    borderColor: gameState?.currentTurn === 'blue' ? currentSkin.player.color : undefined,
-                    boxShadow: gameState?.currentTurn === 'blue' ? `0 0 15px ${currentSkin.player.color}50` : undefined,
+                    backgroundColor: selectedPlayer === 'blue' ? `${currentSkin.player.color}30` : undefined,
+                    borderColor: selectedPlayer === 'blue' ? currentSkin.player.color : undefined,
+                    boxShadow: selectedPlayer === 'blue' ? `0 0 15px ${currentSkin.player.color}50` : undefined,
                   }}
                 >
                   <Droplets
@@ -377,13 +397,14 @@ export default function DuoGravityGamePage() {
                   <span className="text-xs text-slate-300">
                     {gameState?.bluePlayer.onTarget ? '已就位' : '玩家 1'}
                   </span>
-                </div>
-                <div
-                  className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all border-2 ${gameState?.currentTurn === 'red' ? '' : 'border-transparent opacity-60'} bg-white/5`}
+                </button>
+                <button
+                  onClick={() => setSelectedPlayer('red')}
+                  className={`p-3 rounded-xl flex flex-col items-center gap-1 transition-all border-2 ${selectedPlayer === 'red' ? '' : 'border-transparent hover:bg-white/10'} bg-white/5`}
                   style={{
-                    backgroundColor: gameState?.currentTurn === 'red' ? `${currentSkin.redPlayer.color}30` : undefined,
-                    borderColor: gameState?.currentTurn === 'red' ? currentSkin.redPlayer.color : undefined,
-                    boxShadow: gameState?.currentTurn === 'red' ? `0 0 15px ${currentSkin.redPlayer.color}50` : undefined,
+                    backgroundColor: selectedPlayer === 'red' ? `${currentSkin.redPlayer.color}30` : undefined,
+                    borderColor: selectedPlayer === 'red' ? currentSkin.redPlayer.color : undefined,
+                    boxShadow: selectedPlayer === 'red' ? `0 0 15px ${currentSkin.redPlayer.color}50` : undefined,
                   }}
                 >
                   <Flame
@@ -393,7 +414,7 @@ export default function DuoGravityGamePage() {
                   <span className="text-xs text-slate-300">
                     {gameState?.redPlayer.onTarget ? '已就位' : '玩家 2'}
                   </span>
-                </div>
+                </button>
               </div>
             </div>
 
@@ -425,10 +446,12 @@ export default function DuoGravityGamePage() {
 
             <div className="glass-card p-4 text-xs text-slate-400 leading-relaxed">
               <p className="text-slate-300 font-medium mb-2">操作说明</p>
-              <p>红蓝角色轮流移动</p>
-              <p>A/D 或 ←/→：移动角色</p>
+              <p>Tab：切换控制角色</p>
+              <p>A/D 或 ←/→：左右移动</p>
+              <p>W 或 ↑：向上攀登</p>
               <p>可攀登高度为1格</p>
-              <p>最多推动2个箱子</p>
+              <p>最多推动2个水平箱子</p>
+              <p>堆叠的箱子可一起推动</p>
               <p>两个角色都站在目标点即通关</p>
               <p>角色变绿表示已就位</p>
               <p>Z：撤销一步</p>

@@ -422,7 +422,6 @@ export function moveDuoGravityPlayer(
   direction: Direction,
 ): DuoGravityGameState {
   if (state.isWin) return state;
-  if (state.currentTurn !== color) return state;
 
   const dir = DIRS[direction];
 
@@ -453,10 +452,7 @@ export function moveDuoGravityPlayer(
     return state;
   }
 
-  const otherColor = color === 'blue' ? 'red' : 'blue';
-
   newState.steps++;
-  newState.currentTurn = otherColor;
   newState.isWin = checkDuoGravityWin(newState);
 
   const historyEntry: DuoGravityMoveHistoryEntry = {
@@ -516,7 +512,6 @@ export function undoDuoGravityMove(state: DuoGravityGameState): DuoGravityGameSt
   applyGravity(newState);
   updateOnTarget(newState);
   newState.steps--;
-  newState.currentTurn = lastMove.color;
   newState.isWin = false;
 
   return newState;
