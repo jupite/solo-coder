@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback } from 'react';
 import { SkinConfig, DEFAULT_SKIN_ID, getSkinById } from '@/lib/game/skins';
 
 interface SkinContextType {
@@ -23,15 +23,20 @@ export function SkinProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const setSkin = (skinId: string) => {
+  const setSkin = useCallback((skinId: string) => {
     setCurrentSkinId(skinId);
     localStorage.setItem(SKIN_STORAGE_KEY, skinId);
-  };
+  }, []);
 
-  const currentSkin = getSkinById(currentSkinId);
+  const currentSkin = useMemo(() => getSkinById(currentSkinId), [currentSkinId]);
+
+  const value = useMemo(
+    () => ({ currentSkinId, currentSkin, setSkin }),
+    [currentSkinId, currentSkin, setSkin],
+  );
 
   return (
-    <SkinContext.Provider value={{ currentSkinId, currentSkin, setSkin }}>
+    <SkinContext.Provider value={value}>
       {children}
     </SkinContext.Provider>
   );
