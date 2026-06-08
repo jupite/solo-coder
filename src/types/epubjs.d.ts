@@ -75,6 +75,7 @@ declare module 'epubjs' {
 
   class Book {
     ready: Promise<void>;
+    opened: Promise<void>;
     metadata: Metadata;
     navigation: Navigation;
     locations: Locations;

@@ -31,6 +31,7 @@ export default function Reader() {
     isLoading,
     bookId,
     locationsReady,
+    loadError,
     loadBook,
     renderBook,
     nextPage,
@@ -178,6 +179,40 @@ export default function Reader() {
           <p className="font-serif" style={{ color: currentTheme.text }}>
             正在加载书籍...
           </p>
+          {loadError && (
+            <p className="text-red-500 mt-4 text-sm font-serif">
+              加载失败: {loadError}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError && !isLoaded) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: currentTheme.background }}
+      >
+        <div className="text-center max-w-md px-4">
+          <div className="text-5xl mb-4">📕</div>
+          <h2 className="text-xl font-serif mb-2" style={{ color: currentTheme.text }}>
+            书籍加载失败
+          </h2>
+          <p className="text-sm font-serif mb-6" style={{ color: currentTheme.text, opacity: 0.7 }}>
+            {loadError}
+          </p>
+          <button
+            onClick={() => navigate('/')}
+            className="px-6 py-2 rounded-lg font-serif text-sm"
+            style={{
+              backgroundColor: currentTheme.text,
+              color: currentTheme.background,
+            }}
+          >
+            返回书架
+          </button>
         </div>
       </div>
     );
