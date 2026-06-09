@@ -27,6 +27,7 @@ export default function Reader() {
     currentCfi,
     progress,
     currentChapter,
+    currentHref,
     isLoaded,
     isLoading,
     bookId,
@@ -226,6 +227,7 @@ export default function Reader() {
       <TocPanel
         toc={toc}
         currentChapter={currentChapter}
+        currentHref={currentHref}
         theme={theme}
         onNavigate={handleTocNavigate}
       />

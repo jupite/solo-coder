@@ -2,6 +2,14 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import ePub, { Book, Rendition } from 'epubjs';
 import { TocItem } from '@/types';
 
+interface SectionInfo {
+  index: number;
+  id: string;
+  href: string;
+  url: string;
+  cfi: string;
+}
+
 export function useEpub() {
   const [book, setBook] = useState<Book | null>(null);
   const [rendition, setRendition] = useState<Rendition | null>(null);
@@ -10,6 +18,7 @@ export function useEpub() {
   const [currentCfi, setCurrentCfi] = useState<string>('');
   const [progress, setProgress] = useState<number>(0);
   const [currentChapter, setCurrentChapter] = useState<string>('');
+  const [currentHref, setCurrentHref] = useState<string>('');
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [bookId, setBookId] = useState<string>('');
@@ -19,6 +28,7 @@ export function useEpub() {
   const bookRef = useRef<Book | null>(null);
   const tocRef = useRef<TocItem[]>([]);
   const locationsReadyRef = useRef<boolean>(false);
+  const sectionsMapRef = useRef<Map<string, SectionInfo>>(new Map());
 
   const parseToc = (items: any[]): TocItem[] => {
     return items.map((item, index) => ({
@@ -29,11 +39,56 @@ export function useEpub() {
     }));
   };
 
+  const normalizeHref = (href: string): string => {
+    if (!href) return '';
+    return href.split('#')[0].replace(/^\.\//, '').replace(/^\//, '');
+  };
+
+  const buildSectionsMap = (bookObj: Book) => {
+    const map = new Map<string, SectionInfo>();
+    try {
+      const spine = (bookObj as any).spine;
+      if (spine && spine.each) {
+        spine.each((section: any, index: number) => {
+          if (section && section.href) {
+            const normalized = normalizeHref(section.href);
+            map.set(normalized, {
+              index,
+              id: section.id || '',
+              href: section.href,
+              url: section.url || '',
+              cfi: section.cfi || '',
+            });
+          }
+        });
+      } else if (spine && Array.isArray(spine.items)) {
+        spine.items.forEach((section: any, index: number) => {
+          if (section && section.href) {
+            const normalized = normalizeHref(section.href);
+            map.set(normalized, {
+              index,
+              id: section.id || '',
+              href: section.href,
+              url: section.url || '',
+              cfi: section.cfi || '',
+            });
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('构建章节映射失败:', e);
+    }
+    sectionsMapRef.current = map;
+  };
+
   const findTocItemByHref = (items: TocItem[], href: string): TocItem | null => {
-    const baseHref = href.split('#')[0];
+    const normalizedTarget = normalizeHref(href);
     for (const item of items) {
-      const itemBase = item.href.split('#')[0];
-      if (itemBase === baseHref) {
+      const normalizedItem = normalizeHref(item.href);
+      if (normalizedItem === normalizedTarget) {
+        return item;
+      }
+      if (normalizedTarget.startsWith(normalizedItem) || normalizedItem.startsWith(normalizedTarget)) {
         return item;
       }
       if (item.children) {
@@ -44,6 +99,20 @@ export function useEpub() {
     return null;
   };
 
+  const resolveTocHref = (tocHref: string): string => {
+    if (!tocHref) return '';
+    const normalized = normalizeHref(tocHref);
+    const section = sectionsMapRef.current.get(normalized);
+    if (section) {
+      if (tocHref.includes('#')) {
+        const hash = tocHref.split('#')[1];
+        return `${section.href}#${hash}`;
+      }
+      return section.href;
+    }
+    return tocHref;
+  };
+
   const loadBook = useCallback(async (file: File) => {
     setIsLoading(true);
     setIsLoaded(false);
@@ -52,6 +121,7 @@ export function useEpub() {
     setCurrentCfi('');
     setProgress(0);
     setCurrentChapter('');
+    setCurrentHref('');
 
     try {
       const id = `${file.name}-${file.size}-${file.lastModified}`;
@@ -80,6 +150,8 @@ export function useEpub() {
 
       const metadata = newBook.metadata;
       setBookTitle(metadata?.title || file.name.replace(/\.epub$/i, ''));
+
+      buildSectionsMap(newBook);
 
       const navigation = newBook.navigation;
       let tocItems: TocItem[] = [];
@@ -133,8 +205,22 @@ export function useEpub() {
       if (location?.start) {
         setCurrentCfi(location.start.cfi || '');
 
-        if (location.start.href) {
-          const tocItem = findTocItemByHref(tocRef.current, location.start.href);
+        let href = location.start.href || '';
+        if (!href && location.start.index != null && bookRef.current) {
+          try {
+            const spine = (bookRef.current as any).spine;
+            const section = spine?.items?.[location.start.index] || spine?.get?.(location.start.index);
+            if (section?.href) {
+              href = section.href;
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        if (href) {
+          setCurrentHref(href);
+          const tocItem = findTocItemByHref(tocRef.current, href);
           if (tocItem) {
             setCurrentChapter(tocItem.label);
           }
@@ -172,8 +258,15 @@ export function useEpub() {
 
   const goToCfi = useCallback((cfi: string) => {
     if (renditionRef.current && cfi) {
-      renditionRef.current.display(cfi);
+      try {
+        return renditionRef.current.display(cfi).catch((err: any) => {
+          console.warn('goToCfi 跳转失败:', err?.message || err);
+        });
+      } catch (err: any) {
+        console.warn('goToCfi 跳转失败:', err?.message || err);
+      }
     }
+    return Promise.resolve();
   }, []);
 
   const goToPercentage = useCallback((percentage: number) => {
@@ -181,18 +274,35 @@ export function useEpub() {
       try {
         const cfi = bookRef.current.locations.cfiFromPercentage(percentage / 100);
         if (cfi) {
-          renditionRef.current.display(cfi);
+          return renditionRef.current.display(cfi).catch((err: any) => {
+            console.warn('goToPercentage 跳转失败:', err?.message || err);
+          });
         }
-      } catch (e) {
-        console.error('Failed to go to percentage:', e);
+      } catch (err: any) {
+        console.warn('goToPercentage 跳转失败:', err?.message || err);
       }
     }
+    return Promise.resolve();
   }, []);
 
   const goToHref = useCallback((href: string) => {
-    if (renditionRef.current) {
-      renditionRef.current.display(href);
+    if (!renditionRef.current || !href) return Promise.resolve();
+
+    try {
+      const resolved = resolveTocHref(href);
+      return renditionRef.current.display(resolved).catch((err: any) => {
+        console.warn('goToHref 跳转失败, resolved:', resolved, 'error:', err?.message || err);
+        const fallback = normalizeHref(href);
+        if (fallback && fallback !== resolved) {
+          return renditionRef.current?.display(fallback).catch((err2: any) => {
+            console.warn('goToHref fallback 也失败:', err2?.message || err2);
+          });
+        }
+      });
+    } catch (err: any) {
+      console.warn('goToHref 跳转失败:', err?.message || err);
     }
+    return Promise.resolve();
   }, []);
 
   const applyTheme = useCallback((background: string, text: string) => {
@@ -271,6 +381,7 @@ export function useEpub() {
     currentCfi,
     progress,
     currentChapter,
+    currentHref,
     isLoaded,
     isLoading,
     bookId,
