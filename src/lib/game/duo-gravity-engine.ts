@@ -75,16 +75,6 @@ function isPlayerAt(
   return null;
 }
 
-function isSolidBoxOrWall(
-  grid: CellType[][],
-  boxes: Position[],
-  x: number, y: number,
-): boolean {
-  if (isWall(grid, x, y)) return true;
-  if (isBoxAt(boxes, x, y)) return true;
-  return false;
-}
-
 function isSolidWithPlayers(
   state: DuoGravityGameState,
   x: number, y: number,
@@ -145,121 +135,27 @@ function applyGravity(state: DuoGravityGameState): void {
   }
 }
 
-interface StackItem {
-  position: Position;
-  type: 'box' | 'player';
-  color?: PlayerColor;
-  boxIndex?: number;
-}
-
-function getStackAbove(
+function getStackYsAtColumn(
   state: DuoGravityGameState,
-  x: number, y: number,
-): StackItem[] {
-  const items: StackItem[] = [];
-  let currentY = y - 1;
-
-  while (currentY >= 0) {
-    const boxIdx = findBoxIndex(state.boxes, x, currentY);
-    const playerColor = isPlayerAt(state, x, currentY);
-
-    if (boxIdx !== -1) {
-      items.push({ position: { x, y: currentY }, type: 'box', boxIndex: boxIdx });
-    } else if (playerColor) {
-      items.push({ position: { x, y: currentY }, type: 'player', color: playerColor });
+  x: number,
+  bottomY: number,
+): number[] {
+  const ys: number[] = [];
+  let y = bottomY;
+  while (y >= 0) {
+    if (isBoxAt(state.boxes, x, y)) {
+      ys.push(y);
     } else {
-      break;
-    }
-    currentY--;
-  }
-
-  return items;
-}
-
-function canMoveColumnHorizontal(
-  state: DuoGravityGameState,
-  x: number, bottomY: number,
-  dx: number,
-  ignoreColor?: PlayerColor,
-): boolean {
-  const newX = x + dx;
-
-  if (!isPassable(state, newX, bottomY, ignoreColor)) return false;
-
-  const above = getStackAbove(state, x, bottomY);
-  for (const item of above) {
-    if (!isPassable(state, newX, item.position.y, ignoreColor)) return false;
-  }
-
-  return true;
-}
-
-function moveColumnHorizontal(
-  state: DuoGravityGameState,
-  x: number, bottomY: number,
-  dx: number,
-): { moved: StackItem[] } {
-  const moved: StackItem[] = [];
-  const above = getStackAbove(state, x, bottomY);
-
-  const bottomBoxIdx = findBoxIndex(state.boxes, x, bottomY);
-  const bottomPlayer = isPlayerAt(state, x, bottomY);
-
-  if (bottomBoxIdx !== -1) {
-    moved.push({ position: { x, y: bottomY }, type: 'box', boxIndex: bottomBoxIdx });
-    state.boxes[bottomBoxIdx].x += dx;
-  } else if (bottomPlayer) {
-    moved.push({ position: { x, y: bottomY }, type: 'player', color: bottomPlayer });
-    if (bottomPlayer === 'blue') {
-      state.bluePlayer.position.x += dx;
-    } else {
-      state.redPlayer.position.x += dx;
-    }
-  }
-
-  for (const item of above) {
-    if (item.type === 'box' && item.boxIndex !== undefined) {
-      moved.push({ ...item, position: { ...item.position } });
-      state.boxes[item.boxIndex].x += dx;
-    } else if (item.type === 'player' && item.color) {
-      moved.push({ ...item, position: { ...item.position } });
-      if (item.color === 'blue') {
-        state.bluePlayer.position.x += dx;
+      const player = isPlayerAt(state, x, y);
+      if (player) {
+        ys.push(y);
       } else {
-        state.redPlayer.position.x += dx;
+        break;
       }
     }
+    y--;
   }
-
-  return { moved };
-}
-
-function collectHorizontalBoxChain(
-  state: DuoGravityGameState,
-  startX: number, y: number,
-  dx: number,
-  playerColor: PlayerColor,
-): { boxColumns: { x: number; y: number }[]; canPush: boolean } {
-  const boxColumns: { x: number; y: number }[] = [];
-  let x = startX;
-
-  while (isBoxAt(state.boxes, x, y)) {
-    const stackAbove = getStackAbove(state, x, y);
-    const blockedByOtherPlayer = stackAbove.some(
-      (item) => item.type === 'player' && item.color !== playerColor,
-    );
-    if (blockedByOtherPlayer) {
-      return { boxColumns, canPush: false };
-    }
-    boxColumns.push({ x, y });
-    x += dx;
-  }
-
-  if (!canMoveColumnHorizontal(state, x - dx, y, dx, playerColor)) {
-    return { boxColumns, canPush: false };
-  }
-
-  return { boxColumns, canPush: true };
+  return ys;
 }
 
 function tryMoveHorizontal(
@@ -279,52 +175,110 @@ function tryMoveHorizontal(
   const targetY = player.position.y;
 
   const boxesMoved: { from: Position; to: Position }[] = [];
-  let moved = false;
 
   if (isBoxAt(state.boxes, targetX, targetY)) {
-    const chainInfo = collectHorizontalBoxChain(state, targetX, targetY, dx, color);
-    if (chainInfo.canPush) {
-      for (let i = chainInfo.boxColumns.length - 1; i >= 0; i--) {
-        const col = chainInfo.boxColumns[i];
-        const result = moveColumnHorizontal(state, col.x, col.y, dx);
-        for (const item of result.moved) {
-          if (item.type === 'box') {
+    let currentX = targetX;
+    while (isBoxAt(state.boxes, currentX, targetY)) {
+      currentX += dx;
+    }
+
+    for (let colX = currentX - dx; colX >= targetX; colX -= dx) {
+      const stackYs = getStackYsAtColumn(state, colX, targetY);
+
+      const canMoveByY = new Map<number, boolean>();
+      for (const y of stackYs) {
+        const playerHere = isPlayerAt(state, colX, y);
+        if (playerHere && playerHere !== color) {
+          canMoveByY.set(y, false);
+        } else {
+          canMoveByY.set(y, isPassable(state, colX + dx, y, color));
+        }
+      }
+
+      let firstBlockedFromBottom: number | null = null;
+      for (let i = 0; i < stackYs.length; i++) {
+        const y = stackYs[i];
+        if (!canMoveByY.get(y)) {
+          firstBlockedFromBottom = y;
+          break;
+        }
+      }
+
+      for (const y of stackYs) {
+        if (firstBlockedFromBottom !== null && y <= firstBlockedFromBottom) {
+          continue;
+        }
+
+        if (canMoveByY.get(y)) {
+          const boxIdx = findBoxIndex(state.boxes, colX, y);
+          if (boxIdx !== -1) {
             boxesMoved.push({
-              from: { x: item.position.x, y: item.position.y },
-              to: { x: item.position.x + dx, y: item.position.y },
+              from: { x: colX, y },
+              to: { x: colX + dx, y },
             });
+            state.boxes[boxIdx].x += dx;
+          } else {
+            const playerHere = isPlayerAt(state, colX, y);
+            if (playerHere) {
+              if (playerHere === 'blue') {
+                state.bluePlayer.position.x += dx;
+              } else {
+                state.redPlayer.position.x += dx;
+              }
+            }
           }
         }
       }
+    }
+
+    applyGravity(state);
+
+    if (isPassable(state, targetX, targetY, color)) {
       player.position.x = targetX;
-      moved = true;
+    } else if (targetY - 1 >= 0 && isPassable(state, targetX, targetY - 1, color)) {
+      player.position.x = targetX;
+      player.position.y = targetY - 1;
     } else {
+      for (let i = boxesMoved.length - 1; i >= 0; i--) {
+        const bm = boxesMoved[i];
+        const idx = findBoxIndex(state.boxes, bm.to.x, bm.to.y);
+        if (idx !== -1) {
+          state.boxes[idx] = { ...bm.from };
+        }
+      }
+      applyGravity(state);
       return null;
     }
   } else if (isWall(state.grid, targetX, targetY)) {
-    return null;
+    if (targetY - 1 >= 0 && isPassable(state, targetX, targetY - 1, color)) {
+      player.position.x = targetX;
+      player.position.y = targetY - 1;
+    } else {
+      return null;
+    }
   } else {
     const otherPlayer = isPlayerAt(state, targetX, targetY);
     if (otherPlayer && otherPlayer !== color) {
-      return null;
+      if (targetY - 1 >= 0 && isPassable(state, targetX, targetY - 1, color)) {
+        player.position.x = targetX;
+        player.position.y = targetY - 1;
+      } else {
+        return null;
+      }
+    } else {
+      player.position.x = targetX;
     }
-    player.position.x = targetX;
-    moved = true;
   }
 
-  if (moved) {
-    applyGravity(state);
-    updateOnTarget(state);
+  applyGravity(state);
+  updateOnTarget(state);
 
-    return {
-      success: true,
-      boxesMoved,
-      oldPosition,
-      newPosition: { ...player.position },
-    };
-  }
-
-  return null;
+  return {
+    success: true,
+    boxesMoved,
+    oldPosition,
+    newPosition: { ...player.position },
+  };
 }
 
 function tryMoveUp(
@@ -358,10 +312,10 @@ function tryMoveUp(
 
   if (py - 2 < 0) return null;
 
-  const hasObstacleBelow = isSolidWithPlayers(state, px, py - 1, color);
-  const canLandAbove = isPassable(state, px, py - 2, color);
+  const obstacleJustAbove = isSolidWithPlayers(state, px, py - 1, color);
+  const spaceAboveObstacle = isPassable(state, px, py - 2, color);
 
-  if (hasObstacleBelow && canLandAbove) {
+  if (obstacleJustAbove && spaceAboveObstacle) {
     player.position.y = py - 2;
     applyGravity(state);
     updateOnTarget(state);
