@@ -193,7 +193,7 @@ export function useEpub() {
     return tocHref;
   };
 
-  const loadBook = useCallback(async (file: File) => {
+  const loadBook = useCallback(async (file: File, preferredBookId?: string) => {
     setIsLoading(true);
     setIsLoaded(false);
     setLocationsReady(false);
@@ -204,7 +204,8 @@ export function useEpub() {
     setCurrentHref('');
 
     try {
-      const id = `${file.name}-${file.size}-${file.lastModified}`;
+      const id = preferredBookId || `${file.name}-${file.size}-${file.lastModified}`;
+      console.log('[useEpub loadBook] bookId:', id, 'preferredBookId:', preferredBookId);
       setBookId(id);
 
       const arrayBuffer = await file.arrayBuffer();

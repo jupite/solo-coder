@@ -117,12 +117,12 @@ export default function ReaderView() {
       navigate('/');
       return;
     }
-    loadBook(bookFile);
+    loadBook(bookFile, currentBookId || undefined);
     return () => {
       resetReaderState();
       setActivePanel(null);
     };
-  }, [bookFile, loadBook, navigate, resetReaderState, setActivePanel]);
+  }, [bookFile, currentBookId, loadBook, navigate, resetReaderState, setActivePanel]);
 
   useEffect(() => {
     if (isLoaded && viewerRef.current && isFirstRenderRef.current) {
@@ -143,6 +143,8 @@ export default function ReaderView() {
               setShowJumpTip(true);
               setTimeout(() => setShowJumpTip(false), 3000);
             }, 200);
+          } else {
+            hasJumpedRef.current = true;
           }
         };
 
@@ -156,7 +158,7 @@ export default function ReaderView() {
   }, [isLoaded, renderBook, currentTheme, fontSizeValue, applyEpubTheme, applyFontSize, applyStyles, savedProgress, goToCfi]);
 
   useEffect(() => {
-    if (isLoaded && currentCfi && progress >= 0 && hasJumpedRef.current) {
+    if (isLoaded && currentCfi) {
       saveProgress(currentCfi, progress);
     }
   }, [currentCfi, progress, isLoaded, saveProgress]);
