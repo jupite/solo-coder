@@ -802,13 +802,14 @@ export function DuoGravityLevelEditor({ editingLevelId }: { editingLevelId?: str
 
         <div className="glass-card p-4 text-xs text-slate-400 leading-relaxed">
           <p className="text-slate-300 font-medium mb-2">重力模式说明</p>
-          <p>角色和箱子受重力影响</p>
-          <p>角色只能左右移动</p>
-          <p>可攀登高度为1格</p>
-          <p>最多可推动2个箱子</p>
-          <p>两个角色都站在目标点即为通关</p>
-          <p>角色不会消失，可继续移动</p>
-          <p className="mt-2 text-slate-500">A/D 或 ←/→：移动</p>
+          <p>角色可以左右上移动</p>
+          <p>按上可攀登1格高的墙或箱子</p>
+          <p>箱子受重力影响下落</p>
+          <p>推动箱子时堆叠的箱子同步移动</p>
+          <p>两个目标点，角色不消失</p>
+          <p>位置不分角色，都归位即通关</p>
+          <p className="mt-2 text-slate-500">A/D 或 ←/→：左右移动</p>
+          <p className="text-slate-500">W 或 ↑：向上攀登</p>
           <p className="text-slate-500">Z：撤销 R：重置</p>
           <p className="text-slate-500">Tab：切换角色</p>
         </div>
