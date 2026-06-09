@@ -15,7 +15,6 @@ export default function TocPanel({ toc, currentChapter, theme, onNavigate }: Toc
 
   const handleItemClick = (href: string) => {
     onNavigate(href);
-    setShowToc(false);
   };
 
   const renderTocItem = (item: TocItem, level: number = 0) => {

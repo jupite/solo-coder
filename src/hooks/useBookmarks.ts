@@ -8,8 +8,15 @@ export function useBookmarks(bookId: string) {
   useEffect(() => {
     if (bookId) {
       setBookmarks(storage.getBookmarks(bookId));
+    } else {
+      setBookmarks([]);
     }
   }, [bookId]);
+
+  const normalizeCfi = (cfi: string): string => {
+    if (!cfi) return '';
+    return cfi.replace(/!\[.*?\]/g, '').replace(/\)$/, '');
+  };
 
   const addBookmark = useCallback((cfi: string, chapter: string, percentage: number) => {
     if (!bookId || !cfi) return;
@@ -18,8 +25,8 @@ export function useBookmarks(bookId: string) {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       bookId,
       cfi,
-      chapter,
-      percentage,
+      chapter: chapter || '未命名章节',
+      percentage: Math.round(percentage * 100) / 100,
       createdAt: Date.now(),
     };
 
@@ -33,20 +40,36 @@ export function useBookmarks(bookId: string) {
     setBookmarks((prev) => prev.filter((b) => b.id !== bookmarkId));
   }, [bookId]);
 
+  const findBookmarkForCfi = useCallback((cfi: string): Bookmark | null => {
+    if (!cfi || bookmarks.length === 0) return null;
+
+    const normalized = normalizeCfi(cfi);
+    for (const bm of bookmarks) {
+      const normalizedBm = normalizeCfi(bm.cfi);
+      if (normalizedBm === normalized) {
+        return bm;
+      }
+      if (cfi.startsWith(bm.cfi) || bm.cfi.startsWith(cfi)) {
+        return bm;
+      }
+    }
+    return null;
+  }, [bookmarks]);
+
   const toggleBookmark = useCallback((cfi: string, chapter: string, percentage: number) => {
     if (!bookId || !cfi) return;
 
-    const existing = bookmarks.find((b) => b.cfi === cfi);
+    const existing = findBookmarkForCfi(cfi);
     if (existing) {
       removeBookmark(existing.id);
     } else {
       addBookmark(cfi, chapter, percentage);
     }
-  }, [bookId, bookmarks, addBookmark, removeBookmark]);
+  }, [bookId, findBookmarkForCfi, addBookmark, removeBookmark]);
 
-  const isCurrentPageBookmarked = useCallback((cfi: string) => {
-    return bookmarks.some((b) => b.cfi === cfi);
-  }, [bookmarks]);
+  const isCurrentPageBookmarked = useCallback((cfi: string): boolean => {
+    return findBookmarkForCfi(cfi) !== null;
+  }, [findBookmarkForCfi]);
 
   return {
     bookmarks,
@@ -54,5 +77,6 @@ export function useBookmarks(bookId: string) {
     removeBookmark,
     toggleBookmark,
     isCurrentPageBookmarked,
+    findBookmarkForCfi,
   };
 }

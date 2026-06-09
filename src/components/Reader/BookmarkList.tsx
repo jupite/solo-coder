@@ -67,13 +67,9 @@ export default function BookmarkList({
                       className="text-sm truncate font-serif"
                       style={{ color: theme === 'night' ? '#ccc' : theme === 'eye' ? '#5b4636' : '#333' }}
                     >
-                      {bookmark.chapter || '未命名章节'}
-                    </p>
-                    <p
-                      className="text-xs mt-0.5"
-                      style={{ color: theme === 'night' ? '#666' : theme === 'eye' ? '#8b7355' : '#999' }}
-                    >
-                      {bookmark.percentage.toFixed(1)}%
+                      {bookmark.chapter && bookmark.chapter !== '未命名章节'
+                        ? `${bookmark.chapter} · ${bookmark.percentage.toFixed(1)}%`
+                        : `阅读位置 ${bookmark.percentage.toFixed(1)}%`}
                     </p>
                   </div>
                   <button
