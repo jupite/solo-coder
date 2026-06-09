@@ -1,4 +1,5 @@
 import { Bookmark, ReadingProgress, ThemeId, FontSize, BookInfo } from '@/types';
+import { saveBookFile, getBookFile, deleteBookFile } from './indexedDB';
 
 const STORAGE_KEYS = {
   BOOKMARKS: 'epub_reader_bookmarks',
@@ -7,6 +8,8 @@ const STORAGE_KEYS = {
   FONT_SIZE: 'epub_reader_font_size',
   BOOKSHELF: 'epub_reader_bookshelf',
 };
+
+type BookInfoMeta = Omit<BookInfo, 'fileDataUrl'>;
 
 export const storage = {
   getBookmarks(bookId: string): Bookmark[] {
@@ -109,40 +112,74 @@ export const storage = {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.BOOKSHELF);
       if (!data) return [];
-      return JSON.parse(data) as BookInfo[];
+      const metas = JSON.parse(data) as BookInfoMeta[];
+      return metas.map((meta) => ({ ...meta, fileDataUrl: '' }));
     } catch {
       return [];
     }
   },
 
-  saveBook(book: BookInfo): void {
+  async saveBook(book: BookInfo): Promise<void> {
     try {
-      const books = storage.getBooks();
+      const { fileDataUrl, ...meta } = book;
+
+      const books = storage.getBooks().map((b) => {
+        const { fileDataUrl: _, ...rest } = b;
+        return rest;
+      });
       const existingIndex = books.findIndex((b) => b.id === book.id);
       if (existingIndex >= 0) {
-        books[existingIndex] = { ...books[existingIndex], ...book };
+        books[existingIndex] = { ...books[existingIndex], ...meta };
       } else {
-        books.push(book);
+        books.push(meta);
       }
       localStorage.setItem(STORAGE_KEYS.BOOKSHELF, JSON.stringify(books));
-    } catch {
-      console.error('Failed to save book');
+
+      if (fileDataUrl) {
+        try {
+          await saveBookFile(book.id, fileDataUrl);
+        } catch (e) {
+          console.error('保存书籍文件到 IndexedDB 失败:', e);
+        }
+      }
+    } catch (e) {
+      console.error('保存书籍失败:', e);
     }
   },
 
-  removeBook(bookId: string): void {
+  async removeBook(bookId: string): Promise<void> {
     try {
-      const books = storage.getBooks();
-      const filtered = books.filter((b) => b.id !== bookId);
-      localStorage.setItem(STORAGE_KEYS.BOOKSHELF, JSON.stringify(filtered));
-    } catch {
-      console.error('Failed to remove book');
+      const books = storage.getBooks().filter((b) => b.id !== bookId);
+      const metas = books.map((b) => {
+        const { fileDataUrl: _, ...rest } = b;
+        return rest;
+      });
+      localStorage.setItem(STORAGE_KEYS.BOOKSHELF, JSON.stringify(metas));
+
+      try {
+        await deleteBookFile(bookId);
+      } catch (e) {
+        console.error('从 IndexedDB 删除书籍文件失败:', e);
+      }
+    } catch (e) {
+      console.error('删除书籍失败:', e);
+    }
+  },
+
+  async getBookFileData(bookId: string): Promise<string | null> {
+    try {
+      return await getBookFile(bookId);
+    } catch (e) {
+      console.error('获取书籍文件失败:', e);
+      return null;
     }
   },
 
   updateBookLastRead(bookId: string): void {
     try {
-      const books = storage.getBooks();
+      const data = localStorage.getItem(STORAGE_KEYS.BOOKSHELF);
+      if (!data) return;
+      const books = JSON.parse(data) as BookInfoMeta[];
       const book = books.find((b) => b.id === bookId);
       if (book) {
         book.lastReadAt = Date.now();

@@ -11,8 +11,8 @@ interface ReaderState {
   togglePanel: (panel: Exclude<SidebarPanel, null>) => void;
   books: BookInfo[];
   loadBooks: () => void;
-  addBook: (book: BookInfo) => void;
-  deleteBook: (bookId: string) => void;
+  addBook: (book: BookInfo) => Promise<void>;
+  deleteBook: (bookId: string) => Promise<void>;
   bookTitle: string;
   setBookTitle: (title: string) => void;
   toc: TocItem[];
@@ -58,13 +58,13 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
     const books = storage.getBooks();
     set({ books });
   },
-  addBook: (book) => {
-    storage.saveBook(book);
+  addBook: async (book) => {
+    await storage.saveBook(book);
     const books = storage.getBooks();
     set({ books });
   },
-  deleteBook: (bookId) => {
-    storage.removeBook(bookId);
+  deleteBook: async (bookId) => {
+    await storage.removeBook(bookId);
     const books = storage.getBooks();
     set({ books });
   },

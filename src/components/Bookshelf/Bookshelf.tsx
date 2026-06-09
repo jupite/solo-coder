@@ -81,7 +81,12 @@ export default function Bookshelf() {
       const existing = books.find((b) => b.id === bookId);
 
       if (existing) {
-        const bookFile = dataUrlToFile(existing.fileDataUrl, existing.fileName);
+        const dataUrl = await storage.getBookFileData(existing.id);
+        if (!dataUrl) {
+          console.error('找不到书籍文件数据');
+          return;
+        }
+        const bookFile = dataUrlToFile(dataUrl, existing.fileName);
         setBookFile(bookFile, existing.id);
         storage.updateBookLastRead(existing.id);
         loadBookmarks(existing.id);
@@ -102,7 +107,7 @@ export default function Bookshelf() {
         format,
       };
 
-      addBook(bookInfo);
+      await addBook(bookInfo);
       setBookFile(file, bookId);
       navigate('/reader');
     } catch (error) {
@@ -132,9 +137,14 @@ export default function Bookshelf() {
     setIsDragging(false);
   };
 
-  const handleOpenBook = (book: BookInfo) => {
+  const handleOpenBook = async (book: BookInfo) => {
     try {
-      const bookFile = dataUrlToFile(book.fileDataUrl, book.fileName);
+      const dataUrl = await storage.getBookFileData(book.id);
+      if (!dataUrl) {
+        console.error('找不到书籍文件数据');
+        return;
+      }
+      const bookFile = dataUrlToFile(dataUrl, book.fileName);
       setBookFile(bookFile, book.id);
       storage.updateBookLastRead(book.id);
       loadBookmarks(book.id);
@@ -144,10 +154,10 @@ export default function Bookshelf() {
     }
   };
 
-  const handleDeleteBook = (e: React.MouseEvent, bookId: string) => {
+  const handleDeleteBook = async (e: React.MouseEvent, bookId: string) => {
     e.stopPropagation();
     if (confirm('确定要从书库中删除这本书吗？')) {
-      deleteBook(bookId);
+      await deleteBook(bookId);
     }
   };
 
