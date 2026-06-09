@@ -1,9 +1,10 @@
 'use client';
 
+import { memo } from 'react';
 import type { Position } from '@/lib/game/types';
 import { useSkin } from './SkinProvider';
 
-export function GravityRedPlayer({ position, onTarget = false }: { position: Position; onTarget?: boolean }) {
+export const GravityRedPlayer = memo(function GravityRedPlayer({ position, onTarget = false }: { position: Position; onTarget?: boolean }) {
   const { currentSkin } = useSkin();
   const skin = currentSkin.redPlayer;
 
@@ -34,4 +35,4 @@ export function GravityRedPlayer({ position, onTarget = false }: { position: Pos
       </mesh>
     </group>
   );
-}
+});

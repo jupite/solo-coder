@@ -18,6 +18,7 @@ interface ControlsProps {
   onReset: () => void;
   onExit: () => void;
   onUndo?: () => void;
+  onSwitchPlayer?: () => void;
 }
 
 const KEY_DIRECTION: Record<string, Direction> = {
@@ -35,9 +36,14 @@ const KEY_DIRECTION: Record<string, Direction> = {
   D: 'right',
 };
 
-export function Controls({ onMove, onReset, onExit, onUndo }: ControlsProps) {
+export function Controls({ onMove, onReset, onExit, onUndo, onSwitchPlayer }: ControlsProps) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      if (e.key === 'Tab' && onSwitchPlayer) {
+        e.preventDefault();
+        onSwitchPlayer();
+        return;
+      }
       const direction = KEY_DIRECTION[e.key];
       if (direction) {
         e.preventDefault();
@@ -57,7 +63,7 @@ export function Controls({ onMove, onReset, onExit, onUndo }: ControlsProps) {
         onExit();
       }
     },
-    [onMove, onReset, onExit, onUndo],
+    [onMove, onReset, onExit, onUndo, onSwitchPlayer],
   );
 
   useEffect(() => {

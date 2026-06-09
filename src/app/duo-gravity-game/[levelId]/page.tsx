@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
@@ -17,6 +17,7 @@ import {
   Undo2,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
 } from 'lucide-react';
 import {
   createDuoGravityGameState,
@@ -31,6 +32,7 @@ import type {
 } from '@/lib/game/types';
 import { useSkin } from '@/components/game/SkinProvider';
 import { DuoGravityGameCanvas } from '@/components/game/DuoGravityGameCanvas';
+import { Controls } from '@/components/game/Controls';
 
 const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60);
@@ -54,23 +56,6 @@ export default function DuoGravityGamePage() {
   const [completed, setCompleted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerColor>('blue');
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startTimeRef = useRef<number>(0);
-  const completedRef = useRef(false);
-  const gameStateRef = useRef<DuoGravityGameState | null>(null);
-  const selectedPlayerRef = useRef<PlayerColor>('blue');
-
-  useEffect(() => {
-    selectedPlayerRef.current = selectedPlayer;
-  }, [selectedPlayer]);
-
-  useEffect(() => {
-    completedRef.current = completed;
-  }, [completed]);
-
-  useEffect(() => {
-    gameStateRef.current = gameState;
-  }, [gameState]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -126,27 +111,14 @@ export default function DuoGravityGamePage() {
     setCompleted(false);
     setSubmitting(false);
     setSelectedPlayer('blue');
-    startTimeRef.current = Date.now();
   }, [status, levelData]);
 
   useEffect(() => {
-    if (completed || !gameState) {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      return;
-    }
-
-    timerRef.current = setInterval(() => {
-      setTime(Math.floor((Date.now() - startTimeRef.current) / 1000));
-    }, 250);
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
+    if (completed || !gameState) return;
+    const timer = setInterval(() => {
+      setTime((t) => t + 1);
+    }, 1000);
+    return () => clearInterval(timer);
   }, [completed, gameState]);
 
   useEffect(() => {
@@ -155,14 +127,18 @@ export default function DuoGravityGamePage() {
     }
   }, [gameState?.isWin, completed]);
 
-  const handleMove = useCallback((direction: Direction) => {
-    if (completedRef.current) return;
-    const player = selectedPlayerRef.current;
-    setGameState((prev) => {
-      if (!prev) return prev;
-      return moveDuoGravityPlayer(prev, player, direction);
-    });
-  }, []);
+  const handleMove = useCallback(
+    (direction: Direction) => {
+      if (!gameState || completed) return;
+      if (direction === 'down') return;
+
+      setGameState((prev) => {
+        if (!prev) return prev;
+        return moveDuoGravityPlayer(prev, selectedPlayer, direction);
+      });
+    },
+    [gameState, completed, selectedPlayer],
+  );
 
   const handleReset = useCallback(() => {
     if (!levelData) return;
@@ -172,16 +148,15 @@ export default function DuoGravityGamePage() {
     setCompleted(false);
     setSubmitting(false);
     setSelectedPlayer('blue');
-    startTimeRef.current = Date.now();
   }, [levelData]);
 
   const handleUndo = useCallback(() => {
-    if (completedRef.current) return;
+    if (!gameState || completed) return;
     setGameState((prev) => {
       if (!prev) return prev;
       return undoDuoGravityMove(prev);
     });
-  }, []);
+  }, [gameState, completed]);
 
   const handleExit = useCallback(() => {
     router.push('/levels');
@@ -217,26 +192,6 @@ export default function DuoGravityGamePage() {
   const handleSwitchPlayer = useCallback(() => {
     setSelectedPlayer((prev) => (prev === 'blue' ? 'red' : 'blue'));
   }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!gameStateRef.current || completedRef.current) return;
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        handleSwitchPlayer();
-        return;
-      }
-      if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') handleMove('left');
-      if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') handleMove('right');
-      if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') handleMove('up');
-      if (e.key === 'z' || e.key === 'Z') handleUndo();
-      if (e.key === 'r' || e.key === 'R') handleReset();
-      if (e.key === 'Escape') handleExit();
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleMove, handleUndo, handleReset, handleExit, handleSwitchPlayer]);
 
   if (status === 'loading' || loadingLevel) {
     return (
@@ -340,6 +295,9 @@ export default function DuoGravityGamePage() {
               <div className="absolute bottom-4 left-4 glass-card p-2 flex items-center gap-1">
                 <button onClick={() => handleMove('left')} className="w-12 h-12 bg-white/10 hover:bg-white/20 rounded flex items-center justify-center transition-colors">
                   <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button onClick={() => handleMove('up')} className="w-12 h-12 bg-white/10 hover:bg-white/20 rounded flex items-center justify-center transition-colors">
+                  <ChevronUp className="w-6 h-6" />
                 </button>
                 <button onClick={() => handleMove('right')} className="w-12 h-12 bg-white/10 hover:bg-white/20 rounded flex items-center justify-center transition-colors">
                   <ChevronRight className="w-6 h-6" />
@@ -460,6 +418,14 @@ export default function DuoGravityGamePage() {
             </div>
           </div>
         </div>
+
+        <Controls
+          onMove={handleMove}
+          onReset={handleReset}
+          onExit={handleExit}
+          onUndo={handleUndo}
+          onSwitchPlayer={handleSwitchPlayer}
+        />
       </div>
     </main>
   );

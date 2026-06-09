@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, memo } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrthographicCamera } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
@@ -18,7 +18,7 @@ interface DuoGravityGameCanvasProps {
   levelData: DuoGravityLevelData;
 }
 
-function CameraSetup({ centerX, centerZ, distance, zoom }: { centerX: number; centerZ: number; distance: number; zoom: number }) {
+const CameraSetup = memo(function CameraSetup({ centerX, centerZ, distance, zoom }: { centerX: number; centerZ: number; distance: number; zoom: number }) {
   const { camera } = useThree();
 
   useEffect(() => {
@@ -29,9 +29,9 @@ function CameraSetup({ centerX, centerZ, distance, zoom }: { centerX: number; ce
   }, [camera, centerX, centerZ, distance, zoom]);
 
   return null;
-}
+});
 
-function InnerCanvas({
+const InnerCanvas = memo(function InnerCanvas({
   gameState,
   levelData,
   centerX,
@@ -90,9 +90,9 @@ function InnerCanvas({
       </EffectComposer>
     </>
   );
-}
+});
 
-export function DuoGravityGameCanvas({ gameState, levelData }: DuoGravityGameCanvasProps) {
+export const DuoGravityGameCanvas = memo(function DuoGravityGameCanvas({ gameState, levelData }: DuoGravityGameCanvasProps) {
   const { grid } = levelData;
   const rows = grid.length;
   const cols = grid[0]?.length ?? 0;
@@ -120,4 +120,4 @@ export function DuoGravityGameCanvas({ gameState, levelData }: DuoGravityGameCan
       </Canvas>
     </div>
   );
-}
+});

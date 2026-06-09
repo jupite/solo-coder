@@ -1,9 +1,10 @@
 'use client';
 
+import { memo } from 'react';
 import type { Position } from '@/lib/game/types';
 import { useSkin } from './SkinProvider';
 
-export function GravityPlayer({ position, onTarget = false }: { position: Position; onTarget?: boolean }) {
+export const GravityPlayer = memo(function GravityPlayer({ position, onTarget = false }: { position: Position; onTarget?: boolean }) {
   const { currentSkin } = useSkin();
   const skin = currentSkin.player;
 
@@ -34,4 +35,4 @@ export function GravityPlayer({ position, onTarget = false }: { position: Positi
       </mesh>
     </group>
   );
-}
+});
