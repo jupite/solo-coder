@@ -2,9 +2,10 @@ import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, BookOpen, Upload } from 'lucide-react';
 import { useReaderStore } from '@/store/readerStore';
-import { THEMES } from '@/types';
+import { THEMES, type BookFormat } from '@/types';
 import { storage } from '@/utils/storage';
 import { BookInfo } from '@/types';
+import { isMobiFile } from '@/utils/mobiToEpub';
 
 export default function Bookshelf() {
   const navigate = useNavigate();
@@ -35,9 +36,30 @@ export default function Bookshelf() {
     });
   };
 
+  const getBookFormat = (fileName: string): BookFormat => {
+    const name = fileName.toLowerCase();
+    if (name.endsWith('.azw3')) return 'azw3';
+    if (name.endsWith('.azw')) return 'azw';
+    if (name.endsWith('.mobi')) return 'mobi';
+    return 'epub';
+  };
+
+  const getMimeTypeForFormat = (format: BookFormat): string => {
+    switch (format) {
+      case 'mobi':
+        return 'application/x-mobipocket-ebook';
+      case 'azw':
+      case 'azw3':
+        return 'application/vnd.amazon.ebook';
+      default:
+        return 'application/epub+zip';
+    }
+  };
+
   const dataUrlToFile = (dataUrl: string, fileName: string): File => {
     const arr = dataUrl.split(',');
-    const mime = arr[0].match(/:(.*?);/)?.[1] || 'application/epub+zip';
+    const format = getBookFormat(fileName);
+    const mime = arr[0].match(/:(.*?);/)?.[1] || getMimeTypeForFormat(format);
     const bstr = atob(arr[1]);
     let n = bstr.length;
     const u8arr = new Uint8Array(n);
@@ -48,7 +70,8 @@ export default function Bookshelf() {
   };
 
   const handleFileSelect = async (file: File) => {
-    if (!file || !file.name.toLowerCase().endsWith('.epub')) return;
+    const isValid = file && (file.name.toLowerCase().endsWith('.epub') || isMobiFile(file));
+    if (!isValid) return;
 
     try {
       const bookId = `${file.name}-${file.size}-${file.lastModified}`;
@@ -64,14 +87,16 @@ export default function Bookshelf() {
       }
 
       const dataUrl = await fileToDataUrl(file);
+      const format = getBookFormat(file.name);
       const bookInfo: BookInfo = {
         id: bookId,
-        title: file.name.replace(/\.epub$/i, ''),
+        title: file.name.replace(/\.(epub|mobi|azw|azw3)$/i, ''),
         fileDataUrl: dataUrl,
         fileName: file.name,
         fileSize: file.size,
         addedAt: Date.now(),
         lastReadAt: Date.now(),
+        format,
       };
 
       addBook(bookInfo);
@@ -178,7 +203,7 @@ export default function Bookshelf() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".epub"
+            accept=".epub,.mobi,.azw,.azw3"
             className="hidden"
             onChange={handleFileChange}
           />
@@ -202,10 +227,10 @@ export default function Bookshelf() {
               style={{ color: mutedColor }}
             />
             <p className="text-lg font-serif mb-2" style={{ color: textColor }}>
-              点击或拖拽 EPUB 文件到此处
+              点击或拖拽 EPUB/MOBI 文件到此处
             </p>
             <p className="text-sm font-serif" style={{ color: mutedColor }}>
-              支持 .epub 格式文件
+              支持 .epub、.mobi、.azw、.azw3 格式文件
             </p>
           </div>
         ) : (

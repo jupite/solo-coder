@@ -7,6 +7,7 @@ import ProgressBar from '../Reader/ProgressBar';
 import { BookmarkCheck, ChevronLeft, ChevronRight, Bookmark } from 'lucide-react';
 import { THEMES } from '@/types';
 import { storage } from '@/utils/storage';
+import { isMobiFile } from '@/utils/mobiToEpub';
 
 export default function ReaderView() {
   const navigate = useNavigate();
@@ -228,6 +229,7 @@ export default function ReaderView() {
   const isBookmarked = isCurrentPageBookmarked(currentCfi);
 
   if (isLoading) {
+    const isMobi = bookFile ? isMobiFile(bookFile) : false;
     return (
       <div
         className="flex-1 flex items-center justify-center"
@@ -239,8 +241,13 @@ export default function ReaderView() {
             style={{ borderColor: currentTheme.text, borderTopColor: 'transparent' }}
         />
           <p className="font-serif" style={{ color: currentTheme.text }}>
-            正在加载书籍...
+            {isMobi ? '正在转换 MOBI 书籍...' : '正在加载书籍...'}
           </p>
+          {isMobi && (
+            <p className="text-sm font-serif mt-2 opacity-70" style={{ color: currentTheme.text }}>
+              首次加载需要转换格式，请稍候
+            </p>
+          )}
           {loadError && (
             <p className="text-red-500 mt-4 text-sm font-serif">
               加载失败: {loadError}

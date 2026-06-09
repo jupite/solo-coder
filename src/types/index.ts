@@ -1,6 +1,7 @@
 export type ThemeId = 'white' | 'eye' | 'night';
 export type FontSize = 'small' | 'medium' | 'large';
 export type SidebarPanel = 'toc' | 'bookmarks' | 'font' | 'theme' | null;
+export type BookFormat = 'epub' | 'mobi' | 'azw' | 'azw3';
 
 export interface Theme {
   id: ThemeId;
@@ -41,6 +42,7 @@ export interface BookInfo {
   addedAt: number;
   lastReadAt?: number;
   cover?: string;
+  format?: BookFormat;
 }
 
 export const THEMES: Theme[] = [

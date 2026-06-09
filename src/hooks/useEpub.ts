@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import ePub, { Book, Rendition } from 'epubjs';
 import { TocItem } from '@/types';
+import { convertToEpubIfNeeded } from '@/utils/mobiToEpub';
 
 interface SectionInfo {
   index: number;
@@ -236,7 +237,12 @@ export function useEpub() {
       console.log('[useEpub loadBook] bookId:', id, 'preferredBookId:', preferredBookId);
       setBookId(id);
 
-      const arrayBuffer = await file.arrayBuffer();
+      const { file: epubFile, isConverted } = await convertToEpubIfNeeded(file);
+      if (isConverted) {
+        console.log('[useEpub loadBook] MOBI/KF8 file converted to EPUB');
+      }
+
+      const arrayBuffer = await epubFile.arrayBuffer();
       const newBook = ePub(arrayBuffer);
       setBook(newBook);
       bookRef.current = newBook;
@@ -258,7 +264,8 @@ export function useEpub() {
       });
 
       const metadata = newBook.metadata;
-      setBookTitle(metadata?.title || file.name.replace(/\.epub$/i, ''));
+      const originalTitle = file.name.replace(/\.(epub|mobi|azw|azw3)$/i, '');
+      setBookTitle(metadata?.title || originalTitle);
 
       const coverUrl = await extractCover(newBook);
       setCover(coverUrl);
