@@ -145,7 +145,7 @@ function getStackedItemsAtColumn(
   while (y >= 0) {
     const boxIdx = findBoxIndex(state.boxes, x, y);
     if (boxIdx !== -1) {
-      items.push({ y, type: 'box', boxIndex });
+      items.push({ y, type: 'box', boxIndex: boxIdx });
     } else {
       const player = isPlayerAt(state, x, y);
       if (player) {
