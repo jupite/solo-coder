@@ -1,5 +1,5 @@
-import Reader from '@/components/Reader/Reader';
+import ReaderView from '@/components/Reader/ReaderView';
 
 export default function ReaderPage() {
-  return <Reader />;
+  return <ReaderView />;
 }

@@ -1,5 +1,6 @@
 export type ThemeId = 'white' | 'eye' | 'night';
 export type FontSize = 'small' | 'medium' | 'large';
+export type SidebarPanel = 'toc' | 'bookmarks' | 'font' | 'theme' | null;
 
 export interface Theme {
   id: ThemeId;
@@ -29,6 +30,16 @@ export interface TocItem {
   label: string;
   href: string;
   children?: TocItem[];
+}
+
+export interface BookInfo {
+  id: string;
+  title: string;
+  fileDataUrl: string;
+  fileName: string;
+  fileSize: number;
+  addedAt: number;
+  lastReadAt?: number;
 }
 
 export const THEMES: Theme[] = [

@@ -5,15 +5,25 @@ import { useEpub } from '@/hooks/useEpub';
 import { useTheme } from '@/hooks/useTheme';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { useReadingProgress } from '@/hooks/useReadingProgress';
-import Toolbar from './Toolbar';
-import ProgressBar from './ProgressBar';
-import TocPanel from './TocPanel';
-import BookmarkList from './BookmarkList';
-import { BookmarkCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import ProgressBar from '../Reader/ProgressBar';
+import { BookmarkCheck, ChevronLeft, ChevronRight, Bookmark } from 'lucide-react';
 
-export default function Reader() {
+export default function ReaderView() {
   const navigate = useNavigate();
-  const { bookFile, showToc, showBookmarks, setShowBookmarks } = useReaderStore();
+  const {
+    bookFile,
+    currentBookId,
+    setBookTitle,
+    setToc,
+    setCurrentCfi,
+    setCurrentChapter,
+    setCurrentHref,
+    setGoToHrefFn,
+    setGoToCfiFn,
+    setActivePanel,
+    resetReaderState,
+  } = useReaderStore();
+
   const viewerRef = useRef<HTMLDivElement>(null);
   const [isTurning, setIsTurning] = useState(false);
   const [turnDirection, setTurnDirection] = useState<'next' | 'prev' | null>(null);
@@ -45,9 +55,38 @@ export default function Reader() {
     applyStyles,
   } = useEpub();
 
-  const { theme, setTheme, currentTheme, fontSize, setFontSize, fontSizeValue } = useTheme();
-  const { bookmarks, toggleBookmark, removeBookmark, isCurrentPageBookmarked } = useBookmarks(bookId);
-  const { saveProgress, progress: savedProgress } = useReadingProgress(bookId);
+  const { theme, currentTheme, fontSizeValue } = useTheme();
+  const { toggleBookmark, isCurrentPageBookmarked } = useBookmarks(currentBookId || bookId);
+  const { saveProgress, progress: savedProgress } = useReadingProgress(currentBookId || bookId);
+
+  useEffect(() => {
+    setGoToHrefFn(goToHref);
+    setGoToCfiFn(goToCfi);
+    return () => {
+      setGoToHrefFn(null);
+      setGoToCfiFn(null);
+    };
+  }, [goToHref, goToCfi, setGoToHrefFn, setGoToCfiFn]);
+
+  useEffect(() => {
+    if (bookTitle) setBookTitle(bookTitle);
+  }, [bookTitle, setBookTitle]);
+
+  useEffect(() => {
+    setToc(toc);
+  }, [toc, setToc]);
+
+  useEffect(() => {
+    setCurrentCfi(currentCfi);
+  }, [currentCfi, setCurrentCfi]);
+
+  useEffect(() => {
+    setCurrentChapter(currentChapter);
+  }, [currentChapter, setCurrentChapter]);
+
+  useEffect(() => {
+    setCurrentHref(currentHref);
+  }, [currentHref, setCurrentHref]);
 
   useEffect(() => {
     if (!bookFile) {
@@ -55,7 +94,11 @@ export default function Reader() {
       return;
     }
     loadBook(bookFile);
-  }, [bookFile, loadBook, navigate]);
+    return () => {
+      resetReaderState();
+      setActivePanel(null);
+    };
+  }, [bookFile, loadBook, navigate, resetReaderState, setActivePanel]);
 
   useEffect(() => {
     if (isLoaded && viewerRef.current && isFirstRenderRef.current) {
@@ -104,7 +147,7 @@ export default function Reader() {
     if (isLoaded) {
       applyFontSize(fontSizeValue);
     }
-  }, [fontSize, applyFontSize, fontSizeValue, isLoaded]);
+  }, [fontSizeValue, applyFontSize, isLoaded]);
 
   const handleNextPage = useCallback(async () => {
     if (isTurning) return;
@@ -143,10 +186,6 @@ export default function Reader() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  const handleTocNavigate = (href: string) => {
-    goToHref(href);
-  };
-
   const handleSeek = (percentage: number) => {
     goToPercentage(percentage);
   };
@@ -155,28 +194,19 @@ export default function Reader() {
     toggleBookmark(currentCfi, currentChapter, progress);
   };
 
-  const handleGoToBookmark = (cfi: string) => {
-    goToCfi(cfi);
-    setShowBookmarks(false);
-  };
-
-  const handleDeleteBookmark = (id: string) => {
-    removeBookmark(id);
-  };
-
   const isBookmarked = isCurrentPageBookmarked(currentCfi);
 
   if (isLoading) {
     return (
       <div
-        className="min-h-screen flex items-center justify-center"
+        className="flex-1 flex items-center justify-center"
         style={{ backgroundColor: currentTheme.background }}
       >
         <div className="text-center">
           <div
             className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4"
             style={{ borderColor: currentTheme.text, borderTopColor: 'transparent' }}
-          />
+        />
           <p className="font-serif" style={{ color: currentTheme.text }}>
             正在加载书籍...
           </p>
@@ -193,7 +223,7 @@ export default function Reader() {
   if (loadError && !isLoaded) {
     return (
       <div
-        className="min-h-screen flex items-center justify-center"
+        className="flex-1 flex items-center justify-center"
         style={{ backgroundColor: currentTheme.background }}
       >
         <div className="text-center max-w-md px-4">
@@ -221,53 +251,35 @@ export default function Reader() {
 
   return (
     <div
-      className="relative min-h-screen overflow-hidden transition-colors duration-300"
+      className="relative flex-1 h-full overflow-hidden transition-colors duration-300"
       style={{ backgroundColor: currentTheme.background }}
     >
-      <TocPanel
-        toc={toc}
-        currentChapter={currentChapter}
-        currentHref={currentHref}
-        theme={theme}
-        onNavigate={handleTocNavigate}
-      />
-
-      <div
-        className={`relative h-screen transition-all duration-300 ease-in-out
-          ${showToc ? 'md:ml-72' : 'ml-0'}`}
-        onClick={() => {
-          if (showBookmarks) setShowBookmarks(false);
-        }}
-      >
-        <Toolbar
-          bookTitle={bookTitle}
-          theme={theme}
-          fontSize={fontSize}
-          isBookmarked={isBookmarked}
-          onThemeChange={setTheme}
-          onFontSizeChange={setFontSize}
-          onBookmarkToggle={handleBookmarkToggle}
-        />
-
-        <BookmarkList
-          bookmarks={bookmarks}
-          theme={theme}
-          onGoToBookmark={handleGoToBookmark}
-          onDeleteBookmark={handleDeleteBookmark}
-        />
-
+      <div className="relative h-full">
         {isBookmarked && (
-          <div className="absolute top-16 right-8 z-20 pointer-events-none">
+          <div className="absolute top-4 right-6 z-20 pointer-events-none">
             <BookmarkCheck
               className="w-5 h-5"
               style={{
                 color: currentTheme.text,
                 fill: currentTheme.text,
-                opacity: 0.5,
+                opacity: 0.4,
               }}
             />
           </div>
         )}
+
+        <button
+          onClick={handleBookmarkToggle}
+          className="absolute top-4 right-20 z-20 p-2 rounded-lg opacity-0 hover:opacity-100 transition-opacity"
+          style={{ color: currentTheme.text }}
+          title={isBookmarked ? '取消书签' : '添加书签'}
+        >
+          {isBookmarked ? (
+            <Bookmark className="w-5 h-5 fill-current" />
+          ) : (
+            <Bookmark className="w-5 h-5" />
+          )}
+        </button>
 
         {showJumpTip && (
           <div
@@ -304,7 +316,7 @@ export default function Reader() {
               ${turnDirection === 'next' ? 'translate-x-[-50px] opacity-0' : ''}
               ${turnDirection === 'prev' ? 'translate-x-[50px] opacity-0' : ''}`}
             style={{
-              paddingTop: '60px',
+              paddingTop: '20px',
               paddingBottom: '80px',
               maxWidth: '800px',
               width: '100%',

@@ -1,10 +1,11 @@
-import { Bookmark, ReadingProgress, ThemeId, FontSize } from '@/types';
+import { Bookmark, ReadingProgress, ThemeId, FontSize, BookInfo } from '@/types';
 
 const STORAGE_KEYS = {
   BOOKMARKS: 'epub_reader_bookmarks',
   PROGRESS: 'epub_reader_progress',
   THEME: 'epub_reader_theme',
   FONT_SIZE: 'epub_reader_font_size',
+  BOOKSHELF: 'epub_reader_bookshelf',
 };
 
 export const storage = {
@@ -101,6 +102,54 @@ export const storage = {
       localStorage.setItem(STORAGE_KEYS.FONT_SIZE, fontSize);
     } catch {
       console.error('Failed to save font size');
+    }
+  },
+
+  getBooks(): BookInfo[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.BOOKSHELF);
+      if (!data) return [];
+      return JSON.parse(data) as BookInfo[];
+    } catch {
+      return [];
+    }
+  },
+
+  saveBook(book: BookInfo): void {
+    try {
+      const books = storage.getBooks();
+      const existingIndex = books.findIndex((b) => b.id === book.id);
+      if (existingIndex >= 0) {
+        books[existingIndex] = { ...books[existingIndex], ...book };
+      } else {
+        books.push(book);
+      }
+      localStorage.setItem(STORAGE_KEYS.BOOKSHELF, JSON.stringify(books));
+    } catch {
+      console.error('Failed to save book');
+    }
+  },
+
+  removeBook(bookId: string): void {
+    try {
+      const books = storage.getBooks();
+      const filtered = books.filter((b) => b.id !== bookId);
+      localStorage.setItem(STORAGE_KEYS.BOOKSHELF, JSON.stringify(filtered));
+    } catch {
+      console.error('Failed to remove book');
+    }
+  },
+
+  updateBookLastRead(bookId: string): void {
+    try {
+      const books = storage.getBooks();
+      const book = books.find((b) => b.id === bookId);
+      if (book) {
+        book.lastReadAt = Date.now();
+        localStorage.setItem(STORAGE_KEYS.BOOKSHELF, JSON.stringify(books));
+      }
+    } catch {
+      console.error('Failed to update book last read');
     }
   },
 };
