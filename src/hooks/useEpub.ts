@@ -31,31 +31,59 @@ export function useEpub() {
   const locationsReadyRef = useRef<boolean>(false);
   const sectionsMapRef = useRef<Map<string, SectionInfo>>(new Map());
 
-  const extractCover = async (bookObj: Book): Promise<string> => {
+  const blobUrlToBase64 = async (url: string): Promise<string> => {
     try {
-      const coverUrl = await (bookObj as any).coverUrl();
-      if (coverUrl) {
-        return coverUrl;
-      }
+      const res = await fetch(url);
+      const blob = await res.blob();
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) {
+      console.warn('封面 blob->base64 转换失败:', e);
+      return '';
+    }
+  };
+
+  const extractCover = async (bookObj: Book): Promise<string> => {
+    let coverUrl = '';
+    try {
+      const url = await (bookObj as any).coverUrl();
+      if (url) coverUrl = url;
     } catch (e) {
       // ignore
     }
-    try {
-      const manifest = (bookObj as any).package?.manifest;
-      if (manifest) {
-        for (const key in manifest) {
-          const item = manifest[key];
-          if (
-            item?.properties === 'cover-image' ||
-            item?.href?.toLowerCase().includes('cover')
-          ) {
-            const url = await (bookObj as any).archive.createURL(item.href);
-            if (url) return url;
+    if (!coverUrl) {
+      try {
+        const manifest = (bookObj as any).package?.manifest;
+        if (manifest) {
+          for (const key in manifest) {
+            const item = manifest[key];
+            if (
+              item?.properties === 'cover-image' ||
+              item?.href?.toLowerCase().includes('cover')
+            ) {
+              const url = await (bookObj as any).archive.createURL(item.href);
+              if (url) {
+                coverUrl = url;
+                break;
+              }
+            }
           }
         }
+      } catch (e) {
+        // ignore
       }
-    } catch (e) {
-      // ignore
+    }
+
+    if (coverUrl) {
+      if (coverUrl.startsWith('data:')) {
+        return coverUrl;
+      }
+      const base64 = await blobUrlToBase64(coverUrl);
+      if (base64) return base64;
     }
     return '';
   };
@@ -251,6 +279,18 @@ export function useEpub() {
       newBook.locations.generate(1024).then(() => {
         setLocationsReady(true);
         locationsReadyRef.current = true;
+        try {
+          const rendition: any = renditionRef.current;
+          if (rendition && typeof rendition.currentLocation === 'function') {
+            const loc = rendition.currentLocation();
+            if (loc?.start?.cfi) {
+              const pct = newBook.locations.percentageFromCfi(loc.start.cfi);
+              setProgress(Math.round(pct * 100 * 100) / 100);
+            }
+          }
+        } catch (e) {
+          console.warn('locations ready 后计算进度失败:', e);
+        }
       }).catch((err: any) => {
         console.warn('生成阅读位置失败:', err);
       });
@@ -313,7 +353,22 @@ export function useEpub() {
         if (bookRef.current?.locations && locationsReadyRef.current) {
           try {
             const pct = bookRef.current.locations.percentageFromCfi(location.start.cfi);
-            setProgress(Math.round(pct * 100 * 100) / 100);
+            const rounded = Math.round(pct * 100 * 100) / 100;
+            console.log('[progress] locations 计算进度:', rounded, '%');
+            setProgress(rounded);
+          } catch (e) {
+            console.warn('[progress] locations 计算失败:', e);
+          }
+        } else if (location.start.index != null && bookRef.current) {
+          try {
+            const spine = (bookRef.current as any).spine;
+            const total = spine?.items?.length || spine?.length || 0;
+            if (total > 0) {
+              const estimated = Math.round((location.start.index / (total - 1 || 1)) * 100 * 100) / 100;
+              const clamped = Math.max(0, Math.min(100, estimated));
+              console.log('[progress] spine 估算进度:', clamped, '% (index:', location.start.index, 'total:', total, ')');
+              setProgress(clamped);
+            }
           } catch (e) {
             // ignore
           }

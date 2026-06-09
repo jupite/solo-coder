@@ -87,11 +87,16 @@ export default function ReaderView() {
   }, [bookTitle, setBookTitle]);
 
   useEffect(() => {
-    if (cover && currentBookId) {
-      const books = storage.getBooks();
-      const book = books.find((b) => b.id === currentBookId);
-      if (book && !book.cover) {
-        storage.saveBook({ ...book, cover });
+    if (cover && currentBookId && cover.startsWith('data:')) {
+      try {
+        const books = storage.getBooks();
+        const book = books.find((b) => b.id === currentBookId);
+        if (book && !book.cover) {
+          console.log('[封面保存] 正在保存封面，长度:', cover.length);
+          storage.saveBook({ ...book, cover });
+        }
+      } catch (e) {
+        console.warn('[封面保存] 失败，可能超出 localStorage 容量:', e);
       }
     }
   }, [cover, currentBookId]);
