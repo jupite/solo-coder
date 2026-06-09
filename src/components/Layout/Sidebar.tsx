@@ -11,6 +11,107 @@ const normalizeHref = (href: string): string => {
   return href.split('#')[0].replace(/^\.\//, '').replace(/^\//, '');
 };
 
+interface TocItemNodeProps {
+  item: TocItem;
+  level: number;
+  normalizedCurrentHref: string;
+  currentChapter: string;
+  goToHrefFn: ((href: string) => void) | null;
+  activeText: string;
+  textColor: string;
+  activeBg: string;
+  mutedColor: string;
+}
+
+function TocItemNode({
+  item,
+  level,
+  normalizedCurrentHref,
+  currentChapter,
+  goToHrefFn,
+  activeText,
+  textColor,
+  activeBg,
+  mutedColor,
+}: TocItemNodeProps) {
+  const isItemActive = (it: TocItem): boolean => {
+    if (currentChapter && currentChapter === it.label) return true;
+    if (normalizedCurrentHref) {
+      const normalizedItem = normalizeHref(it.href);
+      if (normalizedItem === normalizedCurrentHref) return true;
+      if (normalizedCurrentHref.startsWith(normalizedItem) || normalizedItem.startsWith(normalizedCurrentHref)) return true;
+    }
+    return false;
+  };
+
+  const checkHasActiveChild = (children: TocItem[]): boolean => {
+    return children.some(child => {
+      if (isItemActive(child)) return true;
+      return child.children ? checkHasActiveChild(child.children) : false;
+    });
+  };
+
+  const isActive = isItemActive(item);
+  const hasChildren = item.children && item.children.length > 0;
+  const initialExpanded = hasChildren ? checkHasActiveChild(item.children!) || true : false;
+  const [expanded, setExpanded] = useState(initialExpanded);
+
+  const handleClick = () => {
+    if (goToHrefFn) goToHrefFn(item.href);
+  };
+
+  return (
+    <div>
+      <div
+        className={`flex items-center cursor-pointer py-2 px-3 rounded-lg transition-colors duration-150
+          ${isActive ? 'font-semibold' : ''}`}
+        style={{
+          paddingLeft: `${level * 16 + 12}px`,
+          color: isActive ? activeText : textColor,
+          backgroundColor: isActive ? activeBg : 'transparent',
+        }}
+        onClick={handleClick}
+      >
+        {hasChildren && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded(!expanded);
+            }}
+            className="mr-1 p-0.5 -ml-1"
+            style={{ color: mutedColor }}
+          >
+            <ChevronRight
+              className="w-4 h-4 transition-transform duration-200"
+              style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
+            />
+          </button>
+        )}
+        {!hasChildren && <span className="w-4" />}
+        <span className="text-sm truncate font-serif">{item.label}</span>
+      </div>
+      {hasChildren && expanded && (
+        <div>
+          {item.children!.map((child) => (
+            <TocItemNode
+              key={child.id}
+              item={child}
+              level={level + 1}
+              normalizedCurrentHref={normalizedCurrentHref}
+              currentChapter={currentChapter}
+              goToHrefFn={goToHrefFn}
+              activeText={activeText}
+              textColor={textColor}
+              activeBg={activeBg}
+              mutedColor={mutedColor}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Sidebar() {
   const location = useLocation();
   const {
@@ -27,8 +128,11 @@ export default function Sidebar() {
   const { theme, currentTheme, fontSize, setFontSize, setTheme } = useTheme();
   const { bookmarks, isCurrentPageBookmarked, removeBookmark } = useBookmarks(currentBookId || '');
 
+  const normalizedCurrentHref = useMemo(() => normalizeHref(currentHref), [currentHref]);
+
+  isCurrentPageBookmarked(currentCfi);
+
   const isReader = location.pathname === '/reader';
-  const bookId = currentBookId || '';
 
   const bgColor = currentTheme.background;
   const borderColor = theme === 'night' ? '#333' : theme === 'eye' ? '#e5dfcc' : '#e5e7eb';
@@ -36,8 +140,6 @@ export default function Sidebar() {
   const activeText = theme === 'night' ? '#fff' : theme === 'eye' ? '#3d2f1f' : '#111827';
   const activeBg = theme === 'night' ? 'rgba(255,255,255,0.1)' : theme === 'eye' ? 'rgba(91,70,54,0.12)' : 'rgba(0,0,0,0.06)';
   const mutedColor = theme === 'night' ? '#666' : theme === 'eye' ? '#8b7355' : '#9ca3af';
-
-  isCurrentPageBookmarked(currentCfi);
 
   if (!activePanel) return null;
 
@@ -54,74 +156,6 @@ export default function Sidebar() {
     font: <Type className="w-4 h-4" />,
     theme: theme === 'night' ? <Moon className="w-4 h-4" /> : theme === 'eye' ? <Eye className="w-4 h-4" /> : <Sun className="w-4 h-4" />,
   }[activePanel];
-
-  const normalizedCurrentHref = useMemo(() => normalizeHref(currentHref), [currentHref]);
-
-  const isItemActive = (item: TocItem): boolean => {
-    if (currentChapter && currentChapter === item.label) return true;
-    if (normalizedCurrentHref) {
-      const normalizedItem = normalizeHref(item.href);
-      if (normalizedItem === normalizedCurrentHref) return true;
-      if (normalizedCurrentHref.startsWith(normalizedItem) || normalizedItem.startsWith(normalizedCurrentHref)) return true;
-    }
-    return false;
-  };
-
-  const checkHasActiveChild = (children: TocItem[]): boolean => {
-    return children.some(child => {
-      if (isItemActive(child)) return true;
-      return child.children ? checkHasActiveChild(child.children) : false;
-    });
-  };
-
-  const renderTocItem = (item: TocItem, level: number = 0) => {
-    const isActive = isItemActive(item);
-    const hasChildren = item.children && item.children.length > 0;
-    const initialExpanded = hasChildren ? checkHasActiveChild(item.children!) || true : false;
-    const [expanded, setExpanded] = useState(initialExpanded);
-
-    const handleClick = () => {
-      if (goToHrefFn) goToHrefFn(item.href);
-    };
-
-    return (
-      <div key={item.id}>
-        <div
-          className={`flex items-center cursor-pointer py-2 px-3 rounded-lg transition-colors duration-150
-            ${isActive ? 'font-semibold' : ''}`}
-          style={{
-            paddingLeft: `${level * 16 + 12}px`,
-            color: isActive ? activeText : textColor,
-            backgroundColor: isActive ? activeBg : 'transparent',
-          }}
-          onClick={handleClick}
-        >
-          {hasChildren && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setExpanded(!expanded);
-              }}
-              className="mr-1 p-0.5 -ml-1"
-              style={{ color: mutedColor }}
-            >
-              <ChevronRight
-                className="w-4 h-4 transition-transform duration-200"
-                style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
-              />
-            </button>
-          )}
-          {!hasChildren && <span className="w-4" />}
-          <span className="text-sm truncate font-serif">{item.label}</span>
-        </div>
-        {hasChildren && expanded && (
-          <div>
-            {item.children!.map((child) => renderTocItem(child, level + 1))}
-          </div>
-        )}
-      </div>
-    );
-  };
 
   const handleGoToBookmark = (cfi: string) => {
     if (goToCfiFn) goToCfiFn(cfi);
@@ -144,7 +178,20 @@ export default function Sidebar() {
         return (
           <div className="flex-1 overflow-y-auto py-2">
             {toc.length > 0 ? (
-              toc.map((item) => renderTocItem(item))
+              toc.map((item) => (
+                <TocItemNode
+                  key={item.id}
+                  item={item}
+                  level={0}
+                  normalizedCurrentHref={normalizedCurrentHref}
+                  currentChapter={currentChapter}
+                  goToHrefFn={goToHrefFn}
+                  activeText={activeText}
+                  textColor={textColor}
+                  activeBg={activeBg}
+                  mutedColor={mutedColor}
+                />
+              ))
             ) : (
               <p className="px-4 py-8 text-center text-sm font-serif" style={{ color: mutedColor }}>
                 暂无目录

@@ -2,7 +2,6 @@ import { Library, List, Bookmark, Type, Sun, Moon, Eye } from 'lucide-react';
 import { useReaderStore } from '@/store/readerStore';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '@/hooks/useTheme';
-import { ThemeId } from '@/types';
 
 export default function ActivityBar() {
   const navigate = useNavigate();
