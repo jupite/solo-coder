@@ -1,7 +1,7 @@
 export type ThemeId = 'white' | 'eye' | 'night';
 export type FontSize = 'small' | 'medium' | 'large';
 export type SidebarPanel = 'toc' | 'bookmarks' | 'font' | 'theme' | null;
-export type BookFormat = 'epub' | 'mobi' | 'azw' | 'azw3';
+export type BookFormat = 'epub' | 'mobi' | 'azw' | 'azw3' | 'pdf';
 
 export interface Theme {
   id: ThemeId;

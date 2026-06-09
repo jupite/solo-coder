@@ -5,7 +5,7 @@ import { useReaderStore } from '@/store/readerStore';
 import { THEMES, type BookFormat } from '@/types';
 import { storage } from '@/utils/storage';
 import { BookInfo } from '@/types';
-import { isMobiFile } from '@/utils/mobiToEpub';
+import { isMobiFile, isPdfFile } from '@/utils/mobiToEpub';
 
 export default function Bookshelf() {
   const navigate = useNavigate();
@@ -38,6 +38,7 @@ export default function Bookshelf() {
 
   const getBookFormat = (fileName: string): BookFormat => {
     const name = fileName.toLowerCase();
+    if (name.endsWith('.pdf')) return 'pdf';
     if (name.endsWith('.azw3')) return 'azw3';
     if (name.endsWith('.azw')) return 'azw';
     if (name.endsWith('.mobi')) return 'mobi';
@@ -46,6 +47,8 @@ export default function Bookshelf() {
 
   const getMimeTypeForFormat = (format: BookFormat): string => {
     switch (format) {
+      case 'pdf':
+        return 'application/pdf';
       case 'mobi':
         return 'application/x-mobipocket-ebook';
       case 'azw':
@@ -70,7 +73,7 @@ export default function Bookshelf() {
   };
 
   const handleFileSelect = async (file: File) => {
-    const isValid = file && (file.name.toLowerCase().endsWith('.epub') || isMobiFile(file));
+    const isValid = file && (file.name.toLowerCase().endsWith('.epub') || isMobiFile(file) || isPdfFile(file));
     if (!isValid) return;
 
     try {
@@ -90,7 +93,7 @@ export default function Bookshelf() {
       const format = getBookFormat(file.name);
       const bookInfo: BookInfo = {
         id: bookId,
-        title: file.name.replace(/\.(epub|mobi|azw|azw3)$/i, ''),
+        title: file.name.replace(/\.(epub|mobi|azw|azw3|pdf)$/i, ''),
         fileDataUrl: dataUrl,
         fileName: file.name,
         fileSize: file.size,
@@ -203,7 +206,7 @@ export default function Bookshelf() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".epub,.mobi,.azw,.azw3"
+            accept=".epub,.mobi,.azw,.azw3,.pdf"
             className="hidden"
             onChange={handleFileChange}
           />
@@ -227,10 +230,10 @@ export default function Bookshelf() {
               style={{ color: mutedColor }}
             />
             <p className="text-lg font-serif mb-2" style={{ color: textColor }}>
-              点击或拖拽 EPUB/MOBI 文件到此处
+              点击或拖拽 EPUB/MOBI/PDF 文件到此处
             </p>
             <p className="text-sm font-serif" style={{ color: mutedColor }}>
-              支持 .epub、.mobi、.azw、.azw3 格式文件
+              支持 .epub、.mobi、.azw、.azw3、.pdf 格式文件
             </p>
           </div>
         ) : (

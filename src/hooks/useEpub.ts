@@ -264,7 +264,7 @@ export function useEpub() {
       });
 
       const metadata = newBook.metadata;
-      const originalTitle = file.name.replace(/\.(epub|mobi|azw|azw3)$/i, '');
+      const originalTitle = file.name.replace(/\.(epub|mobi|azw|azw3|pdf)$/i, '');
       setBookTitle(metadata?.title || originalTitle);
 
       const coverUrl = await extractCover(newBook);

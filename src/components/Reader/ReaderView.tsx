@@ -2,12 +2,13 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReaderStore, getCurrentTheme, getFontSizeValue, isCurrentPageBookmarked } from '@/store/readerStore';
 import { useEpub } from '@/hooks/useEpub';
+import { usePdf } from '@/hooks/usePdf';
 import { useReadingProgress } from '@/hooks/useReadingProgress';
 import ProgressBar from '../Reader/ProgressBar';
 import { BookmarkCheck, ChevronLeft, ChevronRight, Bookmark } from 'lucide-react';
 import { THEMES } from '@/types';
 import { storage } from '@/utils/storage';
-import { isMobiFile } from '@/utils/mobiToEpub';
+import { isMobiFile, isPdfFile } from '@/utils/mobiToEpub';
 
 export default function ReaderView() {
   const navigate = useNavigate();
@@ -41,6 +42,12 @@ export default function ReaderView() {
   const fontSizeValue = getFontSizeValue();
   const bookIdForProgress = currentBookId || '';
 
+  const epubHook = useEpub();
+  const pdfHook = usePdf();
+
+  const isPdf = bookFile ? isPdfFile(bookFile) : false;
+  const bookHook = isPdf ? pdfHook : epubHook;
+
   const {
     bookTitle,
     toc,
@@ -64,7 +71,7 @@ export default function ReaderView() {
     applyTheme: applyEpubTheme,
     applyFontSize,
     applyStyles,
-  } = useEpub();
+  } = bookHook;
 
   const { saveProgress, progress: savedProgress } = useReadingProgress(bookIdForProgress);
 
@@ -141,27 +148,40 @@ export default function ReaderView() {
           applyStyles();
         }, 100);
 
-        const handleRelocated = () => {
+        if (isPdf) {
           if (savedProgress && savedProgress.cfi && !hasJumpedRef.current) {
             hasJumpedRef.current = true;
             setTimeout(() => {
               goToCfi(savedProgress.cfi);
               setShowJumpTip(true);
               setTimeout(() => setShowJumpTip(false), 3000);
-            }, 200);
+            }, 300);
           } else {
             hasJumpedRef.current = true;
           }
-        };
+        } else {
+          const handleRelocated = () => {
+            if (savedProgress && savedProgress.cfi && !hasJumpedRef.current) {
+              hasJumpedRef.current = true;
+              setTimeout(() => {
+                goToCfi(savedProgress.cfi);
+                setShowJumpTip(true);
+                setTimeout(() => setShowJumpTip(false), 3000);
+              }, 200);
+            } else {
+              hasJumpedRef.current = true;
+            }
+          };
 
-        rendition.on('relocated', handleRelocated);
+          rendition.on('relocated', handleRelocated);
 
-        return () => {
-          rendition.off('relocated', handleRelocated);
-        };
+          return () => {
+            rendition.off('relocated', handleRelocated);
+          };
+        }
       }
     }
-  }, [isLoaded, renderBook, currentTheme, fontSizeValue, applyEpubTheme, applyFontSize, applyStyles, savedProgress, goToCfi]);
+  }, [isLoaded, renderBook, currentTheme, fontSizeValue, applyEpubTheme, applyFontSize, applyStyles, savedProgress, goToCfi, isPdf]);
 
   useEffect(() => {
     if (isLoaded && currentCfi) {
@@ -230,6 +250,7 @@ export default function ReaderView() {
 
   if (isLoading) {
     const isMobi = bookFile ? isMobiFile(bookFile) : false;
+    const loadingPdf = bookFile ? isPdfFile(bookFile) : false;
     return (
       <div
         className="flex-1 flex items-center justify-center"
@@ -241,7 +262,7 @@ export default function ReaderView() {
             style={{ borderColor: currentTheme.text, borderTopColor: 'transparent' }}
         />
           <p className="font-serif" style={{ color: currentTheme.text }}>
-            {isMobi ? '正在转换 MOBI 书籍...' : '正在加载书籍...'}
+            {loadingPdf ? '正在加载 PDF 书籍...' : isMobi ? '正在转换 MOBI 书籍...' : '正在加载书籍...'}
           </p>
           {isMobi && (
             <p className="text-sm font-serif mt-2 opacity-70" style={{ color: currentTheme.text }}>

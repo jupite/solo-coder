@@ -13,7 +13,7 @@ import {
 type EBookInstance = Mobi | Kf8;
 
 function getSpine(book: EBookInstance): Array<{ id: string; [key: string]: unknown }> {
-  return book.getSpine() as Array<{ id: string; [key: string]: unknown }>;
+  return book.getSpine() as unknown as Array<{ id: string; [key: string]: unknown }>;
 }
 
 function getToc(book: EBookInstance): MobiToc {
@@ -293,6 +293,11 @@ export async function mobiToEpub(file: File): Promise<ArrayBuffer> {
   } finally {
     book.destroy();
   }
+}
+
+export function isPdfFile(file: File): boolean {
+  const name = file.name.toLowerCase();
+  return name.endsWith('.pdf');
 }
 
 export function isMobiFile(file: File): boolean {
