@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useReaderStore } from '@/store/readerStore';
+import { useReaderStore, getCurrentTheme, getFontSizeValue, isCurrentPageBookmarked } from '@/store/readerStore';
 import { useEpub } from '@/hooks/useEpub';
-import { useTheme } from '@/hooks/useTheme';
-import { useBookmarks } from '@/hooks/useBookmarks';
 import { useReadingProgress } from '@/hooks/useReadingProgress';
 import ProgressBar from '../Reader/ProgressBar';
 import { BookmarkCheck, ChevronLeft, ChevronRight, Bookmark } from 'lucide-react';
+import { THEMES } from '@/types';
+import { storage } from '@/utils/storage';
 
 export default function ReaderView() {
   const navigate = useNavigate();
@@ -22,6 +22,11 @@ export default function ReaderView() {
     setGoToCfiFn,
     setActivePanel,
     resetReaderState,
+    theme,
+    fontSize,
+    toggleBookmark,
+    loadBookmarks,
+    bookmarks,
   } = useReaderStore();
 
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -30,6 +35,10 @@ export default function ReaderView() {
   const [showJumpTip, setShowJumpTip] = useState(false);
   const hasJumpedRef = useRef(false);
   const isFirstRenderRef = useRef(true);
+
+  const currentTheme = THEMES.find((t) => t.id === theme)!;
+  const fontSizeValue = getFontSizeValue();
+  const bookIdForProgress = currentBookId || '';
 
   const {
     bookTitle,
@@ -43,6 +52,7 @@ export default function ReaderView() {
     bookId,
     locationsReady,
     loadError,
+    cover,
     loadBook,
     renderBook,
     nextPage,
@@ -55,9 +65,13 @@ export default function ReaderView() {
     applyStyles,
   } = useEpub();
 
-  const { theme, currentTheme, fontSizeValue } = useTheme();
-  const { toggleBookmark, isCurrentPageBookmarked } = useBookmarks(currentBookId || bookId);
-  const { saveProgress, progress: savedProgress } = useReadingProgress(currentBookId || bookId);
+  const { saveProgress, progress: savedProgress } = useReadingProgress(bookIdForProgress);
+
+  useEffect(() => {
+    if (currentBookId) {
+      loadBookmarks(currentBookId);
+    }
+  }, [currentBookId, loadBookmarks]);
 
   useEffect(() => {
     setGoToHrefFn(goToHref);
@@ -71,6 +85,16 @@ export default function ReaderView() {
   useEffect(() => {
     if (bookTitle) setBookTitle(bookTitle);
   }, [bookTitle, setBookTitle]);
+
+  useEffect(() => {
+    if (cover && currentBookId) {
+      const books = storage.getBooks();
+      const book = books.find((b) => b.id === currentBookId);
+      if (book && !book.cover) {
+        storage.saveBook({ ...book, cover });
+      }
+    }
+  }, [cover, currentBookId]);
 
   useEffect(() => {
     setToc(toc);
@@ -147,7 +171,7 @@ export default function ReaderView() {
     if (isLoaded) {
       applyFontSize(fontSizeValue);
     }
-  }, [fontSizeValue, applyFontSize, isLoaded]);
+  }, [fontSize, applyFontSize, fontSizeValue, isLoaded]);
 
   const handleNextPage = useCallback(async () => {
     if (isTurning) return;
@@ -191,7 +215,7 @@ export default function ReaderView() {
   };
 
   const handleBookmarkToggle = () => {
-    toggleBookmark(currentCfi, currentChapter, progress);
+    toggleBookmark(currentBookId || bookId, currentCfi, currentChapter, progress);
   };
 
   const isBookmarked = isCurrentPageBookmarked(currentCfi);

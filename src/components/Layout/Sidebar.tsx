@@ -1,7 +1,5 @@
-import { useReaderStore } from '@/store/readerStore';
-import { useTheme } from '@/hooks/useTheme';
-import { useBookmarks } from '@/hooks/useBookmarks';
-import { TocItem, FONT_SIZE_LABELS, THEMES, FontSize, ThemeId } from '@/types';
+import { useReaderStore, isCurrentPageBookmarked as checkBookmarked } from '@/store/readerStore';
+import { FONT_SIZE_LABELS, THEMES, FontSize, ThemeId, TocItem } from '@/types';
 import { ChevronRight, BookMarked, Trash2, X, Type, Sun, Moon, Eye, List } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -14,9 +12,9 @@ const normalizeHref = (href: string): string => {
 interface TocItemNodeProps {
   item: TocItem;
   level: number;
+  parentId: string;
   normalizedCurrentHref: string;
   currentChapter: string;
-  goToHrefFn: ((href: string) => void) | null;
   activeText: string;
   textColor: string;
   activeBg: string;
@@ -26,14 +24,16 @@ interface TocItemNodeProps {
 function TocItemNode({
   item,
   level,
+  parentId,
   normalizedCurrentHref,
   currentChapter,
-  goToHrefFn,
   activeText,
   textColor,
   activeBg,
   mutedColor,
 }: TocItemNodeProps) {
+  const { goToHrefFn } = useReaderStore();
+
   const isItemActive = (it: TocItem): boolean => {
     if (currentChapter && currentChapter === it.label) return true;
     if (normalizedCurrentHref) {
@@ -57,8 +57,12 @@ function TocItemNode({
   const [expanded, setExpanded] = useState(initialExpanded);
 
   const handleClick = () => {
-    if (goToHrefFn) goToHrefFn(item.href);
+    if (goToHrefFn && item.href) {
+      goToHrefFn(item.href);
+    }
   };
+
+  const nodeKey = `${parentId}-${item.id}`;
 
   return (
     <div>
@@ -94,12 +98,12 @@ function TocItemNode({
         <div>
           {item.children!.map((child) => (
             <TocItemNode
-              key={child.id}
+              key={`${nodeKey}-${child.id}`}
               item={child}
               level={level + 1}
+              parentId={nodeKey}
               normalizedCurrentHref={normalizedCurrentHref}
               currentChapter={currentChapter}
-              goToHrefFn={goToHrefFn}
               activeText={activeText}
               textColor={textColor}
               activeBg={activeBg}
@@ -122,15 +126,19 @@ export default function Sidebar() {
     currentChapter,
     currentHref,
     currentCfi,
-    goToHrefFn,
+    theme,
+    setTheme,
+    fontSize,
+    setFontSize,
+    bookmarks,
+    removeBookmark,
     goToCfiFn,
   } = useReaderStore();
-  const { theme, currentTheme, fontSize, setFontSize, setTheme } = useTheme();
-  const { bookmarks, isCurrentPageBookmarked, removeBookmark } = useBookmarks(currentBookId || '');
 
+  const currentTheme = THEMES.find((t) => t.id === theme)!;
   const normalizedCurrentHref = useMemo(() => normalizeHref(currentHref), [currentHref]);
 
-  isCurrentPageBookmarked(currentCfi);
+  checkBookmarked(currentCfi);
 
   const isReader = location.pathname === '/reader';
 
@@ -180,12 +188,12 @@ export default function Sidebar() {
             {toc.length > 0 ? (
               toc.map((item) => (
                 <TocItemNode
-                  key={item.id}
+                  key={`root-${item.id}`}
                   item={item}
                   level={0}
+                  parentId="root"
                   normalizedCurrentHref={normalizedCurrentHref}
                   currentChapter={currentChapter}
-                  goToHrefFn={goToHrefFn}
                   activeText={activeText}
                   textColor={textColor}
                   activeBg={activeBg}
@@ -226,7 +234,7 @@ export default function Sidebar() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          removeBookmark(bookmark.id);
+                          removeBookmark(currentBookId || '', bookmark.id);
                         }}
                         className="p-1.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/20 transition-all"
                         style={{ color: theme === 'night' ? '#f87171' : '#ef4444' }}

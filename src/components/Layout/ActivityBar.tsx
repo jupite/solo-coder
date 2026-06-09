@@ -1,14 +1,14 @@
 import { Library, List, Bookmark, Type, Sun, Moon, Eye } from 'lucide-react';
 import { useReaderStore } from '@/store/readerStore';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useTheme } from '@/hooks/useTheme';
+import { THEMES } from '@/types';
 
 export default function ActivityBar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { activePanel, togglePanel, setActivePanel } = useReaderStore();
-  const { theme, currentTheme } = useTheme();
+  const { activePanel, togglePanel, setActivePanel, theme } = useReaderStore();
 
+  const currentTheme = THEMES.find((t) => t.id === theme)!;
   const isReader = location.pathname === '/reader';
 
   const handleGoHome = () => {

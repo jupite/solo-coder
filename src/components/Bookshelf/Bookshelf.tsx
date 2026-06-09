@@ -2,16 +2,17 @@ import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, BookOpen, Upload } from 'lucide-react';
 import { useReaderStore } from '@/store/readerStore';
-import { useTheme } from '@/hooks/useTheme';
+import { THEMES } from '@/types';
 import { storage } from '@/utils/storage';
 import { BookInfo } from '@/types';
 
 export default function Bookshelf() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { books, loadBooks, addBook, deleteBook, setBookFile } = useReaderStore();
-  const { theme, currentTheme } = useTheme();
+  const { books, loadBooks, addBook, deleteBook, setBookFile, theme, loadBookmarks } = useReaderStore();
   const [isDragging, setIsDragging] = useState(false);
+
+  const currentTheme = THEMES.find((t) => t.id === theme)!;
 
   useEffect(() => {
     loadBooks();
@@ -57,6 +58,7 @@ export default function Bookshelf() {
         const bookFile = dataUrlToFile(existing.fileDataUrl, existing.fileName);
         setBookFile(bookFile, existing.id);
         storage.updateBookLastRead(existing.id);
+        loadBookmarks(existing.id);
         navigate('/reader');
         return;
       }
@@ -107,6 +109,7 @@ export default function Bookshelf() {
       const bookFile = dataUrlToFile(book.fileDataUrl, book.fileName);
       setBookFile(bookFile, book.id);
       storage.updateBookLastRead(book.id);
+      loadBookmarks(book.id);
       navigate('/reader');
     } catch (error) {
       console.error('打开书籍失败:', error);
@@ -232,19 +235,30 @@ export default function Bookshelf() {
                   </button>
 
                   <div
-                    className="h-44 flex items-center justify-center"
+                    className="h-44 flex items-center justify-center overflow-hidden"
                     style={{
-                      background: theme === 'night'
+                      background: book.cover ? 'transparent' : theme === 'night'
                         ? 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)'
                         : theme === 'eye'
                         ? 'linear-gradient(135deg, #f5efdc 0%, #e8dfc8 100%)'
                         : 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)',
                     }}
                   >
-                    <BookOpen
-                      className="w-14 h-14"
-                      style={{ color: mutedColor }}
-                    />
+                    {book.cover ? (
+                      <img
+                        src={book.cover}
+                        alt={book.title}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <BookOpen
+                        className="w-14 h-14"
+                        style={{ color: mutedColor }}
+                      />
+                    )}
                   </div>
 
                   <div className="p-4">

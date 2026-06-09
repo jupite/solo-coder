@@ -24,24 +24,86 @@ export function useEpub() {
   const [bookId, setBookId] = useState<string>('');
   const [locationsReady, setLocationsReady] = useState<boolean>(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [cover, setCover] = useState<string>('');
   const renditionRef = useRef<Rendition | null>(null);
   const bookRef = useRef<Book | null>(null);
   const tocRef = useRef<TocItem[]>([]);
   const locationsReadyRef = useRef<boolean>(false);
   const sectionsMapRef = useRef<Map<string, SectionInfo>>(new Map());
 
-  const parseToc = (items: any[]): TocItem[] => {
-    return items.map((item, index) => ({
-      id: `${item.href}-${index}`,
-      label: item.label,
-      href: item.href,
-      children: item.subitems ? parseToc(item.subitems) : undefined,
-    }));
+  const extractCover = async (bookObj: Book): Promise<string> => {
+    try {
+      const coverUrl = await (bookObj as any).coverUrl();
+      if (coverUrl) {
+        return coverUrl;
+      }
+    } catch (e) {
+      // ignore
+    }
+    try {
+      const manifest = (bookObj as any).package?.manifest;
+      if (manifest) {
+        for (const key in manifest) {
+          const item = manifest[key];
+          if (
+            item?.properties === 'cover-image' ||
+            item?.href?.toLowerCase().includes('cover')
+          ) {
+            const url = await (bookObj as any).archive.createURL(item.href);
+            if (url) return url;
+          }
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return '';
+  };
+
+  const parseToc = (items: any[], parentHref: string = '', depth: number = 0): TocItem[] => {
+    let globalIndex = 0;
+    const resolveHref = (href: string, parent: string): string => {
+      if (!href) return parent || '';
+      if (href.startsWith('http') || href.startsWith('/')) return href;
+      if (href.startsWith('#')) return parent + href;
+      if (!parent) return href;
+      const parentPath = parent.substring(0, parent.lastIndexOf('/') + 1);
+      return parentPath + href;
+    };
+
+    const processItems = (list: any[], parent: string, level: number): TocItem[] => {
+      return list.map((item, idx) => {
+        const resolvedHref = resolveHref(item.href || '', parent);
+        const id = `toc-${level}-${idx}-${globalIndex++}-${item.href || 'no-href'}`;
+        return {
+          id,
+          label: item.label || '',
+          href: resolvedHref,
+          children: item.subitems && item.subitems.length > 0
+            ? processItems(item.subitems, item.href ? resolvedHref : parent, level + 1)
+            : undefined,
+        } as TocItem;
+      });
+    };
+
+    return processItems(items, parentHref, depth);
+  };
+
+  const resolveRelativePath = (href: string): string => {
+    if (!href) return '';
+    let parts = href.split('#');
+    let path = parts[0];
+    const hash = parts[1] ? '#' + parts[1] : '';
+    path = path.replace(/^\.\//, '').replace(/^\//, '');
+    while (path.includes('../')) {
+      path = path.replace(/^([^/]*\/)?\.\.\//, '');
+    }
+    return path + hash;
   };
 
   const normalizeHref = (href: string): string => {
     if (!href) return '';
-    return href.split('#')[0].replace(/^\.\//, '').replace(/^\//, '');
+    return resolveRelativePath(href).split('#')[0];
   };
 
   const buildSectionsMap = (bookObj: Book) => {
@@ -101,15 +163,33 @@ export function useEpub() {
 
   const resolveTocHref = (tocHref: string): string => {
     if (!tocHref) return '';
+    const hashPart = tocHref.includes('#') ? '#' + tocHref.split('#')[1] : '';
     const normalized = normalizeHref(tocHref);
-    const section = sectionsMapRef.current.get(normalized);
-    if (section) {
-      if (tocHref.includes('#')) {
-        const hash = tocHref.split('#')[1];
-        return `${section.href}#${hash}`;
-      }
-      return section.href;
+
+    const exact = sectionsMapRef.current.get(normalized);
+    if (exact) {
+      return exact.href + hashPart;
     }
+
+    for (const [key, section] of sectionsMapRef.current.entries()) {
+      if (key === normalized) {
+        return section.href + hashPart;
+      }
+      if (normalized.endsWith(key) || key.endsWith(normalized)) {
+        return section.href + hashPart;
+      }
+      if (normalized && key && (normalized.includes(key) || key.includes(normalized))) {
+        return section.href + hashPart;
+      }
+    }
+
+    const resolvedWithRelative = resolveRelativePath(tocHref);
+    const normalized2 = normalizeHref(resolvedWithRelative);
+    const exact2 = sectionsMapRef.current.get(normalized2);
+    if (exact2) {
+      return exact2.href + hashPart;
+    }
+
     return tocHref;
   };
 
@@ -150,6 +230,9 @@ export function useEpub() {
 
       const metadata = newBook.metadata;
       setBookTitle(metadata?.title || file.name.replace(/\.epub$/i, ''));
+
+      const coverUrl = await extractCover(newBook);
+      setCover(coverUrl);
 
       buildSectionsMap(newBook);
 
@@ -288,21 +371,41 @@ export function useEpub() {
   const goToHref = useCallback((href: string) => {
     if (!renditionRef.current || !href) return Promise.resolve();
 
-    try {
+    console.log('[goToHref 跳转:', href);
+
+    const tryDisplay = async (targetHref: string): Promise<any> => {
+      if (!renditionRef.current) return Promise.resolve();
+      try {
+        return await renditionRef.current.display(targetHref);
+      } catch (e) {
+        return Promise.reject(e);
+      }
+    };
+
+    const tryAll = async () => {
       const resolved = resolveTocHref(href);
-      return renditionRef.current.display(resolved).catch((err: any) => {
-        console.warn('goToHref 跳转失败, resolved:', resolved, 'error:', err?.message || err);
-        const fallback = normalizeHref(href);
-        if (fallback && fallback !== resolved) {
-          return renditionRef.current?.display(fallback).catch((err2: any) => {
-            console.warn('goToHref fallback 也失败:', err2?.message || err2);
-          });
-        }
+      const normalized = normalizeHref(href);
+      const relativeResolved = resolveRelativePath(href);
+
+      const attempts = [
+        resolved,
+        href,
+        normalized,
+        relativeResolved,
+      ].filter((v, i, a) => v && a.indexOf(v) === i);
+
+      console.log('尝试跳转的href列表:', attempts);
+
+      let chain: Promise<any> = Promise.reject();
+      for (const target of attempts) {
+        chain = chain.catch(() => tryDisplay(target));
+      }
+      return chain.catch((err) => {
+        console.warn('所有跳转fallback都失败:', err?.message || err);
       });
-    } catch (err: any) {
-      console.warn('goToHref 跳转失败:', err?.message || err);
-    }
-    return Promise.resolve();
+    };
+
+    return tryAll();
   }, []);
 
   const applyTheme = useCallback((background: string, text: string) => {
@@ -387,6 +490,7 @@ export function useEpub() {
     bookId,
     locationsReady,
     loadError,
+    cover,
     loadBook,
     renderBook,
     nextPage,

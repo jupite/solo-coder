@@ -40,6 +40,7 @@ export interface BookInfo {
   fileSize: number;
   addedAt: number;
   lastReadAt?: number;
+  cover?: string;
 }
 
 export const THEMES: Theme[] = [
