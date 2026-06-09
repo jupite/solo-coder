@@ -13,16 +13,15 @@ import {
   RotateCcw,
   Square,
   Eraser,
-  User,
   Package,
   Target,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Pause,
   Trash2,
   Droplets,
   Flame,
-  ArrowDown,
 } from 'lucide-react';
 
 type GravityToolType = 'floor' | 'wall' | 'target' | 'box' | 'bluePlayer' | 'redPlayer' | 'erase';
@@ -193,7 +192,6 @@ function GravityEditorGrid({
   selectedArea,
   onCellClick,
   onCellDrag,
-  isPlaying,
 }: {
   grid: CellType[][];
   boxes: Position[];
@@ -203,7 +201,6 @@ function GravityEditorGrid({
   selectedArea: { startX: number; startY: number; endX: number; endY: number } | null;
   onCellClick: (x: number, y: number) => void;
   onCellDrag: (x: number, y: number) => void;
-  isPlaying?: boolean;
 }) {
   const rows = grid.length;
   const cols = grid[0]?.length ?? 0;
@@ -361,7 +358,6 @@ export function DuoGravityLevelEditor({ editingLevelId }: { editingLevelId?: str
     const hasBox = boxes.some((b) => b.x === x && b.y === y);
     const hasBluePlayer = bluePlayer && bluePlayer.x === x && bluePlayer.y === y;
     const hasRedPlayer = redPlayer && redPlayer.x === x && redPlayer.y === y;
-    const hasTarget = targets.some((t) => t.x === x && t.y === y);
 
     if (excludeType === 'wall') return false;
     if (excludeType === 'target') return hasWall || hasBox || !!hasBluePlayer || !!hasRedPlayer;
@@ -371,7 +367,7 @@ export function DuoGravityLevelEditor({ editingLevelId }: { editingLevelId?: str
     if (excludeType === 'erase') return false;
 
     return hasWall || hasBox || !!hasBluePlayer || !!hasRedPlayer;
-  }, [grid, boxes, targets, bluePlayer, redPlayer]);
+  }, [grid, boxes, bluePlayer, redPlayer]);
 
   const placeTool = useCallback((x: number, y: number) => {
     if (isPlaying) return;
@@ -513,16 +509,9 @@ export function DuoGravityLevelEditor({ editingLevelId }: { editingLevelId?: str
   const handleMove = useCallback((direction: Direction) => {
     if (!gameState || !isPlaying) return;
 
-    let actualPlayer = activePlayer;
-    if (activePlayer === 'blue' && gameState.bluePlayer.onTarget) {
-      actualPlayer = 'red';
-    } else if (activePlayer === 'red' && gameState.redPlayer.onTarget) {
-      actualPlayer = 'blue';
-    }
-
     setGameState((prev) => {
       if (!prev) return prev;
-      const next = moveDuoGravityPlayer(prev, actualPlayer, direction);
+      const next = moveDuoGravityPlayer(prev, activePlayer, direction);
       if (next.isWin) {
         setMessage('恭喜！重力关卡完成！已验证可通关。');
         setHasCompletedPlaythrough(true);
@@ -707,13 +696,15 @@ export function DuoGravityLevelEditor({ editingLevelId }: { editingLevelId?: str
             selectedArea={null}
             onCellClick={handleCellClick}
             onCellDrag={handleCellDrag}
-            isPlaying={isPlaying}
           />
 
           {isPlaying && (
             <div className="absolute bottom-4 left-4 glass-card p-2 flex items-center gap-1">
               <button onClick={() => handleMove('left')} className="w-12 h-12 bg-white/10 hover:bg-white/20 rounded flex items-center justify-center transition-colors">
                 <ChevronLeft className="w-6 h-6" />
+              </button>
+              <button onClick={() => handleMove('up')} className="w-12 h-12 bg-white/10 hover:bg-white/20 rounded flex items-center justify-center transition-colors">
+                <ChevronUp className="w-6 h-6" />
               </button>
               <button onClick={() => handleMove('right')} className="w-12 h-12 bg-white/10 hover:bg-white/20 rounded flex items-center justify-center transition-colors">
                 <ChevronRight className="w-6 h-6" />
@@ -802,14 +793,14 @@ export function DuoGravityLevelEditor({ editingLevelId }: { editingLevelId?: str
 
         <div className="glass-card p-4 text-xs text-slate-400 leading-relaxed">
           <p className="text-slate-300 font-medium mb-2">重力模式说明</p>
+          <p>角色和箱子受重力影响</p>
           <p>角色可以左右上移动</p>
-          <p>按上可攀登1格高的墙或箱子</p>
-          <p>箱子受重力影响下落</p>
+          <p>按上键可攀登1格高的障碍或箱子</p>
           <p>推动箱子时堆叠的箱子同步移动</p>
-          <p>两个目标点，角色不消失</p>
-          <p>位置不分角色，都归位即通关</p>
+          <p>两个角色都站在目标点即为通关</p>
+          <p>角色到达目标点不会消失，可继续移动</p>
           <p className="mt-2 text-slate-500">A/D 或 ←/→：左右移动</p>
-          <p className="text-slate-500">W 或 ↑：向上攀登</p>
+          <p className="text-slate-500">W 或 ↑：向上/攀登</p>
           <p className="text-slate-500">Z：撤销 R：重置</p>
           <p className="text-slate-500">Tab：切换角色</p>
         </div>
