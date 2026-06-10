@@ -312,6 +312,9 @@ export default function ReaderView() {
   }, [clearSelection]);
 
   const handleApplyAnnotation = useCallback((style: AnnotationStyle, color: AnnotationColor) => {
+    // #region debug-point H1:handle-apply-entry
+    fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"pre",hypothesisId:"H1",location:"ReaderView.tsx:314",msg:"[DEBUG] handleApplyAnnotation called",data:{hasToolbarSelection:!!toolbarSelection,hasBookId:!!effectiveBookId,isPdf,style,color,cfiLen:toolbarSelection?.cfi?.length,cfiStartLen:toolbarSelection?.cfiStart?.length,cfiEndLen:toolbarSelection?.cfiEnd?.length,textPreview:toolbarSelection?.selectedText?.substring(0,30)},ts:Date.now()})}).catch(()=>{});
+    // #endregion
     if (!toolbarSelection || !effectiveBookId || isPdf) return;
     const newAnnotation = addAnnotation({
       bookId: effectiveBookId,
@@ -324,8 +327,16 @@ export default function ReaderView() {
       chapter: currentChapter || '未命名章节',
       percentage: Math.round(progress * 100) / 100,
     });
+    // #region debug-point H1:annotation-created
+    fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"pre",hypothesisId:"H1",location:"ReaderView.tsx:326",msg:"[DEBUG] addAnnotation returned newAnnotation",data:{newAnnotationId:newAnnotation?.id,newAnnotationStyle:newAnnotation?.style,newAnnotationColor:newAnnotation?.color,cfiStart:newAnnotation?.cfiStart,cfiEnd:newAnnotation?.cfiEnd,cfiSame:newAnnotation?.cfiStart===newAnnotation?.cfiEnd},ts:Date.now()})}).catch(()=>{});
+    // #endregion
     if (!isPdf) {
-      setTimeout(() => highlightAnnotation(newAnnotation), 50);
+      setTimeout(() => {
+        // #region debug-point H2:about-to-call-highlight
+        fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"pre",hypothesisId:"H2",location:"ReaderView.tsx:328",msg:"[DEBUG] About to call highlightAnnotation from ReaderView",data:{annotationId:newAnnotation?.id,isPdf},ts:Date.now()})}).catch(()=>{});
+        // #endregion
+        highlightAnnotation(newAnnotation);
+      }, 50);
     }
     handleCloseToolbar();
   }, [toolbarSelection, effectiveBookId, isPdf, addAnnotation, currentChapter, progress, highlightAnnotation, handleCloseToolbar]);

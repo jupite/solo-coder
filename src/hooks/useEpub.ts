@@ -337,21 +337,39 @@ export function useEpub() {
   };
 
   const highlightAnnotation = useCallback((annotation: Annotation) => {
+    // #region debug-point H2:highlight-annotation-entry
+    fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"pre",hypothesisId:"H2",location:"useEpub.ts:339",msg:"[DEBUG] highlightAnnotation called",data:{hasRendition:!!renditionRef.current,annotationId:annotation?.id,style:annotation?.style,color:annotation?.color,cfiStartLen:annotation?.cfiStart?.length,cfiEndLen:annotation?.cfiEnd?.length,cfiSame:annotation?.cfiStart===annotation?.cfiEnd,textPreview:annotation?.selectedText?.substring(0,30)},ts:Date.now()})}).catch(()=>{});
+    // #endregion
     if (!renditionRef.current) return;
     try {
       const css = getAnnotationCss(annotation.style, annotation.color);
+      // #region debug-point H3:css-and-mark-call
+      fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"pre",hypothesisId:"H3",location:"useEpub.ts:343",msg:"[DEBUG] About to call annotations.mark with params",data:{css:css,cfiStart:annotation.cfiStart,cfiEnd:annotation.cfiEnd,className:`annotation-${annotation.id}`,hasAnnotations:!!(renditionRef.current as any).annotations,typeOfMark:typeof (renditionRef.current as any).annotations?.mark},ts:Date.now()})}).catch(()=>{});
+      // #endregion
       const mark = (renditionRef.current as any).annotations.mark(annotation.cfiStart, annotation.cfiEnd, {
         'class': `annotation-${annotation.id}`,
         'style': css,
         'data-annotation-id': annotation.id,
       });
+      // #region debug-point H2:mark-returned
+      fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"pre",hypothesisId:"H2",location:"useEpub.ts:348",msg:"[DEBUG] annotations.mark returned",data:{markType:typeof mark,markHasUnmark:!!(mark&&mark.unmark),markKeys:mark?Object.keys(mark).slice(0,10):null,appliedSize:appliedHighlightsRef.current.size+1},ts:Date.now()})}).catch(()=>{});
+      // #endregion
       appliedHighlightsRef.current.set(annotation.id, mark);
+      // #region debug-point H2:verification-after-apply
+      setTimeout(()=>{try{const contents=(renditionRef.current as any).getContents?.()||[];let count=0;const foundMapSize=appliedHighlightsRef.current.size;for(const c of contents){try{const els=c.document?.querySelectorAll?.(`[data-annotation-id="${annotation.id}"]`);if(els)count+=els.length}catch{}};fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"pre",hypothesisId:"H2",location:"useEpub.ts:352",msg:"[DEBUG] DOM verification after 50ms",data:{annotationId:annotation.id,foundEls:count,storedSize:foundMapSize,contentsLength:contents.length},ts:Date.now()})}).catch(()=>{})}catch(e){}},50);
+      // #endregion
     } catch (e) {
+      // #region debug-point H4:mark-caught-error
+      fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"pre",hypothesisId:"H4",location:"useEpub.ts:357",msg:"[DEBUG] highlightAnnotation caught exception",data:{annotationId:annotation?.id,errorMessage:(e as Error)?.message,errorStack:(e as Error)?.stack?.substring(0,200)},ts:Date.now()})}).catch(()=>{});
+      // #endregion
       console.warn('标注高亮失败:', e);
     }
   }, []);
 
   const removeHighlight = useCallback((annotationId: string) => {
+    // #region debug-point H5:remove-highlight-entry
+    fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"pre",hypothesisId:"H5",location:"useEpub.ts:366",msg:"[DEBUG] removeHighlight called",data:{annotationId,hasMark:!!appliedHighlightsRef.current.get(annotationId),mapSizeBefore:appliedHighlightsRef.current.size},ts:Date.now()})}).catch(()=>{});
+    // #endregion
     try {
       const mark = appliedHighlightsRef.current.get(annotationId);
       if (mark && mark.unmark) {
