@@ -46,17 +46,29 @@ export default function AnnotationToolbar({
   }, [selectionInfo]);
 
   useEffect(() => {
+    let attached = false;
+    let timer: any = null;
     const handleClickOutside = (e: MouseEvent) => {
       if (toolbarRef.current && !toolbarRef.current.contains(e.target as Node)) {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'IFRAME' || target.closest('iframe')) {
+          return;
+        }
         onClose();
       }
     };
     if (selectionInfo) {
-      setTimeout(() => {
+      timer = setTimeout(() => {
         document.addEventListener('mousedown', handleClickOutside);
-      }, 100);
+        attached = true;
+      }, 350);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      if (timer) clearTimeout(timer);
+      if (attached) {
+        document.removeEventListener('mousedown', handleClickOutside);
+      }
+    };
   }, [selectionInfo, onClose]);
 
   if (!selectionInfo) return null;

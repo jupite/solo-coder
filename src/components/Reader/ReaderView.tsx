@@ -92,26 +92,17 @@ export default function ReaderView() {
     applyStyles,
   } = bookHook;
 
-  const epubExtras = useMemo(() => {
-    if (isPdf) {
-      return {
-        selectionInfo: null,
-        clearSelection: () => {},
-        highlightAnnotation: () => {},
-        removeHighlight: () => {},
-        renderAllAnnotations: () => {},
-      };
-    }
-    return {
-      selectionInfo: (epubHook as any).selectionInfo as SelectionInfo | null,
-      clearSelection: (epubHook as any).clearSelection as () => void,
-      highlightAnnotation: (epubHook as any).highlightAnnotation as (ann: Annotation) => void,
-      removeHighlight: (epubHook as any).removeHighlight as (id: string) => void,
-      renderAllAnnotations: (epubHook as any).renderAllAnnotations as (anns: Annotation[]) => void,
-    };
-  }, [isPdf, epubHook]);
+  const epubSelectionInfo = (epubHook as any).selectionInfo as SelectionInfo | null;
+  const epubClearSelection = (epubHook as any).clearSelection as () => void;
+  const epubHighlightAnnotation = (epubHook as any).highlightAnnotation as (ann: Annotation) => void;
+  const epubRemoveHighlight = (epubHook as any).removeHighlight as (id: string) => void;
+  const epubRenderAllAnnotations = (epubHook as any).renderAllAnnotations as (anns: Annotation[]) => void;
 
-  const { selectionInfo, clearSelection, highlightAnnotation, removeHighlight, renderAllAnnotations } = epubExtras;
+  const selectionInfo = isPdf ? null : epubSelectionInfo;
+  const clearSelection = isPdf ? () => {} : epubClearSelection;
+  const highlightAnnotation = isPdf ? () => {} : epubHighlightAnnotation;
+  const removeHighlight = isPdf ? () => {} : epubRemoveHighlight;
+  const renderAllAnnotations = isPdf ? () => {} : epubRenderAllAnnotations;
 
   const { saveProgress, progress: savedProgress } = useReadingProgress(bookIdForProgress);
 
@@ -123,9 +114,7 @@ export default function ReaderView() {
   }, [currentBookId, loadBookmarks, loadAnnotations]);
 
   useEffect(() => {
-    if (selectionInfo) {
-      setToolbarSelection(selectionInfo);
-    }
+    setToolbarSelection(selectionInfo);
   }, [selectionInfo]);
 
   useEffect(() => {
@@ -557,28 +546,28 @@ export default function ReaderView() {
             正在生成阅读进度...
           </div>
         )}
+      </div>
 
-        {!isPdf && (
-          <AnnotationToolbar
-            selectionInfo={toolbarSelection}
-            onClose={handleCloseToolbar}
-            onApply={handleApplyAnnotation}
-            onAddNote={handleAddNote}
-            theme={theme}
-          />
-        )}
-
-        <AnnotationNoteModal
-          open={noteModalOpen}
-          onClose={handleCloseNoteModal}
-          onSave={handleSaveNote}
-          selectedText={noteModalData?.selectedText || ''}
-          initialNote={noteModalData?.annotation?.note || ''}
-          color={noteModalData?.color || 'yellow'}
-          annotation={noteModalData?.annotation || null}
+      {!isPdf && (
+        <AnnotationToolbar
+          selectionInfo={toolbarSelection}
+          onClose={handleCloseToolbar}
+          onApply={handleApplyAnnotation}
+          onAddNote={handleAddNote}
           theme={theme}
         />
-      </div>
+      )}
+
+      <AnnotationNoteModal
+        open={noteModalOpen}
+        onClose={handleCloseNoteModal}
+        onSave={handleSaveNote}
+        selectedText={noteModalData?.selectedText || ''}
+        initialNote={noteModalData?.annotation?.note || ''}
+        color={noteModalData?.color || 'yellow'}
+        annotation={noteModalData?.annotation || null}
+        theme={theme}
+      />
     </div>
   );
 }

@@ -437,61 +437,94 @@ export function useEpub() {
       }
     });
 
+    let selectionTimeoutId: any = null;
     const handleSelection = () => {
-      try {
-        const contents = newRendition.getContents();
-        if (!contents || contents.length === 0) return;
-        let sel: Selection | null = null;
-        let selectedText = '';
-        for (const content of contents) {
-          const frameSel = (content as any).window?.getSelection?.() || content.document?.getSelection?.();
-          if (frameSel && frameSel.toString().trim()) {
-            sel = frameSel;
-            selectedText = frameSel.toString().trim();
-            break;
+      if (selectionTimeoutId) clearTimeout(selectionTimeoutId);
+      selectionTimeoutId = setTimeout(() => {
+        try {
+          const contents = newRendition.getContents();
+          if (!contents || contents.length === 0) return;
+          let sel: Selection | null = null;
+          let selectedText = '';
+          let ownerDoc: Document | null = null;
+          for (const content of contents) {
+            const frameWindow = (content as any).window;
+            const frameDoc: Document | undefined = content.document;
+            const frameSel = frameWindow?.getSelection?.() || frameDoc?.getSelection?.();
+            if (frameSel && frameSel.toString().trim()) {
+              sel = frameSel;
+              selectedText = frameSel.toString().trim();
+              ownerDoc = frameDoc || null;
+              break;
+            }
           }
-        }
-        if (!sel || sel.rangeCount === 0 || !selectedText) {
-          setSelectionInfo(null);
-          if (onSelectionChangeRef.current) onSelectionChangeRef.current(null);
-          return;
-        }
-        const range = sel.getRangeAt(0);
-        const cfiStart = newRendition.book?.cfiFromRange?.(range) || '';
-        let cfiEnd = '';
-        if (cfiStart) {
-          try {
-            const endRange = document.createRange();
-            endRange.setStart(range.endContainer, range.endOffset);
-            endRange.setEnd(range.endContainer, range.endOffset);
-            cfiEnd = newRendition.book?.cfiFromRange?.(endRange) || cfiStart;
-          } catch {
-            cfiEnd = cfiStart;
+          if (!sel || sel.rangeCount === 0 || !selectedText) {
+            setSelectionInfo(null);
+            if (onSelectionChangeRef.current) onSelectionChangeRef.current(null);
+            return;
           }
+          const range = sel.getRangeAt(0);
+          const cfiStart = newRendition.book?.cfiFromRange?.(range) || '';
+          let cfiEnd = '';
+          if (cfiStart) {
+            try {
+              const endRange = (ownerDoc || range.endContainer.ownerDocument || document).createRange();
+              endRange.setStart(range.endContainer, range.endOffset);
+              endRange.setEnd(range.endContainer, range.endOffset);
+              cfiEnd = newRendition.book?.cfiFromRange?.(endRange) || cfiStart;
+            } catch (err) {
+              console.warn('cfiEnd 计算失败，使用 cfiStart:', err);
+              cfiEnd = cfiStart;
+            }
+          }
+          if (selectedText) {
+            let finalCfiStart = cfiStart;
+            let finalCfiEnd = cfiEnd || cfiStart;
+            if (!finalCfiStart) {
+              try {
+                const loc = newRendition.currentLocation?.();
+                if (loc?.start?.cfi) {
+                  finalCfiStart = loc.start.cfi;
+                  finalCfiEnd = loc.end?.cfi || loc.start.cfi;
+                  console.warn('[selection] cfiFromRange 失败，使用当前位置 CFI 作为后备');
+                }
+              } catch (e) {
+                console.warn('[selection] 后备 CFI 获取也失败:', e);
+              }
+            }
+            if (finalCfiStart) {
+              const info: SelectionInfo = {
+                selectedText,
+                cfiStart: finalCfiStart,
+                cfiEnd: finalCfiEnd || finalCfiStart,
+                cfi: finalCfiStart,
+              };
+              console.log('[selection] 成功创建 SelectionInfo:', info.selectedText.substring(0, 30), 'cfiStart:', info.cfiStart.substring(0, 40) + '...');
+              setSelectionInfo(info);
+              if (onSelectionChangeRef.current) onSelectionChangeRef.current(info);
+            } else {
+              console.warn('[selection] 所有 CFI 获取方式都失败，text:', selectedText.substring(0, 30));
+            }
+          }
+        } catch (e) {
+          console.warn('获取选中文本失败:', e);
         }
-        if (cfiStart && selectedText) {
-          const info: SelectionInfo = {
-            selectedText,
-            cfiStart,
-            cfiEnd: cfiEnd || cfiStart,
-            cfi: cfiStart,
-          };
-          setSelectionInfo(info);
-          if (onSelectionChangeRef.current) onSelectionChangeRef.current(info);
-        }
-      } catch (e) {
-        console.warn('获取选中文本失败:', e);
-      }
+      }, 100);
     };
 
     const attachSelectionListeners = () => {
       try {
         const contents = newRendition.getContents();
         contents.forEach((content: any) => {
-          if (content.document) {
-            content.document.addEventListener('mouseup', handleSelection);
-            content.document.addEventListener('keyup', handleSelection);
-            content.document.addEventListener('selectionchange', handleSelection);
+          const frameDoc: Document | undefined = content.document;
+          const frameWindow = (content as any).window;
+          if (frameDoc) {
+            frameDoc.addEventListener('mouseup', handleSelection);
+            frameDoc.addEventListener('keyup', handleSelection);
+          }
+          if (frameWindow) {
+            frameWindow.addEventListener('selectionchange', handleSelection);
+            frameWindow.addEventListener('mouseup', handleSelection);
           }
         });
       } catch (e) {
