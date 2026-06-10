@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import ePub, { Book, Rendition } from 'epubjs';
-import { TocItem } from '@/types';
+import { TocItem, Annotation, AnnotationStyle, AnnotationColor, ANNOTATION_COLORS } from '@/types';
 import { convertToEpubIfNeeded } from '@/utils/mobiToEpub';
 
 interface SectionInfo {
@@ -8,6 +8,13 @@ interface SectionInfo {
   id: string;
   href: string;
   url: string;
+  cfi: string;
+}
+
+export interface SelectionInfo {
+  selectedText: string;
+  cfiStart: string;
+  cfiEnd: string;
   cfi: string;
 }
 
@@ -26,11 +33,15 @@ export function useEpub() {
   const [locationsReady, setLocationsReady] = useState<boolean>(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [cover, setCover] = useState<string>('');
+  const [selectionInfo, setSelectionInfo] = useState<SelectionInfo | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const bookRef = useRef<Book | null>(null);
   const tocRef = useRef<TocItem[]>([]);
   const locationsReadyRef = useRef<boolean>(false);
   const sectionsMapRef = useRef<Map<string, SectionInfo>>(new Map());
+  const appliedHighlightsRef = useRef<Map<string, any>>(new Map());
+  const onSelectionChangeRef = useRef<((info: SelectionInfo | null) => void) | null>(null);
+  const currentAnnotationsRef = useRef<Annotation[]>([]);
 
   const blobUrlToBase64 = async (url: string): Promise<string> => {
     try {
@@ -309,6 +320,49 @@ export function useEpub() {
     }
   }, []);
 
+  const getAnnotationCss = (style: AnnotationStyle, color: AnnotationColor): string => {
+    const colorConfig = ANNOTATION_COLORS[color];
+    switch (style) {
+      case 'highlight':
+        return `background-color: ${colorConfig.bg} !important;`;
+      case 'underline':
+        return `text-decoration: underline !important; text-decoration-color: ${colorConfig.bg} !important; text-decoration-thickness: 3px !important;`;
+      case 'strikethrough':
+        return `text-decoration: line-through !important; text-decoration-color: ${colorConfig.bg} !important; text-decoration-thickness: 2px !important;`;
+      case 'wavy':
+        return `text-decoration: underline wavy !important; text-decoration-color: ${colorConfig.bg} !important; text-decoration-thickness: 2px !important;`;
+      default:
+        return `background-color: ${colorConfig.bg} !important;`;
+    }
+  };
+
+  const highlightAnnotation = useCallback((annotation: Annotation) => {
+    if (!renditionRef.current) return;
+    try {
+      const css = getAnnotationCss(annotation.style, annotation.color);
+      const mark = (renditionRef.current as any).annotations.mark(annotation.cfiStart, annotation.cfiEnd, {
+        'class': `annotation-${annotation.id}`,
+        'style': css,
+        'data-annotation-id': annotation.id,
+      });
+      appliedHighlightsRef.current.set(annotation.id, mark);
+    } catch (e) {
+      console.warn('标注高亮失败:', e);
+    }
+  }, []);
+
+  const removeHighlight = useCallback((annotationId: string) => {
+    try {
+      const mark = appliedHighlightsRef.current.get(annotationId);
+      if (mark && mark.unmark) {
+        mark.unmark();
+      }
+      appliedHighlightsRef.current.delete(annotationId);
+    } catch (e) {
+      console.warn('移除标注失败:', e);
+    }
+  }, []);
+
   const renderBook = useCallback((container: HTMLElement) => {
     if (!bookRef.current) return;
 
@@ -383,10 +437,129 @@ export function useEpub() {
       }
     });
 
+    const handleSelection = () => {
+      try {
+        const contents = newRendition.getContents();
+        if (!contents || contents.length === 0) return;
+        let sel: Selection | null = null;
+        let selectedText = '';
+        for (const content of contents) {
+          const frameSel = (content as any).window?.getSelection?.() || content.document?.getSelection?.();
+          if (frameSel && frameSel.toString().trim()) {
+            sel = frameSel;
+            selectedText = frameSel.toString().trim();
+            break;
+          }
+        }
+        if (!sel || sel.rangeCount === 0 || !selectedText) {
+          setSelectionInfo(null);
+          if (onSelectionChangeRef.current) onSelectionChangeRef.current(null);
+          return;
+        }
+        const range = sel.getRangeAt(0);
+        const cfiStart = newRendition.book?.cfiFromRange?.(range) || '';
+        let cfiEnd = '';
+        if (cfiStart) {
+          try {
+            const endRange = document.createRange();
+            endRange.setStart(range.endContainer, range.endOffset);
+            endRange.setEnd(range.endContainer, range.endOffset);
+            cfiEnd = newRendition.book?.cfiFromRange?.(endRange) || cfiStart;
+          } catch {
+            cfiEnd = cfiStart;
+          }
+        }
+        if (cfiStart && selectedText) {
+          const info: SelectionInfo = {
+            selectedText,
+            cfiStart,
+            cfiEnd: cfiEnd || cfiStart,
+            cfi: cfiStart,
+          };
+          setSelectionInfo(info);
+          if (onSelectionChangeRef.current) onSelectionChangeRef.current(info);
+        }
+      } catch (e) {
+        console.warn('获取选中文本失败:', e);
+      }
+    };
+
+    const attachSelectionListeners = () => {
+      try {
+        const contents = newRendition.getContents();
+        contents.forEach((content: any) => {
+          if (content.document) {
+            content.document.addEventListener('mouseup', handleSelection);
+            content.document.addEventListener('keyup', handleSelection);
+            content.document.addEventListener('selectionchange', handleSelection);
+          }
+        });
+      } catch (e) {
+        console.warn('绑定选择事件失败:', e);
+      }
+    };
+
+    const reapplyAnnotations = () => {
+      try {
+        if (currentAnnotationsRef.current.length === 0) return;
+        const contents = newRendition.getContents();
+        if (!contents || contents.length === 0) return;
+        let needReapply = false;
+        for (const content of contents) {
+          const frameDoc = (content as any).document;
+          if (!frameDoc) continue;
+          for (const ann of currentAnnotationsRef.current) {
+            try {
+              const elements = frameDoc.querySelectorAll(`[data-annotation-id="${ann.id}"]`);
+              if (elements.length === 0) {
+                needReapply = true;
+                break;
+              }
+            } catch {
+              // ignore
+            }
+          }
+          if (needReapply) break;
+        }
+        if (needReapply) {
+          appliedHighlightsRef.current.forEach((_, id) => {
+            try {
+              const mark = appliedHighlightsRef.current.get(id);
+              if (mark && mark.unmark) mark.unmark();
+            } catch {
+              // ignore
+            }
+          });
+          appliedHighlightsRef.current.clear();
+          currentAnnotationsRef.current.forEach((ann: Annotation) => {
+            try {
+              const css = getAnnotationCss(ann.style, ann.color);
+              const mark = (newRendition as any).annotations.mark(ann.cfiStart, ann.cfiEnd, {
+                'class': `annotation-${ann.id}`,
+                'style': css,
+                'data-annotation-id': ann.id,
+              });
+              appliedHighlightsRef.current.set(ann.id, mark);
+            } catch (e) {
+              // ignore
+            }
+          });
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    newRendition.on('rendered', () => {
+      attachSelectionListeners();
+      setTimeout(reapplyAnnotations, 100);
+    });
+    setTimeout(attachSelectionListeners, 500);
+
     newRendition.display();
 
     return newRendition;
-  }, []);
+  }, [highlightAnnotation, removeHighlight]);
 
   const nextPage = useCallback((): Promise<any> => {
     if (renditionRef.current) {
@@ -526,6 +699,75 @@ export function useEpub() {
     }
   }, []);
 
+  const setOnSelectionChange = useCallback((cb: (info: SelectionInfo | null) => void) => {
+    onSelectionChangeRef.current = cb;
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectionInfo(null);
+    if (onSelectionChangeRef.current) {
+      onSelectionChangeRef.current(null);
+    }
+    try {
+      const contents = renditionRef.current?.getContents();
+      if (contents) {
+        contents.forEach((content: any) => {
+          const frameDoc = content.document;
+          if (frameDoc) {
+            frameDoc.getSelection()?.removeAllRanges();
+          }
+        });
+      }
+      window.getSelection()?.removeAllRanges();
+    } catch (e) {
+      console.warn('清除选中失败:', e);
+    }
+  }, []);
+
+  const renderAllAnnotations = useCallback((annotations: Annotation[]) => {
+    currentAnnotationsRef.current = annotations;
+    appliedHighlightsRef.current.forEach((_, id) => {
+      try {
+        const mark = appliedHighlightsRef.current.get(id);
+        if (mark && mark.unmark) mark.unmark();
+      } catch {
+        // ignore
+      }
+    });
+    appliedHighlightsRef.current.clear();
+    annotations.forEach((ann) => {
+      if (!renditionRef.current) return;
+      try {
+        const colorConfig = ANNOTATION_COLORS[ann.color];
+        let css = '';
+        switch (ann.style) {
+          case 'highlight':
+            css = `background-color: ${colorConfig.bg} !important;`;
+            break;
+          case 'underline':
+            css = `text-decoration: underline !important; text-decoration-color: ${colorConfig.bg} !important; text-decoration-thickness: 3px !important;`;
+            break;
+          case 'strikethrough':
+            css = `text-decoration: line-through !important; text-decoration-color: ${colorConfig.bg} !important; text-decoration-thickness: 2px !important;`;
+            break;
+          case 'wavy':
+            css = `text-decoration: underline wavy !important; text-decoration-color: ${colorConfig.bg} !important; text-decoration-thickness: 2px !important;`;
+            break;
+          default:
+            css = `background-color: ${colorConfig.bg} !important;`;
+        }
+        const mark = (renditionRef.current as any).annotations.mark(ann.cfiStart, ann.cfiEnd, {
+          'class': `annotation-${ann.id}`,
+          'style': css,
+          'data-annotation-id': ann.id,
+        });
+        appliedHighlightsRef.current.set(ann.id, mark);
+      } catch (e) {
+        // ignore
+      }
+    });
+  }, []);
+
   useEffect(() => {
     return () => {
       if (renditionRef.current) {
@@ -554,6 +796,7 @@ export function useEpub() {
     locationsReady,
     loadError,
     cover,
+    selectionInfo,
     loadBook,
     renderBook,
     nextPage,
@@ -564,5 +807,10 @@ export function useEpub() {
     applyTheme,
     applyFontSize,
     applyStyles,
+    setOnSelectionChange,
+    clearSelection,
+    highlightAnnotation,
+    removeHighlight,
+    renderAllAnnotations,
   };
 }

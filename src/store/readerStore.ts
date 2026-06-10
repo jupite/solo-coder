@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { BookInfo, SidebarPanel, TocItem, ThemeId, FontSize, Bookmark, THEMES, FONT_SIZE_MAP } from '@/types';
+import { BookInfo, SidebarPanel, TocItem, ThemeId, FontSize, Bookmark, THEMES, FONT_SIZE_MAP, Annotation, AnnotationStyle, AnnotationColor } from '@/types';
 import { storage } from '@/utils/storage';
 
 interface ReaderState {
@@ -36,6 +36,11 @@ interface ReaderState {
   loadBookmarks: (bookId: string) => void;
   toggleBookmark: (bookId: string, cfi: string, chapter: string, percentage: number) => void;
   removeBookmark: (bookId: string, bookmarkId: string) => void;
+  annotations: Annotation[];
+  loadAnnotations: (bookId: string) => void;
+  addAnnotation: (annotation: Omit<Annotation, 'id' | 'createdAt' | 'updatedAt'>) => Annotation;
+  updateAnnotation: (bookId: string, annotationId: string, updates: Partial<Annotation>) => void;
+  removeAnnotation: (bookId: string, annotationId: string) => void;
 }
 
 const normalizeCfi = (cfi: string): string => {
@@ -86,6 +91,7 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
       currentChapter: '',
       currentHref: '',
       bookmarks: [],
+      annotations: [],
     });
   },
   goToHrefFn: null,
@@ -143,6 +149,42 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   removeBookmark: (bookId, bookmarkId) => {
     storage.removeBookmark(bookId, bookmarkId);
     set({ bookmarks: get().bookmarks.filter((b) => b.id !== bookmarkId) });
+  },
+  annotations: [],
+  loadAnnotations: (bookId) => {
+    if (bookId) {
+      set({ annotations: storage.getAnnotations(bookId) });
+    } else {
+      set({ annotations: [] });
+    }
+  },
+  addAnnotation: (annotationData) => {
+    const now = Date.now();
+    const newAnnotation: Annotation = {
+      ...annotationData,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      createdAt: now,
+      updatedAt: now,
+    };
+    storage.saveAnnotation(annotationData.bookId, newAnnotation);
+    set({ annotations: [...get().annotations, newAnnotation] });
+    return newAnnotation;
+  },
+  updateAnnotation: (bookId, annotationId, updates) => {
+    const current = get().annotations;
+    const updated = current.map((a) => {
+      if (a.id === annotationId) {
+        const result = { ...a, ...updates, updatedAt: Date.now() };
+        storage.saveAnnotation(bookId, result);
+        return result;
+      }
+      return a;
+    });
+    set({ annotations: updated });
+  },
+  removeAnnotation: (bookId, annotationId) => {
+    storage.removeAnnotation(bookId, annotationId);
+    set({ annotations: get().annotations.filter((a) => a.id !== annotationId) });
   },
 }));
 

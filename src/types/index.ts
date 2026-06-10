@@ -1,7 +1,9 @@
 export type ThemeId = 'white' | 'eye' | 'night';
 export type FontSize = 'small' | 'medium' | 'large';
-export type SidebarPanel = 'toc' | 'bookmarks' | 'font' | 'theme' | null;
+export type SidebarPanel = 'toc' | 'bookmarks' | 'annotations' | 'font' | 'theme' | null;
 export type BookFormat = 'epub' | 'mobi' | 'azw' | 'azw3' | 'pdf';
+export type AnnotationStyle = 'highlight' | 'underline' | 'strikethrough' | 'wavy';
+export type AnnotationColor = 'yellow' | 'green' | 'blue' | 'pink' | 'orange';
 
 export interface Theme {
   id: ThemeId;
@@ -17,6 +19,22 @@ export interface Bookmark {
   chapter: string;
   percentage: number;
   createdAt: number;
+}
+
+export interface Annotation {
+  id: string;
+  bookId: string;
+  cfi: string;
+  cfiStart: string;
+  cfiEnd: string;
+  selectedText: string;
+  style: AnnotationStyle;
+  color: AnnotationColor;
+  note?: string;
+  chapter: string;
+  percentage: number;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface ReadingProgress {
@@ -61,4 +79,19 @@ export const FONT_SIZE_LABELS: Record<FontSize, string> = {
   small: '小',
   medium: '中',
   large: '大',
+};
+
+export const ANNOTATION_COLORS: Record<AnnotationColor, { bg: string; label: string; text: string }> = {
+  yellow: { bg: '#fef08a', label: '黄色', text: '#854d0e' },
+  green: { bg: '#bbf7d0', label: '绿色', text: '#14532d' },
+  blue: { bg: '#bfdbfe', label: '蓝色', text: '#1e3a8a' },
+  pink: { bg: '#fbcfe8', label: '粉色', text: '#831843' },
+  orange: { bg: '#fed7aa', label: '橙色', text: '#7c2d12' },
+};
+
+export const ANNOTATION_STYLES: Record<AnnotationStyle, string> = {
+  highlight: '高亮',
+  underline: '下划线',
+  strikethrough: '删除线',
+  wavy: '波浪线',
 };

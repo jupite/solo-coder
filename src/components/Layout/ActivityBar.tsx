@@ -1,4 +1,4 @@
-import { Library, List, Bookmark, Type, Sun, Moon, Eye } from 'lucide-react';
+import { Library, List, Bookmark, Type, Sun, Moon, Eye, Highlighter } from 'lucide-react';
 import { useReaderStore } from '@/store/readerStore';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { THEMES } from '@/types';
@@ -105,6 +105,24 @@ export default function ActivityBar() {
               />
             )}
             <Bookmark className="w-5 h-5" />
+          </button>
+
+          <button
+            onClick={() => togglePanel('annotations')}
+            className={`${buttonBase} ${activePanel !== 'annotations' ? 'hover:bg-black/5 dark:hover:bg-white/10' : ''}`}
+            style={{
+              color: activePanel === 'annotations' ? activeText : textColor,
+              backgroundColor: activePanel === 'annotations' ? activeBg : 'transparent',
+            }}
+            title="标注"
+          >
+            {activePanel === 'annotations' && (
+              <span
+                className={activeIndicator}
+                style={{ backgroundColor: activeText }}
+              />
+            )}
+            <Highlighter className="w-5 h-5" />
           </button>
 
           <div

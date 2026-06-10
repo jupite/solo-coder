@@ -1,8 +1,9 @@
-import { Bookmark, ReadingProgress, ThemeId, FontSize, BookInfo } from '@/types';
+import { Bookmark, ReadingProgress, ThemeId, FontSize, BookInfo, Annotation } from '@/types';
 import { saveBookFile, getBookFile, deleteBookFile } from './indexedDB';
 
 const STORAGE_KEYS = {
   BOOKMARKS: 'epub_reader_bookmarks',
+  ANNOTATIONS: 'epub_reader_annotations',
   PROGRESS: 'epub_reader_progress',
   THEME: 'epub_reader_theme',
   FONT_SIZE: 'epub_reader_font_size',
@@ -49,6 +50,48 @@ export const storage = {
       localStorage.setItem(STORAGE_KEYS.BOOKMARKS, JSON.stringify(allBookmarks));
     } catch {
       console.error('Failed to remove bookmark');
+    }
+  },
+
+  getAnnotations(bookId: string): Annotation[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.ANNOTATIONS);
+      if (!data) return [];
+      const allAnnotations = JSON.parse(data) as Record<string, Annotation[]>;
+      return allAnnotations[bookId] || [];
+    } catch {
+      return [];
+    }
+  },
+
+  saveAnnotation(bookId: string, annotation: Annotation): void {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.ANNOTATIONS);
+      const allAnnotations = data ? (JSON.parse(data) as Record<string, Annotation[]>) : {};
+      const bookAnnotations = allAnnotations[bookId] || [];
+      const existsIndex = bookAnnotations.findIndex((a) => a.id === annotation.id);
+      if (existsIndex >= 0) {
+        bookAnnotations[existsIndex] = annotation;
+      } else {
+        bookAnnotations.push(annotation);
+      }
+      allAnnotations[bookId] = bookAnnotations;
+      localStorage.setItem(STORAGE_KEYS.ANNOTATIONS, JSON.stringify(allAnnotations));
+    } catch {
+      console.error('Failed to save annotation');
+    }
+  },
+
+  removeAnnotation(bookId: string, annotationId: string): void {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.ANNOTATIONS);
+      if (!data) return;
+      const allAnnotations = JSON.parse(data) as Record<string, Annotation[]>;
+      const bookAnnotations = allAnnotations[bookId] || [];
+      allAnnotations[bookId] = bookAnnotations.filter((a) => a.id !== annotationId);
+      localStorage.setItem(STORAGE_KEYS.ANNOTATIONS, JSON.stringify(allAnnotations));
+    } catch {
+      console.error('Failed to remove annotation');
     }
   },
 

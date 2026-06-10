@@ -58,6 +58,27 @@ declare module 'epubjs' {
     percentageFromCfi(cfi: string): number;
   }
 
+  interface AnnotationMark {
+    unmark(): void;
+    mark?: any;
+  }
+
+  interface Annotations {
+    mark(cfiStart: string, cfiEnd: string, options?: {
+      class?: string;
+      style?: string;
+      'data-annotation-id'?: string;
+      [key: string]: any;
+    }): AnnotationMark;
+    [key: string]: any;
+  }
+
+  interface Contents {
+    window?: Window;
+    document?: Document;
+    [key: string]: any;
+  }
+
   class Rendition {
     display(target?: string): Promise<any>;
     next(): Promise<any>;
@@ -65,6 +86,10 @@ declare module 'epubjs' {
     destroy(): void;
     on(event: string, callback: (...args: any[]) => void): void;
     off(event: string, callback: (...args: any[]) => void): void;
+    getContents(): Contents[];
+    currentLocation(): Location | null;
+    book: Book;
+    annotations: Annotations;
     themes: {
       default(theme: any): void;
       override(property: string, value: string): void;
@@ -80,9 +105,15 @@ declare module 'epubjs' {
     navigation: Navigation;
     locations: Locations;
     packaging: any;
+    archive?: any;
+    package?: any;
+    spine?: any;
     load(URL: string): Promise<void>;
     renderTo(container: HTMLElement, options?: RenditionOptions): Rendition;
     open(url: string): Promise<any>;
+    coverUrl(): Promise<string>;
+    cfiFromRange(range: Range): string;
+    getRange(cfiStart: string, cfiEnd: string): Range | null;
   }
 
   function ePub(url: string | ArrayBuffer, options?: BookOptions): Book;

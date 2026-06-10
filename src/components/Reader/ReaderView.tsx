@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReaderStore, getCurrentTheme, getFontSizeValue, isCurrentPageBookmarked } from '@/store/readerStore';
-import { useEpub } from '@/hooks/useEpub';
+import { useEpub, SelectionInfo } from '@/hooks/useEpub';
 import { usePdf } from '@/hooks/usePdf';
 import { useReadingProgress } from '@/hooks/useReadingProgress';
 import ProgressBar from '../Reader/ProgressBar';
+import AnnotationToolbar from '../Reader/AnnotationToolbar';
+import AnnotationNoteModal from '../Reader/AnnotationNoteModal';
 import { BookmarkCheck, ChevronLeft, ChevronRight, Bookmark } from 'lucide-react';
-import { THEMES } from '@/types';
+import { THEMES, AnnotationStyle, AnnotationColor, Annotation } from '@/types';
 import { storage } from '@/utils/storage';
 import { isMobiFile, isPdfFile } from '@/utils/mobiToEpub';
 
@@ -29,6 +31,11 @@ export default function ReaderView() {
     toggleBookmark,
     loadBookmarks,
     bookmarks,
+    loadAnnotations,
+    addAnnotation,
+    updateAnnotation,
+    removeAnnotation,
+    annotations,
   } = useReaderStore();
 
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -38,9 +45,21 @@ export default function ReaderView() {
   const hasJumpedRef = useRef(false);
   const isFirstRenderRef = useRef(true);
 
+  const [toolbarSelection, setToolbarSelection] = useState<SelectionInfo | null>(null);
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [noteModalData, setNoteModalData] = useState<{
+    selectedText: string;
+    color: AnnotationColor;
+    annotation?: Annotation | null;
+    cfiStart?: string;
+    cfiEnd?: string;
+    cfi?: string;
+  } | null>(null);
+
   const currentTheme = THEMES.find((t) => t.id === theme)!;
   const fontSizeValue = getFontSizeValue();
   const bookIdForProgress = currentBookId || '';
+  const effectiveBookId = currentBookId || '';
 
   const epubHook = useEpub();
   const pdfHook = usePdf();
@@ -73,13 +92,61 @@ export default function ReaderView() {
     applyStyles,
   } = bookHook;
 
+  const epubExtras = useMemo(() => {
+    if (isPdf) {
+      return {
+        selectionInfo: null,
+        clearSelection: () => {},
+        highlightAnnotation: () => {},
+        removeHighlight: () => {},
+        renderAllAnnotations: () => {},
+      };
+    }
+    return {
+      selectionInfo: (epubHook as any).selectionInfo as SelectionInfo | null,
+      clearSelection: (epubHook as any).clearSelection as () => void,
+      highlightAnnotation: (epubHook as any).highlightAnnotation as (ann: Annotation) => void,
+      removeHighlight: (epubHook as any).removeHighlight as (id: string) => void,
+      renderAllAnnotations: (epubHook as any).renderAllAnnotations as (anns: Annotation[]) => void,
+    };
+  }, [isPdf, epubHook]);
+
+  const { selectionInfo, clearSelection, highlightAnnotation, removeHighlight, renderAllAnnotations } = epubExtras;
+
   const { saveProgress, progress: savedProgress } = useReadingProgress(bookIdForProgress);
 
   useEffect(() => {
     if (currentBookId) {
       loadBookmarks(currentBookId);
+      loadAnnotations(currentBookId);
     }
-  }, [currentBookId, loadBookmarks]);
+  }, [currentBookId, loadBookmarks, loadAnnotations]);
+
+  useEffect(() => {
+    if (selectionInfo) {
+      setToolbarSelection(selectionInfo);
+    }
+  }, [selectionInfo]);
+
+  useEffect(() => {
+    if (isLoaded && !isPdf && annotations.length > 0) {
+      const timer = setTimeout(() => {
+        renderAllAnnotations(annotations);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoaded, isPdf, annotations, renderAllAnnotations]);
+
+  const lastRenderedCfiRef = useRef('');
+  useEffect(() => {
+    if (isLoaded && !isPdf && annotations.length > 0 && currentCfi && currentCfi !== lastRenderedCfiRef.current) {
+      lastRenderedCfiRef.current = currentCfi;
+      const timer = setTimeout(() => {
+        renderAllAnnotations(annotations);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoaded, isPdf, currentCfi, annotations, renderAllAnnotations]);
 
   useEffect(() => {
     setGoToHrefFn(goToHref);
@@ -250,6 +317,82 @@ export default function ReaderView() {
 
   const isBookmarked = isCurrentPageBookmarked(currentCfi);
 
+  const handleCloseToolbar = useCallback(() => {
+    setToolbarSelection(null);
+    clearSelection();
+  }, [clearSelection]);
+
+  const handleApplyAnnotation = useCallback((style: AnnotationStyle, color: AnnotationColor) => {
+    if (!toolbarSelection || !effectiveBookId || isPdf) return;
+    const newAnnotation = addAnnotation({
+      bookId: effectiveBookId,
+      cfi: toolbarSelection.cfi,
+      cfiStart: toolbarSelection.cfiStart,
+      cfiEnd: toolbarSelection.cfiEnd,
+      selectedText: toolbarSelection.selectedText,
+      style,
+      color,
+      chapter: currentChapter || '未命名章节',
+      percentage: Math.round(progress * 100) / 100,
+    });
+    if (!isPdf) {
+      setTimeout(() => highlightAnnotation(newAnnotation), 50);
+    }
+    handleCloseToolbar();
+  }, [toolbarSelection, effectiveBookId, isPdf, addAnnotation, currentChapter, progress, highlightAnnotation, handleCloseToolbar]);
+
+  const handleAddNote = useCallback((color: AnnotationColor) => {
+    if (!toolbarSelection) return;
+    setNoteModalData({
+      selectedText: toolbarSelection.selectedText,
+      color,
+      cfiStart: toolbarSelection.cfiStart,
+      cfiEnd: toolbarSelection.cfiEnd,
+      cfi: toolbarSelection.cfi,
+    });
+    setNoteModalOpen(true);
+  }, [toolbarSelection]);
+
+  const handleSaveNote = useCallback((note: string) => {
+    if (!noteModalData) return;
+    if (noteModalData.annotation) {
+      updateAnnotation(effectiveBookId, noteModalData.annotation.id, {
+        note,
+        color: noteModalData.color,
+      });
+    } else {
+      if (!effectiveBookId || isPdf) {
+        setNoteModalOpen(false);
+        setNoteModalData(null);
+        handleCloseToolbar();
+        return;
+      }
+      const newAnnotation = addAnnotation({
+        bookId: effectiveBookId,
+        cfi: noteModalData.cfi || '',
+        cfiStart: noteModalData.cfiStart || '',
+        cfiEnd: noteModalData.cfiEnd || '',
+        selectedText: noteModalData.selectedText,
+        style: 'highlight',
+        color: noteModalData.color,
+        note,
+        chapter: currentChapter || '未命名章节',
+        percentage: Math.round(progress * 100) / 100,
+      });
+      if (!isPdf) {
+        setTimeout(() => highlightAnnotation(newAnnotation), 50);
+      }
+    }
+    setNoteModalOpen(false);
+    setNoteModalData(null);
+    handleCloseToolbar();
+  }, [noteModalData, effectiveBookId, isPdf, addAnnotation, updateAnnotation, currentChapter, progress, highlightAnnotation, handleCloseToolbar]);
+
+  const handleCloseNoteModal = useCallback(() => {
+    setNoteModalOpen(false);
+    setNoteModalData(null);
+  }, []);
+
   if (isLoading) {
     const isMobi = bookFile ? isMobiFile(bookFile) : false;
     const loadingPdf = bookFile ? isPdfFile(bookFile) : false;
@@ -414,6 +557,27 @@ export default function ReaderView() {
             正在生成阅读进度...
           </div>
         )}
+
+        {!isPdf && (
+          <AnnotationToolbar
+            selectionInfo={toolbarSelection}
+            onClose={handleCloseToolbar}
+            onApply={handleApplyAnnotation}
+            onAddNote={handleAddNote}
+            theme={theme}
+          />
+        )}
+
+        <AnnotationNoteModal
+          open={noteModalOpen}
+          onClose={handleCloseNoteModal}
+          onSave={handleSaveNote}
+          selectedText={noteModalData?.selectedText || ''}
+          initialNote={noteModalData?.annotation?.note || ''}
+          color={noteModalData?.color || 'yellow'}
+          annotation={noteModalData?.annotation || null}
+          theme={theme}
+        />
       </div>
     </div>
   );
