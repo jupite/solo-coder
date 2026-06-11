@@ -27,6 +27,7 @@ export interface Annotation {
   cfi: string;
   cfiStart: string;
   cfiEnd: string;
+  cfiRange: string;
   selectedText: string;
   style: AnnotationStyle;
   color: AnnotationColor;

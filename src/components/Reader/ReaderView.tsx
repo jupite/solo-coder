@@ -54,6 +54,7 @@ export default function ReaderView() {
     cfiStart?: string;
     cfiEnd?: string;
     cfi?: string;
+    cfiRange?: string;
   } | null>(null);
 
   const currentTheme = THEMES.find((t) => t.id === theme)!;
@@ -312,29 +313,21 @@ export default function ReaderView() {
   }, [clearSelection]);
 
   const handleApplyAnnotation = useCallback((style: AnnotationStyle, color: AnnotationColor) => {
-    // #region debug-point H1:handle-apply-entry
-    fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"pre",hypothesisId:"H1",location:"ReaderView.tsx:314",msg:"[DEBUG] handleApplyAnnotation called",data:{hasToolbarSelection:!!toolbarSelection,hasBookId:!!effectiveBookId,isPdf,style,color,cfiLen:toolbarSelection?.cfi?.length,cfiStartLen:toolbarSelection?.cfiStart?.length,cfiEndLen:toolbarSelection?.cfiEnd?.length,textPreview:toolbarSelection?.selectedText?.substring(0,30)},ts:Date.now()})}).catch(()=>{});
-    // #endregion
     if (!toolbarSelection || !effectiveBookId || isPdf) return;
     const newAnnotation = addAnnotation({
       bookId: effectiveBookId,
       cfi: toolbarSelection.cfi,
       cfiStart: toolbarSelection.cfiStart,
       cfiEnd: toolbarSelection.cfiEnd,
+      cfiRange: toolbarSelection.cfiRange || toolbarSelection.cfi || toolbarSelection.cfiStart,
       selectedText: toolbarSelection.selectedText,
       style,
       color,
       chapter: currentChapter || '未命名章节',
       percentage: Math.round(progress * 100) / 100,
     });
-    // #region debug-point H1:annotation-created
-    fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"pre",hypothesisId:"H1",location:"ReaderView.tsx:326",msg:"[DEBUG] addAnnotation returned newAnnotation",data:{newAnnotationId:newAnnotation?.id,newAnnotationStyle:newAnnotation?.style,newAnnotationColor:newAnnotation?.color,cfiStart:newAnnotation?.cfiStart,cfiEnd:newAnnotation?.cfiEnd,cfiSame:newAnnotation?.cfiStart===newAnnotation?.cfiEnd},ts:Date.now()})}).catch(()=>{});
-    // #endregion
     if (!isPdf) {
       setTimeout(() => {
-        // #region debug-point H2:about-to-call-highlight
-        fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"pre",hypothesisId:"H2",location:"ReaderView.tsx:328",msg:"[DEBUG] About to call highlightAnnotation from ReaderView",data:{annotationId:newAnnotation?.id,isPdf},ts:Date.now()})}).catch(()=>{});
-        // #endregion
         highlightAnnotation(newAnnotation);
       }, 50);
     }
@@ -349,6 +342,7 @@ export default function ReaderView() {
       cfiStart: toolbarSelection.cfiStart,
       cfiEnd: toolbarSelection.cfiEnd,
       cfi: toolbarSelection.cfi,
+      cfiRange: toolbarSelection.cfiRange,
     });
     setNoteModalOpen(true);
   }, [toolbarSelection]);
@@ -372,6 +366,7 @@ export default function ReaderView() {
         cfi: noteModalData.cfi || '',
         cfiStart: noteModalData.cfiStart || '',
         cfiEnd: noteModalData.cfiEnd || '',
+        cfiRange: noteModalData.cfiRange || noteModalData.cfi || noteModalData.cfiStart || '',
         selectedText: noteModalData.selectedText,
         style: 'highlight',
         color: noteModalData.color,
