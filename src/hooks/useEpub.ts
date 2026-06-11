@@ -321,59 +321,45 @@ export function useEpub() {
     }
   }, []);
 
-  const getAnnotationCss = (style: AnnotationStyle, color: AnnotationColor): string => {
+  const getAnnotationSvgStyles = (style: AnnotationStyle, color: AnnotationColor): Record<string, string> => {
     const colorConfig = ANNOTATION_COLORS[color];
     switch (style) {
       case 'highlight':
-        return `background-color: ${colorConfig.bg} !important;`;
+        return { fill: colorConfig.bg, 'fill-opacity': '0.4' };
       case 'underline':
-        return `text-decoration: underline !important; text-decoration-color: ${colorConfig.bg} !important; text-decoration-thickness: 3px !important;`;
+        return { stroke: colorConfig.bg, 'stroke-opacity': '0.8', 'stroke-width': '2' };
       case 'strikethrough':
-        return `text-decoration: line-through !important; text-decoration-color: ${colorConfig.bg} !important; text-decoration-thickness: 2px !important;`;
+        return { fill: colorConfig.bg, 'fill-opacity': '0.3' };
       case 'wavy':
-        return `text-decoration: underline wavy !important; text-decoration-color: ${colorConfig.bg} !important; text-decoration-thickness: 2px !important;`;
+        return { stroke: colorConfig.bg, 'stroke-opacity': '0.8', 'stroke-width': '2' };
       default:
-        return `background-color: ${colorConfig.bg} !important;`;
+        return { fill: colorConfig.bg, 'fill-opacity': '0.4' };
     }
   };
 
-  const injectAnnotationStyles = useCallback(() => {
-    try {
-      const existing = document.getElementById('epub-annotation-styles');
-      if (existing) return;
-      const style = document.createElement('style');
-      style.id = 'epub-annotation-styles';
-      style.textContent = `
-        .annotation-strikethrough rect { fill-opacity: 0.12 !important; }
-        .annotation-strikethrough line { stroke: inherit; stroke-width: 2; }
-        .annotation-wavy line { stroke-dasharray: 3 2; }
-      `;
-      document.head.appendChild(style);
-    } catch (e) {
-      console.warn('注入标注样式失败:', e);
-    }
+  const injectAnnotationCss = useCallback(() => {
+    const existing = document.getElementById('epub-annotation-svg-styles');
+    if (existing) return;
+    const style = document.createElement('style');
+    style.id = 'epub-annotation-svg-styles';
+    style.textContent = `
+      .epub-ann-yellow rect { fill: #fef08a !important; fill-opacity: 0.45 !important; }
+      .epub-ann-yellow line { stroke: #eab308 !important; stroke-opacity: 0.8 !important; stroke-width: 2 !important; }
+      .epub-ann-green rect { fill: #bbf7d0 !important; fill-opacity: 0.45 !important; }
+      .epub-ann-green line { stroke: #22c55e !important; stroke-opacity: 0.8 !important; stroke-width: 2 !important; }
+      .epub-ann-blue rect { fill: #bfdbfe !important; fill-opacity: 0.45 !important; }
+      .epub-ann-blue line { stroke: #3b82f6 !important; stroke-opacity: 0.8 !important; stroke-width: 2 !important; }
+      .epub-ann-pink rect { fill: #fbcfe8 !important; fill-opacity: 0.45 !important; }
+      .epub-ann-pink line { stroke: #ec4899 !important; stroke-opacity: 0.8 !important; stroke-width: 2 !important; }
+      .epub-ann-orange rect { fill: #fed7aa !important; fill-opacity: 0.45 !important; }
+      .epub-ann-orange line { stroke: #f97316 !important; stroke-opacity: 0.8 !important; stroke-width: 2 !important; }
+      .epub-ann-strikethrough rect { fill-opacity: 0.3 !important; }
+      .epub-ann-wavy line { stroke-dasharray: 4 2 !important; }
+    `;
+    document.head.appendChild(style);
   }, []);
 
-  const getAnnotationStyles = (style: AnnotationStyle, color: AnnotationColor): Record<string, string> => {
-    const colorConfig = ANNOTATION_COLORS[color];
-    switch (style) {
-      case 'highlight':
-        return { fill: colorConfig.bg, 'fill-opacity': '0.4', 'mix-blend-mode': 'multiply' };
-      case 'underline':
-        return { stroke: colorConfig.bg, 'stroke-opacity': '0.85', 'stroke-width': '2', 'mix-blend-mode': 'multiply' };
-      case 'strikethrough':
-        return { fill: colorConfig.bg, 'fill-opacity': '0.15', 'mix-blend-mode': 'multiply' };
-      case 'wavy':
-        return { stroke: colorConfig.bg, 'stroke-opacity': '0.85', 'stroke-width': '2', 'mix-blend-mode': 'multiply' };
-      default:
-        return { fill: colorConfig.bg, 'fill-opacity': '0.4', 'mix-blend-mode': 'multiply' };
-    }
-  };
-
   const highlightAnnotation = useCallback((annotation: Annotation) => {
-    // #region debug-point H2:highlight-annotation-entry
-    fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"post",hypothesisId:"H2",location:"useEpub.ts:highlightAnnotation",msg:"[DEBUG] highlightAnnotation called (POST-FIX v2)",data:{hasRendition:!!renditionRef.current,annotationId:annotation?.id,style:annotation?.style,color:annotation?.color,cfiRange:annotation?.cfiRange,cfiStart:annotation?.cfiStart?.substring(0,60)},ts:Date.now()})}).catch(()=>{});
-    // #endregion
     if (!renditionRef.current) return;
 
     const cfiRange = annotation.cfiRange || annotation.cfiStart;
@@ -383,43 +369,42 @@ export function useEpub() {
     }
 
     try {
-      injectAnnotationStyles();
-      const styles = getAnnotationStyles(annotation.style, annotation.color);
-      const classNames = `annotation-${annotation.style} annotation-color-${annotation.color}`;
+      injectAnnotationCss();
+      const className = `epub-ann-${annotation.color}`;
       const cb = () => {};
+      const svgStyles = getAnnotationSvgStyles(annotation.style, annotation.color);
 
       const method = (annotation.style === 'underline' || annotation.style === 'wavy')
         ? 'underline'
         : 'highlight';
 
-      // #region debug-point H3:correct-api-v2
-      fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"post",hypothesisId:"H3",location:"useEpub.ts:api-call-v2",msg:"[DEBUG] Using annotations API with styles param",data:{method,cfiRange:cfiRange.substring(0,80),classNames,styles},ts:Date.now()})}).catch(()=>{});
-      // #endregion
-
       const mark = (renditionRef.current as any).annotations[method](
         cfiRange,
         { id: annotation.id },
         cb,
-        classNames,
-        styles,
+        className,
+        svgStyles,
       );
-
-      // #region debug-point H2:mark-returned-v2
-      fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"post",hypothesisId:"H2",location:"useEpub.ts:mark-returned",msg:"[DEBUG] annotations method returned",data:{markType:typeof mark,markKeys:mark?Object.keys(mark).slice(0,10):null,hasElement:!!(mark&&mark.element)},ts:Date.now()})}).catch(()=>{});
-      // #endregion
 
       appliedHighlightsRef.current.set(annotation.id, mark);
 
-      // #region debug-point H2:dom-verification-v2
-      setTimeout(()=>{try{let svgCount=0;const pane=document.querySelector('.marks-pane');if(pane){svgCount=pane.querySelectorAll('svg').length}fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"post",hypothesisId:"H2",location:"useEpub.ts:verify-v2",msg:"[DEBUG] DOM verification (marks-pane)",data:{annotationId:annotation.id,hasPane:!!pane,svgCount},ts:Date.now()})}).catch(()=>{})}catch(e){}},300);
-      // #endregion
+      if (method === 'underline' && mark?.mark?.element) {
+        try {
+          const lines = mark.mark.element.querySelectorAll('line');
+          const colorConfig = ANNOTATION_COLORS[annotation.color];
+          lines.forEach((line: SVGLineElement) => {
+            line.setAttribute('stroke', colorConfig.bg);
+            line.setAttribute('stroke-opacity', '0.8');
+            line.setAttribute('stroke-width', '2');
+          });
+        } catch {
+          // ignore
+        }
+      }
     } catch (e) {
-      // #region debug-point H4:mark-error-v2
-      fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"post",hypothesisId:"H4",location:"useEpub.ts:error",msg:"[DEBUG] highlightAnnotation caught exception",data:{annotationId:annotation?.id,errorMessage:(e as Error)?.message},ts:Date.now()})}).catch(()=>{});
-      // #endregion
       console.warn('标注高亮失败:', e);
     }
-  }, [injectAnnotationStyles]);
+  }, [injectAnnotationCss]);
 
   const removeHighlight = useCallback((annotationId: string) => {
     try {
@@ -563,9 +548,6 @@ export function useEpub() {
             cfi: cfiStr,
             cfiRange: cfiStr,
           };
-          // #region debug-point H3:selected-event-cfirange
-          fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"post",hypothesisId:"H3",location:"useEpub.ts:selected-event",msg:"[DEBUG] rendition selected event fired",data:{cfiRange:cfiStr,cfiRangeLen:cfiStr.length,textPreview:selectedText.substring(0,30)},ts:Date.now()})}).catch(()=>{});
-          // #endregion
           setSelectionInfo(info);
           if (onSelectionChangeRef.current) onSelectionChangeRef.current(info);
         }
@@ -597,7 +579,7 @@ export function useEpub() {
     const reapplyAnnotations = () => {
       try {
         if (currentAnnotationsRef.current.length === 0) return;
-        injectAnnotationStyles();
+        injectAnnotationCss();
         appliedHighlightsRef.current.forEach((stored, id) => {
           try {
             const cfiRange = stored?.cfiRange || '';
@@ -618,17 +600,31 @@ export function useEpub() {
           const cfiRange = ann.cfiRange || ann.cfiStart;
           if (!cfiRange) return;
           try {
-            const styles = getAnnotationStyles(ann.style, ann.color);
-            const classNames = `annotation-${ann.style} annotation-color-${ann.color}`;
+            const className = `epub-ann-${ann.color}`;
             const method = (ann.style === 'underline' || ann.style === 'wavy') ? 'underline' : 'highlight';
+            const svgStyles = getAnnotationSvgStyles(ann.style, ann.color);
             const mark = (newRendition as any).annotations[method](
               cfiRange,
               { id: ann.id },
               () => {},
-              classNames,
-              styles,
+              className,
+              svgStyles,
             );
             appliedHighlightsRef.current.set(ann.id, mark);
+
+            if (method === 'underline' && mark?.mark?.element) {
+              try {
+                const lines = mark.mark.element.querySelectorAll('line');
+                const colorConfig = ANNOTATION_COLORS[ann.color];
+                lines.forEach((line: SVGLineElement) => {
+                  line.setAttribute('stroke', colorConfig.bg);
+                  line.setAttribute('stroke-opacity', '0.8');
+                  line.setAttribute('stroke-width', '2');
+                });
+              } catch {
+                // ignore
+              }
+            }
           } catch (e) {
             // ignore
           }
