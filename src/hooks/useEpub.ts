@@ -42,6 +42,9 @@ export function useEpub() {
   const sectionsMapRef = useRef<Map<string, SectionInfo>>(new Map());
   const appliedHighlightsRef = useRef<Map<string, any>>(new Map());
   const onSelectionChangeRef = useRef<((info: SelectionInfo | null) => void) | null>(null);
+  const onTapRef = useRef<(() => void) | null>(null);
+  const onSwipeLeftRef = useRef<(() => void) | null>(null);
+  const onSwipeRightRef = useRef<(() => void) | null>(null);
   const currentAnnotationsRef = useRef<Annotation[]>([]);
 
   const blobUrlToBase64 = async (url: string): Promise<string> => {
@@ -556,6 +559,59 @@ export function useEpub() {
       }
     });
 
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+    let lastTapTime = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      touchStartTime = Date.now();
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const touch = e.changedTouches[0];
+      const deltaX = touch.clientX - touchStartX;
+      const deltaY = touch.clientY - touchStartY;
+      const deltaTime = Date.now() - touchStartTime;
+
+      const minSwipeDistance = 50;
+      const maxSwipeTime = 500;
+      const isHorizontalSwipe = Math.abs(deltaX) > Math.abs(deltaY);
+
+      if (isHorizontalSwipe && Math.abs(deltaX) > minSwipeDistance && deltaTime < maxSwipeTime) {
+        if (deltaX < 0) {
+          if (onSwipeLeftRef.current) {
+            onSwipeLeftRef.current();
+          }
+        } else {
+          if (onSwipeRightRef.current) {
+            onSwipeRightRef.current();
+          }
+        }
+        return;
+      }
+
+      if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10 && deltaTime < 300) {
+        const now = Date.now();
+        if (now - lastTapTime < 300) {
+          lastTapTime = 0;
+        } else {
+          lastTapTime = now;
+          setTimeout(() => {
+            if (lastTapTime !== 0) {
+              if (onTapRef.current) {
+                onTapRef.current();
+              }
+              lastTapTime = 0;
+            }
+          }, 250);
+        }
+      }
+    };
+
     const attachSelectionListeners = () => {
       try {
         const contents = newRendition.getContents();
@@ -565,6 +621,8 @@ export function useEpub() {
           if (frameDoc) {
             frameDoc.addEventListener('mouseup', handleSelection);
             frameDoc.addEventListener('keyup', handleSelection);
+            frameDoc.addEventListener('touchstart', handleTouchStart, { passive: true });
+            frameDoc.addEventListener('touchend', handleTouchEnd, { passive: true });
           }
           if (frameWindow) {
             frameWindow.addEventListener('selectionchange', handleSelection);
@@ -787,6 +845,18 @@ export function useEpub() {
     onSelectionChangeRef.current = cb;
   }, []);
 
+  const setOnTap = useCallback((cb: () => void) => {
+    onTapRef.current = cb;
+  }, []);
+
+  const setOnSwipeLeft = useCallback((cb: () => void) => {
+    onSwipeLeftRef.current = cb;
+  }, []);
+
+  const setOnSwipeRight = useCallback((cb: () => void) => {
+    onSwipeRightRef.current = cb;
+  }, []);
+
   const clearSelection = useCallback(() => {
     setSelectionInfo(null);
     if (onSelectionChangeRef.current) {
@@ -869,6 +939,9 @@ export function useEpub() {
     applyFontSize,
     applyStyles,
     setOnSelectionChange,
+    setOnTap,
+    setOnSwipeLeft,
+    setOnSwipeRight,
     clearSelection,
     highlightAnnotation,
     removeHighlight,

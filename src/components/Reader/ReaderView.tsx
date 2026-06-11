@@ -36,6 +36,7 @@ export default function ReaderView() {
     updateAnnotation,
     annotations,
     toggleToolbarVisible,
+    toolbarVisible,
   } = useReaderStore();
 
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -103,6 +104,9 @@ export default function ReaderView() {
   const epubClearSelection = (epubHook as any).clearSelection as () => void;
   const epubHighlightAnnotation = (epubHook as any).highlightAnnotation as (ann: Annotation) => void;
   const epubRenderAllAnnotations = (epubHook as any).renderAllAnnotations as (anns: Annotation[]) => void;
+  const epubSetOnTap = (epubHook as any).setOnTap as (cb: () => void) => void;
+  const epubSetOnSwipeLeft = (epubHook as any).setOnSwipeLeft as (cb: () => void) => void;
+  const epubSetOnSwipeRight = (epubHook as any).setOnSwipeRight as (cb: () => void) => void;
 
   const selectionInfo = isPdf ? null : epubSelectionInfo;
   const clearSelection = isPdf ? () => {} : epubClearSelection;
@@ -266,6 +270,7 @@ export default function ReaderView() {
 
   const handleNextPage = useCallback(async () => {
     if (isTurning) return;
+    if (toolbarVisible) return;
     setTurnDirection('next');
     setIsTurning(true);
     await nextPage();
@@ -273,10 +278,11 @@ export default function ReaderView() {
       setIsTurning(false);
       setTurnDirection(null);
     }, 300);
-  }, [isTurning, nextPage]);
+  }, [isTurning, nextPage, toolbarVisible]);
 
   const handlePrevPage = useCallback(async () => {
     if (isTurning) return;
+    if (toolbarVisible) return;
     setTurnDirection('prev');
     setIsTurning(true);
     await prevPage();
@@ -284,7 +290,23 @@ export default function ReaderView() {
       setIsTurning(false);
       setTurnDirection(null);
     }, 300);
-  }, [isTurning, prevPage]);
+  }, [isTurning, prevPage, toolbarVisible]);
+
+  useEffect(() => {
+    if (isMobile && !isPdf) {
+      epubSetOnTap(() => {
+        if (!toolbarSelection) {
+          toggleToolbarVisible();
+        }
+      });
+      epubSetOnSwipeLeft(() => {
+        handleNextPage();
+      });
+      epubSetOnSwipeRight(() => {
+        handlePrevPage();
+      });
+    }
+  }, [isMobile, isPdf, epubSetOnTap, epubSetOnSwipeLeft, epubSetOnSwipeRight, toolbarSelection, toggleToolbarVisible, handleNextPage, handlePrevPage]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'ArrowRight' || e.key === ' ') {
