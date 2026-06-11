@@ -9,12 +9,19 @@ import { ResourceNode } from './ResourceNode'
 import { Building, PlacementPreview } from './Building'
 import { MonsterManager } from './Monster'
 import { DroppedItem } from './DroppedItem'
+import { SpawnGate } from './SpawnGate'
 import { useGameStore, generateResources, generateMonsters, TimeOfDay, ResourceType } from '@/store/gameStore'
 import * as THREE from 'three'
 
 function PlacementHandler() {
-  const { placement, updatePlacementPosition, updatePlacementRotation, confirmPlacement, cancelPlacement, toggleSnapToGrid, playerPosition } = useGameStore()
+  const { placement, updatePlacementPosition, updatePlacementRotation, confirmPlacement, cancelPlacement, toggleSnapToGrid, playerPosition, isDead } = useGameStore()
   const { raycaster, camera } = useThree()
+
+  useEffect(() => {
+    if (isDead && placement.isActive) {
+      cancelPlacement()
+    }
+  }, [isDead, placement.isActive, cancelPlacement])
 
   const handlePointerMove = useCallback(
     (event: MouseEvent) => {
@@ -212,15 +219,23 @@ function DayNightCycle() {
 }
 
 function SceneContent() {
-  const { resources, buildings, placement, openContainer, showMessage, droppedItems, pickupDroppedItem, draggedItem, addBuildingFuel, removeFromInventory, setDraggedItem } = useGameStore()
+  const { resources, buildings, placement, openContainer, showMessage, droppedItems, pickupDroppedItem, draggedItem, addBuildingFuel, removeFromInventory, setDraggedItem, spawnPoint, isDead } = useGameStore()
   const { raycaster, camera, gl } = useThree()
 
   useEffect(() => {
+    const generatedResources = generateResources(100).filter(r => {
+      const dist = Math.sqrt(
+        Math.pow(r.position[0] - spawnPoint[0], 2) +
+        Math.pow(r.position[2] - spawnPoint[2], 2)
+      )
+      return dist > 5
+    })
+
     useGameStore.setState({ 
-      resources: generateResources(100),
+      resources: generatedResources,
       monsters: generateMonsters(100, 5)
     })
-  }, [])
+  }, [spawnPoint])
 
   const handleBuildingInteract = useCallback(
     (id: string) => {
@@ -310,21 +325,23 @@ function SceneContent() {
       <Ground />
       <Player />
 
+      <SpawnGate position={[spawnPoint[0] - 2, 0, spawnPoint[2]]} />
+
       {resources.map((resource) => (
         <ResourceNode key={resource.id} resource={resource} />
       ))}
 
       {droppedItems.map((item) => (
-        <DroppedItem key={item.id} item={item} onClick={() => pickupDroppedItem(item.id)} />
+        <DroppedItem key={item.id} item={item} onClick={() => !isDead && pickupDroppedItem(item.id)} />
       ))}
 
       <MonsterManager />
 
       {buildings.map((building) => (
-        <Building key={building.id} building={building} onInteract={handleBuildingInteract} />
+        <Building key={building.id} building={building} onInteract={!isDead ? handleBuildingInteract : undefined} />
       ))}
 
-      {placement.isActive && placement.position && (
+      {!isDead && placement.isActive && placement.position && (
         <PlacementPreview
           type={placement.buildingType!}
           position={placement.position}

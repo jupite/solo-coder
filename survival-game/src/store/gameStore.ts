@@ -96,6 +96,8 @@ export interface GameState {
   playerHunger: number
   playerSanity: number
   playerMaxSanity: number
+  isDead: boolean
+  spawnPoint: [number, number, number]
   inventory: (InventoryItem | null)[]
   equipment: Record<EquipSlotType, InventoryItem | null>
   hasBackpack: boolean
@@ -172,6 +174,8 @@ export interface GameState {
   updateSanity: (delta: number) => void
   isNearLightSource: () => boolean
   setDraggedItem: (item: { index: number; type: ItemType; count: number } | null) => void
+  die: () => void
+  respawn: () => void
 }
 
 export const TOOL_RECIPES: Record<ToolType, Partial<Record<ResourceType, number>>> = {
@@ -326,6 +330,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   playerHunger: 100,
   playerSanity: 100,
   playerMaxSanity: 100,
+  isDead: false,
+  spawnPoint: [0, 1, 0],
   inventory: Array(BASE_INVENTORY_SIZE).fill(null),
   equipment: {
     head: null,
@@ -628,6 +634,8 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   takeDamage: (damage) => {
     const state = get()
+    if (state.isDead) return
+    
     const actualDamage = state.calculateDamage(damage)
     
     if (state.equipment.head) state.reduceDurability('head', Math.ceil(damage * 0.1))
@@ -638,7 +646,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ playerHealth: newHealth })
 
     if (newHealth <= 0) {
-      get().showMessage('💀 你被击败了！', 'error')
+      get().die()
     } else {
       get().showMessage(`💥 受到 ${actualDamage} 点伤害`, 'error')
     }
@@ -1046,6 +1054,8 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   updateGameTime: (delta) => {
     const state = get()
+    if (state.isDead) return
+    
     const hoursPerSecond = 24 / (8 * 60)
     const gameHoursDelta = delta * state.timeSpeed * hoursPerSecond
     const totalTime = state.gameTime + gameHoursDelta
@@ -1448,6 +1458,65 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setDraggedItem: (item) => {
     set({ draggedItem: item })
+  },
+
+  die: () => {
+    const state = get()
+    if (state.isDead) return
+
+    const dropPosition = [...state.playerPosition] as [number, number, number]
+
+    state.inventory.forEach((item, index) => {
+      if (item) {
+        state.dropItem(item.type, dropPosition, item.count)
+      }
+    })
+
+    Object.values(state.equipment).forEach((item) => {
+      if (item) {
+        state.dropItem(item.type, dropPosition, 1)
+      }
+    })
+
+    const inventorySize = state.getInventorySize()
+    set({
+      isDead: true,
+      playerHealth: 0,
+      inventory: Array(inventorySize).fill(null),
+      equipment: {
+        head: null,
+        body: null,
+        hand: null,
+      },
+      hasBackpack: false,
+    })
+
+    state.showMessage('💀 你死了！回到出生点大门按空格复活', 'error')
+  },
+
+  respawn: () => {
+    const state = get()
+    if (!state.isDead) return
+
+    const dist = Math.sqrt(
+      Math.pow(state.playerPosition[0] - state.spawnPoint[0], 2) +
+      Math.pow(state.playerPosition[2] - state.spawnPoint[2], 2)
+    )
+
+    if (dist > 5) {
+      state.showMessage('❌ 请靠近出生点大门再复活（大门位置有蓝色光效）', 'error')
+      return
+    }
+
+    set({
+      isDead: false,
+      playerHealth: state.playerMaxHealth,
+      playerHunger: 100,
+      playerSanity: state.playerMaxSanity,
+      playerPosition: [...state.spawnPoint] as [number, number, number],
+    })
+
+    state.showMessage('✨ 你复活了！', 'success')
   },
 }))
 

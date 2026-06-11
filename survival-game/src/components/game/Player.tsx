@@ -8,6 +8,8 @@ import { useGameStore } from '@/store/gameStore'
 const MOVE_SPEED = 0.15
 const MAP_SIZE = 100
 const INTERACTION_RANGE = 3
+const PICKUP_RANGE = 2.5
+const RESPAWN_RANGE = 4
 
 export function Player() {
   const meshRef = useRef<THREE.Group>(null)
@@ -15,6 +17,7 @@ export function Player() {
   const keys = useRef<Set<string>>(new Set())
   const [isAttacking, setIsAttacking] = useState(false)
   const [isGathering, setIsGathering] = useState(false)
+  const [isPickingUp, setIsPickingUp] = useState(false)
 
   const {
     playerPosition,
@@ -30,6 +33,11 @@ export function Player() {
     plantSeed,
     reduceDurability,
     monsters,
+    isDead,
+    respawn,
+    spawnPoint,
+    droppedItems,
+    pickupDroppedItem,
   } = useGameStore()
 
   useEffect(() => {
@@ -37,7 +45,15 @@ export function Player() {
       const key = e.key.toLowerCase()
       keys.current.add(key)
 
-      if (placement.isActive) return
+      if (placement.isActive && !isDead) return
+
+      if (isDead) {
+        if (e.key === ' ') {
+          e.preventDefault()
+          respawn()
+        }
+        return
+      }
 
       if (key === 'f' && !isAttacking) {
         e.preventDefault()
@@ -46,32 +62,74 @@ export function Player() {
         setTimeout(() => setIsAttacking(false), 500)
       }
 
-      if (e.key === ' ' && !isGathering) {
+      if (e.key === ' ' && !isGathering && !isPickingUp) {
         e.preventDefault()
-        setIsGathering(true)
+        
+        let nearestItemId: string | null = null
+        let nearestItemDist = Infinity
 
-        let nearestId: string | null = null
-        let nearestDist = Infinity
+        for (const item of droppedItems) {
+          const dist = Math.sqrt(
+            Math.pow(item.position[0] - playerPosition[0], 2) +
+            Math.pow(item.position[2] - playerPosition[2], 2)
+          )
+          if (dist < PICKUP_RANGE && dist < nearestItemDist) {
+            nearestItemId = item.id
+            nearestItemDist = dist
+          }
+        }
+
+        if (nearestItemId) {
+          setIsPickingUp(true)
+          const success = pickupDroppedItem(nearestItemId)
+          if (!success) {
+            let nearestResourceId: string | null = null
+            let nearestResourceDist = Infinity
+
+            for (const resource of resources) {
+              const dist = Math.sqrt(
+                Math.pow(resource.position[0] - playerPosition[0], 2) +
+                Math.pow(resource.position[2] - playerPosition[2], 2)
+              )
+              if (dist < INTERACTION_RANGE && dist < nearestResourceDist) {
+                nearestResourceId = resource.id
+                nearestResourceDist = dist
+              }
+            }
+
+            if (nearestResourceId) {
+              setIsGathering(true)
+              const result = gatherResource(nearestResourceId)
+              showMessage(result.message, result.success ? 'success' : 'error')
+              setTimeout(() => setIsGathering(false), 500)
+            }
+          }
+          setTimeout(() => setIsPickingUp(false), 500)
+          return
+        }
+
+        let nearestResourceId: string | null = null
+        let nearestResourceDist = Infinity
 
         for (const resource of resources) {
           const dist = Math.sqrt(
             Math.pow(resource.position[0] - playerPosition[0], 2) +
             Math.pow(resource.position[2] - playerPosition[2], 2)
           )
-          if (dist < INTERACTION_RANGE && dist < nearestDist) {
-            nearestId = resource.id
-            nearestDist = dist
+          if (dist < INTERACTION_RANGE && dist < nearestResourceDist) {
+            nearestResourceId = resource.id
+            nearestResourceDist = dist
           }
         }
 
-        if (nearestId) {
-          const result = gatherResource(nearestId)
+        if (nearestResourceId) {
+          setIsGathering(true)
+          const result = gatherResource(nearestResourceId)
           showMessage(result.message, result.success ? 'success' : 'error')
+          setTimeout(() => setIsGathering(false), 500)
         } else {
-          showMessage('❌ 附近没有可采集的资源', 'error')
+          showMessage('❌ 附近没有可拾取的物品或可采集的资源', 'error')
         }
-
-        setTimeout(() => setIsGathering(false), 500)
       }
 
       if (key === 'e') {
@@ -119,7 +177,13 @@ export function Player() {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [isAttacking, isGathering, gatherResource, attack, resources, playerPosition, showMessage, buildings, openContainer, placement.isActive, plantSeed])
+  }, [
+    isAttacking, isGathering, isPickingUp,
+    gatherResource, attack, resources, playerPosition,
+    showMessage, buildings, openContainer,
+    placement.isActive, plantSeed, isDead, respawn,
+    droppedItems, pickupDroppedItem
+  ])
 
   useFrame((state) => {
     if (!meshRef.current) return
@@ -136,69 +200,83 @@ export function Player() {
     let newX = Math.max(-halfMap, Math.min(halfMap, playerPosition[0] + dx))
     let newZ = Math.max(-halfMap, Math.min(halfMap, playerPosition[2] + dz))
 
-    const PLAYER_RADIUS = 0.5
-    const MONSTER_RADIUS = 0.4
-    const minDistance = PLAYER_RADIUS + MONSTER_RADIUS
-
-    const checkCollision = (px: number, pz: number): boolean => {
-      for (const monster of monsters) {
-        const dist = Math.sqrt(
-          Math.pow(px - monster.position[0], 2) +
-          Math.pow(pz - monster.position[2], 2)
-        )
-        if (dist < minDistance) {
-          return true
-        }
-      }
-      return false
-    }
-
     if (dx !== 0 || dz !== 0) {
-      if (!checkCollision(newX, newZ)) {
-        setPlayerPosition([newX, 1, newZ])
-      } else {
-        if (!checkCollision(newX, playerPosition[2])) {
-          newZ = playerPosition[2]
-          setPlayerPosition([newX, 1, newZ])
-        } else if (!checkCollision(playerPosition[0], newZ)) {
-          newX = playerPosition[0]
+      if (!isDead) {
+        const PLAYER_RADIUS = 0.5
+        const MONSTER_RADIUS = 0.4
+        const minDistance = PLAYER_RADIUS + MONSTER_RADIUS
+
+        const checkCollision = (px: number, pz: number): boolean => {
+          for (const monster of monsters) {
+            const dist = Math.sqrt(
+              Math.pow(px - monster.position[0], 2) +
+              Math.pow(pz - monster.position[2], 2)
+            )
+            if (dist < minDistance) {
+              return true
+            }
+          }
+          return false
+        }
+
+        if (!checkCollision(newX, newZ)) {
           setPlayerPosition([newX, 1, newZ])
         } else {
-          newX = playerPosition[0]
-          newZ = playerPosition[2]
+          if (!checkCollision(newX, playerPosition[2])) {
+            newZ = playerPosition[2]
+            setPlayerPosition([newX, 1, newZ])
+          } else if (!checkCollision(playerPosition[0], newZ)) {
+            newX = playerPosition[0]
+            setPlayerPosition([newX, 1, newZ])
+          } else {
+            newX = playerPosition[0]
+            newZ = playerPosition[2]
+          }
         }
+      } else {
+        setPlayerPosition([newX, 1, newZ])
       }
     }
 
-    meshRef.current.position.set(newX, 1, newZ)
+    meshRef.current.position.set(newX, isDead ? 1.5 : 1, newZ)
 
     camera.position.set(newX - 12, 14, newZ + 12)
     camera.lookAt(newX, 0, newZ)
 
-    const delta = state.clock.getDelta()
-    const handItem = equipment.hand
-    if (handItem && handItem.type === 'torch' && handItem.durability && handItem.durability > 0) {
-      const torchFuelConsumption = delta * 0.5
-      const newDurability = handItem.durability - torchFuelConsumption
-      if (newDurability <= 0) {
-        reduceDurability('hand', handItem.durability)
-      } else {
-        const newEquipment = { ...equipment, hand: { ...handItem, durability: newDurability } }
-        useGameStore.setState({ equipment: newEquipment })
+    if (!isDead) {
+      const delta = state.clock.getDelta()
+      const handItem = equipment.hand
+      if (handItem && handItem.type === 'torch' && handItem.durability && handItem.durability > 0) {
+        const torchFuelConsumption = delta * 0.5
+        const newDurability = handItem.durability - torchFuelConsumption
+        if (newDurability <= 0) {
+          reduceDurability('hand', handItem.durability)
+        } else {
+          const newEquipment = { ...equipment, hand: { ...handItem, durability: newDurability } }
+          useGameStore.setState({ equipment: newEquipment })
+        }
       }
     }
   })
 
-  const hasHelmet = equipment.head?.type === 'helmet'
-  const hasArmor = equipment.body?.type === 'armor'
-  const hasBackpack = equipment.body?.type === 'backpack'
-  const handItem = equipment.hand
+  const hasHelmet = !isDead && equipment.head?.type === 'helmet'
+  const hasArmor = !isDead && equipment.body?.type === 'armor'
+  const hasBackpack = !isDead && equipment.body?.type === 'backpack'
+  const handItem = isDead ? null : equipment.hand
+
+  const bodyColor = isDead ? '#88ccff' : (hasArmor ? '#4a5568' : '#4a90d9')
+  const headColor = isDead ? '#aaddff' : '#f5cba7'
+  const opacity = isDead ? 0.6 : 1
 
   return (
     <group ref={meshRef} position={playerPosition as [number, number, number]}>
-      <mesh position={[0, 0.5, 0]} castShadow>
+      {isDead && (
+        <pointLight position={[0, 1, 0]} color="#88ccff" intensity={1.5} distance={5} decay={2} />
+      )}
+
+      <mesh position={[0, 0.5, 0]} castShadow={!isDead}>
         <capsuleGeometry args={[0.3, 0.8, 4, 8]} />
-        <meshStandardMaterial color={hasArmor ? '#4a5568' : '#4a90d9'} />
+        <meshStandardMaterial color={bodyColor} transparent={isDead} opacity={opacity} />
       </mesh>
 
       {hasArmor && (
@@ -215,10 +293,17 @@ export function Player() {
         </mesh>
       )}
 
-      <mesh position={[0, 1.3, 0]} castShadow>
+      <mesh position={[0, 1.3, 0]} castShadow={!isDead}>
         <sphereGeometry args={[0.25, 16, 16]} />
-        <meshStandardMaterial color="#f5cba7" />
+        <meshStandardMaterial color={headColor} transparent={isDead} opacity={opacity} />
       </mesh>
+
+      {isDead && (
+        <mesh position={[0, 2, 0]}>
+          <sphereGeometry args={[0.15, 8, 8]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.8} />
+        </mesh>
+      )}
 
       {hasHelmet && (
         <group position={[0, 1.4, 0]}>
@@ -233,13 +318,15 @@ export function Player() {
         </group>
       )}
 
-      <mesh
-        position={[0.4, 0.5, isAttacking ? -0.5 : 0.2]}
-        rotation={[isAttacking ? -Math.PI / 2 : 0, 0, Math.PI / 4]}
-      >
-        <boxGeometry args={[0.1, 0.1, 0.5]} />
-        <meshStandardMaterial color="#8b4513" />
-      </mesh>
+      {!isDead && (
+        <mesh
+          position={[0.4, 0.5, isAttacking ? -0.5 : 0.2]}
+          rotation={[isAttacking ? -Math.PI / 2 : 0, 0, Math.PI / 4]}
+        >
+          <boxGeometry args={[0.1, 0.1, 0.5]} />
+          <meshStandardMaterial color="#8b4513" />
+        </mesh>
+      )}
 
       {handItem && (
         <group
@@ -298,17 +385,31 @@ export function Player() {
         </group>
       )}
 
-      {isGathering && (
+      {!isDead && isGathering && (
         <mesh position={[0, 2.5, 0]}>
           <sphereGeometry args={[0.3, 8, 8]} />
           <meshBasicMaterial color="yellow" transparent opacity={0.6} />
         </mesh>
       )}
 
-      {isAttacking && (
+      {!isDead && isAttacking && (
         <mesh position={[0, 2.5, 0]}>
           <sphereGeometry args={[0.25, 8, 8]} />
           <meshBasicMaterial color="red" transparent opacity={0.6} />
+        </mesh>
+      )}
+
+      {!isDead && isPickingUp && (
+        <mesh position={[0, 2.5, 0]}>
+          <sphereGeometry args={[0.28, 8, 8]} />
+          <meshBasicMaterial color="green" transparent opacity={0.7} />
+        </mesh>
+      )}
+
+      {isDead && (
+        <mesh position={[0, 2.5, 0]}>
+          <sphereGeometry args={[0.3, 8, 8]} />
+          <meshBasicMaterial color="#88ccff" transparent opacity={0.8} />
         </mesh>
       )}
     </group>

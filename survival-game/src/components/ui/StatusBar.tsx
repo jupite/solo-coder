@@ -38,13 +38,34 @@ function StatBar({ label, value, color, icon, rate }: { label: string; value: nu
 }
 
 export function StatusBar() {
-  const { playerHealth, playerHunger, playerSanity, healthRate, hungerRate, sanityRate } = useGameStore()
+  const { playerHealth, playerHunger, playerSanity, healthRate, hungerRate, sanityRate, isDead, spawnPoint, playerPosition } = useGameStore()
+
+  const distToSpawn = Math.sqrt(
+    Math.pow(playerPosition[0] - spawnPoint[0], 2) +
+    Math.pow(playerPosition[2] - spawnPoint[2], 2)
+  )
+  const nearSpawn = distToSpawn <= 3
 
   return (
     <div className="absolute right-4 top-56 w-60 bg-gray-900/90 rounded-lg p-4 space-y-3 border border-gray-700">
-      <StatBar label="生命" value={playerHealth} color="bg-red-500" icon="❤️" rate={healthRate} />
-      <StatBar label="饥饿" value={playerHunger} color="bg-yellow-500" icon="🍖" rate={hungerRate} />
-      <StatBar label="理智" value={playerSanity} color="bg-purple-500" icon="🧠" rate={sanityRate} />
+      {isDead ? (
+        <div className="text-center">
+          <div className="text-3xl mb-2">👻</div>
+          <div className="text-cyan-400 font-bold text-lg mb-2">魂魄状态</div>
+          <div className="text-gray-300 text-sm mb-2">
+            你已死亡，只能移动
+          </div>
+          <div className={`text-sm ${nearSpawn ? 'text-green-400' : 'text-yellow-400'}`}>
+            {nearSpawn ? '✅ 按空格复活' : '📍 回到出生点大门按空格复活'}
+          </div>
+        </div>
+      ) : (
+        <>
+          <StatBar label="生命" value={playerHealth} color="bg-red-500" icon="❤️" rate={healthRate} />
+          <StatBar label="饥饿" value={playerHunger} color="bg-yellow-500" icon="🍖" rate={hungerRate} />
+          <StatBar label="理智" value={playerSanity} color="bg-purple-500" icon="🧠" rate={sanityRate} />
+        </>
+      )}
     </div>
   )
 }
