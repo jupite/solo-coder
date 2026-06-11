@@ -338,37 +338,41 @@ export function useEpub() {
   };
 
   const injectAnnotationStyles = useCallback(() => {
-    if (!renditionRef.current) return;
     try {
-      const contents = (renditionRef.current as any).getContents?.() || [];
-      for (const content of contents) {
-        const doc = content.document;
-        if (!doc) continue;
-        const existing = doc.getElementById('epub-annotation-styles');
-        if (existing) continue;
-        const style = doc.createElement('style');
-        style.id = 'epub-annotation-styles';
-        style.textContent = `
-          .annotation-highlight { border-radius: 2px; }
-          .annotation-underline { text-decoration: underline; text-underline-offset: 3px; }
-          .annotation-strikethrough { text-decoration: line-through; }
-          .annotation-wavy { text-decoration: underline wavy; text-underline-offset: 3px; }
-          .annotation-color-yellow { background-color: rgba(254,240,138,0.45); text-decoration-color: #eab308; }
-          .annotation-color-green { background-color: rgba(187,247,208,0.45); text-decoration-color: #22c55e; }
-          .annotation-color-blue { background-color: rgba(191,219,254,0.45); text-decoration-color: #3b82f6; }
-          .annotation-color-pink { background-color: rgba(252,205,217,0.45); text-decoration-color: #ec4899; }
-          .annotation-color-orange { background-color: rgba(254,215,170,0.45); text-decoration-color: #f97316; }
-        `;
-        (doc.head || doc.documentElement).appendChild(style);
-      }
+      const existing = document.getElementById('epub-annotation-styles');
+      if (existing) return;
+      const style = document.createElement('style');
+      style.id = 'epub-annotation-styles';
+      style.textContent = `
+        .annotation-strikethrough rect { fill-opacity: 0.12 !important; }
+        .annotation-strikethrough line { stroke: inherit; stroke-width: 2; }
+        .annotation-wavy line { stroke-dasharray: 3 2; }
+      `;
+      document.head.appendChild(style);
     } catch (e) {
       console.warn('注入标注样式失败:', e);
     }
   }, []);
 
+  const getAnnotationStyles = (style: AnnotationStyle, color: AnnotationColor): Record<string, string> => {
+    const colorConfig = ANNOTATION_COLORS[color];
+    switch (style) {
+      case 'highlight':
+        return { fill: colorConfig.bg, 'fill-opacity': '0.4', 'mix-blend-mode': 'multiply' };
+      case 'underline':
+        return { stroke: colorConfig.bg, 'stroke-opacity': '0.85', 'stroke-width': '2', 'mix-blend-mode': 'multiply' };
+      case 'strikethrough':
+        return { fill: colorConfig.bg, 'fill-opacity': '0.15', 'mix-blend-mode': 'multiply' };
+      case 'wavy':
+        return { stroke: colorConfig.bg, 'stroke-opacity': '0.85', 'stroke-width': '2', 'mix-blend-mode': 'multiply' };
+      default:
+        return { fill: colorConfig.bg, 'fill-opacity': '0.4', 'mix-blend-mode': 'multiply' };
+    }
+  };
+
   const highlightAnnotation = useCallback((annotation: Annotation) => {
     // #region debug-point H2:highlight-annotation-entry
-    fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"post",hypothesisId:"H2",location:"useEpub.ts:highlightAnnotation",msg:"[DEBUG] highlightAnnotation called (POST-FIX)",data:{hasRendition:!!renditionRef.current,annotationId:annotation?.id,style:annotation?.style,color:annotation?.color,cfiRange:annotation?.cfiRange,cfiStart:annotation?.cfiStart,textPreview:annotation?.selectedText?.substring(0,30)},ts:Date.now()})}).catch(()=>{});
+    fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"post",hypothesisId:"H2",location:"useEpub.ts:highlightAnnotation",msg:"[DEBUG] highlightAnnotation called (POST-FIX v2)",data:{hasRendition:!!renditionRef.current,annotationId:annotation?.id,style:annotation?.style,color:annotation?.color,cfiRange:annotation?.cfiRange,cfiStart:annotation?.cfiStart?.substring(0,60)},ts:Date.now()})}).catch(()=>{});
     // #endregion
     if (!renditionRef.current) return;
 
@@ -380,6 +384,7 @@ export function useEpub() {
 
     try {
       injectAnnotationStyles();
+      const styles = getAnnotationStyles(annotation.style, annotation.color);
       const classNames = `annotation-${annotation.style} annotation-color-${annotation.color}`;
       const cb = () => {};
 
@@ -387,8 +392,8 @@ export function useEpub() {
         ? 'underline'
         : 'highlight';
 
-      // #region debug-point H3:correct-api-call
-      fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"post",hypothesisId:"H3",location:"useEpub.ts:highlightAnnotation:api-call",msg:"[DEBUG] Using correct annotations API",data:{method,cfiRange:cfiRange.substring(0,80),classNames,hasAnnotations:!!(renditionRef.current as any).annotations,typeOfHighlight:typeof (renditionRef.current as any).annotations?.highlight,typeOfUnderline:typeof (renditionRef.current as any).annotations?.underline},ts:Date.now()})}).catch(()=>{});
+      // #region debug-point H3:correct-api-v2
+      fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"post",hypothesisId:"H3",location:"useEpub.ts:api-call-v2",msg:"[DEBUG] Using annotations API with styles param",data:{method,cfiRange:cfiRange.substring(0,80),classNames,styles},ts:Date.now()})}).catch(()=>{});
       // #endregion
 
       const mark = (renditionRef.current as any).annotations[method](
@@ -396,19 +401,21 @@ export function useEpub() {
         { id: annotation.id },
         cb,
         classNames,
+        styles,
       );
-      // #region debug-point H2:mark-returned-post-fix
-      fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"post",hypothesisId:"H2",location:"useEpub.ts:highlightAnnotation:returned",msg:"[DEBUG] annotations method returned",data:{markType:typeof mark,markKeys:mark?Object.keys(mark).slice(0,10):null},ts:Date.now()})}).catch(()=>{});
+
+      // #region debug-point H2:mark-returned-v2
+      fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"post",hypothesisId:"H2",location:"useEpub.ts:mark-returned",msg:"[DEBUG] annotations method returned",data:{markType:typeof mark,markKeys:mark?Object.keys(mark).slice(0,10):null,hasElement:!!(mark&&mark.element)},ts:Date.now()})}).catch(()=>{});
       // #endregion
 
       appliedHighlightsRef.current.set(annotation.id, mark);
 
-      // #region debug-point H2:dom-verification-post-fix
-      setTimeout(()=>{try{const contents=(renditionRef.current as any).getContents?.()||[];let count=0;for(const c of contents){try{const els=c.document?.querySelectorAll?.(`.${classNames.split(' ').join('.')}`);if(els)count+=els.length}catch{}};fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"post",hypothesisId:"H2",location:"useEpub.ts:verify",msg:"[DEBUG] DOM verification after fix",data:{annotationId:annotation.id,foundEls:count,classNames},ts:Date.now()})}).catch(()=>{})}catch(e){}},200);
+      // #region debug-point H2:dom-verification-v2
+      setTimeout(()=>{try{let svgCount=0;const pane=document.querySelector('.marks-pane');if(pane){svgCount=pane.querySelectorAll('svg').length}fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"post",hypothesisId:"H2",location:"useEpub.ts:verify-v2",msg:"[DEBUG] DOM verification (marks-pane)",data:{annotationId:annotation.id,hasPane:!!pane,svgCount},ts:Date.now()})}).catch(()=>{})}catch(e){}},300);
       // #endregion
     } catch (e) {
-      // #region debug-point H4:mark-caught-error
-      fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"post",hypothesisId:"H4",location:"useEpub.ts:highlightAnnotation:error",msg:"[DEBUG] highlightAnnotation caught exception",data:{annotationId:annotation?.id,errorMessage:(e as Error)?.message},ts:Date.now()})}).catch(()=>{});
+      // #region debug-point H4:mark-error-v2
+      fetch("http://127.0.0.1:7777/event",{method:"POST",body:JSON.stringify({sessionId:"annotation-style-missing",runId:"post",hypothesisId:"H4",location:"useEpub.ts:error",msg:"[DEBUG] highlightAnnotation caught exception",data:{annotationId:annotation?.id,errorMessage:(e as Error)?.message},ts:Date.now()})}).catch(()=>{});
       // #endregion
       console.warn('标注高亮失败:', e);
     }
@@ -591,45 +598,41 @@ export function useEpub() {
       try {
         if (currentAnnotationsRef.current.length === 0) return;
         injectAnnotationStyles();
-        let needReapply = false;
-        if (!needReapply) {
-          needReapply = true;
-        }
-        if (needReapply) {
-          appliedHighlightsRef.current.forEach((stored, id) => {
-            try {
-              const cfiRange = stored?.cfiRange || '';
-              const type = stored?.type || 'highlight';
-              if (cfiRange) {
-                try {
-                  (newRendition as any).annotations.remove(cfiRange, type);
-                } catch {
-                  // ignore
-                }
+        appliedHighlightsRef.current.forEach((stored, id) => {
+          try {
+            const cfiRange = stored?.cfiRange || '';
+            const type = stored?.type || 'highlight';
+            if (cfiRange) {
+              try {
+                (newRendition as any).annotations.remove(cfiRange, type);
+              } catch {
+                // ignore
               }
-            } catch {
-              // ignore
             }
-          });
-          appliedHighlightsRef.current.clear();
-          currentAnnotationsRef.current.forEach((ann: Annotation) => {
-            const cfiRange = ann.cfiRange || ann.cfiStart;
-            if (!cfiRange) return;
-            try {
-              const classNames = `annotation-${ann.style} annotation-color-${ann.color}`;
-              const method = (ann.style === 'underline' || ann.style === 'wavy') ? 'underline' : 'highlight';
-              const mark = (newRendition as any).annotations[method](
-                cfiRange,
-                { id: ann.id },
-                () => {},
-                classNames,
-              );
-              appliedHighlightsRef.current.set(ann.id, mark);
-            } catch (e) {
-              // ignore
-            }
-          });
-        }
+          } catch {
+            // ignore
+          }
+        });
+        appliedHighlightsRef.current.clear();
+        currentAnnotationsRef.current.forEach((ann: Annotation) => {
+          const cfiRange = ann.cfiRange || ann.cfiStart;
+          if (!cfiRange) return;
+          try {
+            const styles = getAnnotationStyles(ann.style, ann.color);
+            const classNames = `annotation-${ann.style} annotation-color-${ann.color}`;
+            const method = (ann.style === 'underline' || ann.style === 'wavy') ? 'underline' : 'highlight';
+            const mark = (newRendition as any).annotations[method](
+              cfiRange,
+              { id: ann.id },
+              () => {},
+              classNames,
+              styles,
+            );
+            appliedHighlightsRef.current.set(ann.id, mark);
+          } catch (e) {
+            // ignore
+          }
+        });
       } catch (e) {
         // ignore
       }
