@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useMemo, useEffect } from 'react'
+import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGameStore } from '@/store/gameStore'
@@ -11,7 +11,6 @@ interface SpawnGateProps {
 
 export function SpawnGate({ position }: SpawnGateProps) {
   const groupRef = useRef<THREE.Group>(null)
-  const particlesRef = useRef<THREE.Points>(null)
   const { isDead } = useGameStore()
 
   const archShape = useMemo(() => {
@@ -53,24 +52,12 @@ export function SpawnGate({ position }: SpawnGateProps) {
   }, [])
 
   const archExtrudeSettings = useMemo(() => ({
-    depth: 0.5,
+    depth: 0.8,
     bevelEnabled: true,
-    bevelThickness: 0.05,
-    bevelSize: 0.05,
-    bevelSegments: 2,
+    bevelThickness: 0.08,
+    bevelSize: 0.08,
+    bevelSegments: 3,
   }), [])
-
-  useEffect(() => {
-    if (!particlesRef.current) return
-    const positions = new Float32Array(100 * 3)
-    for (let i = 0; i < 100; i++) {
-      positions[i * 3] = 1 + (Math.random() - 0.5) * 2.5
-      positions[i * 3 + 1] = Math.random() * 3
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 0.4
-    }
-    const geometry = particlesRef.current.geometry
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-  }, [])
 
   useFrame((state) => {
     if (!groupRef.current) return
@@ -79,36 +66,9 @@ export function SpawnGate({ position }: SpawnGateProps) {
     const light = groupRef.current.getObjectByName('gateLight')
     if (light) {
       const intensity = isDead 
-        ? 3 + Math.sin(time * 3) * 1 
-        : 1.2 + Math.sin(time * 2) * 0.4
+        ? 2.5 + Math.sin(time * 2) * 0.5 
+        : 1.5 + Math.sin(time * 1.5) * 0.3
       ;(light as THREE.PointLight).intensity = intensity
-    }
-
-    const innerLight = groupRef.current.getObjectByName('gateInnerLight')
-    if (innerLight) {
-      const intensity = isDead 
-        ? 2 + Math.sin(time * 4) * 0.8 
-        : 0.8 + Math.sin(time * 2.5) * 0.3
-      ;(innerLight as THREE.PointLight).intensity = intensity
-    }
-
-    const portal = groupRef.current.getObjectByName('portal')
-    if (portal) {
-      const scale = 1 + Math.sin(time * 2) * 0.03
-      portal.scale.set(scale, scale, 1)
-      ;(portal as THREE.Mesh).rotation.z = time * 0.3
-    }
-
-    const particles = particlesRef.current
-    if (particles) {
-      particles.rotation.y = time * 0.2
-      const positions = particles.geometry.attributes.position as THREE.BufferAttribute
-      for (let i = 0; i < positions.count; i++) {
-        const y = positions.getY(i)
-        const newY = (y + 0.01) % 3
-        positions.setY(i, newY)
-      }
-      positions.needsUpdate = true
     }
   })
 
@@ -119,134 +79,67 @@ export function SpawnGate({ position }: SpawnGateProps) {
       <mesh position={[halfWidth, 0, 0]} castShadow receiveShadow>
         <extrudeGeometry args={[archShape, archExtrudeSettings]} />
         <meshStandardMaterial 
-          color={isDead ? '#5a6a8a' : '#4a4a6a'} 
-          metalness={0.7} 
-          roughness={0.3}
+          color="#f0f0f0"
+          metalness={0.1}
+          roughness={0.6}
         />
       </mesh>
 
-      <mesh position={[halfWidth, 1.5, -0.5]} castShadow>
-        <boxGeometry args={[0.5, 3, 0.2]} />
-        <meshStandardMaterial color="#3a3a5a" metalness={0.5} roughness={0.5} />
-      </mesh>
-
-      <mesh position={[halfWidth, 2.8, -0.4]} name="gateBaseOrnament">
-        <torusGeometry args={[0.3, 0.05, 8, 16, Math.PI]} />
+      <mesh position={[halfWidth, 1.5, -0.4]} castShadow>
+        <boxGeometry args={[0.6, 3, 0.3]} />
         <meshStandardMaterial 
-          color={isDead ? '#88ccff' : '#6699cc'} 
-          metalness={0.8} 
-          roughness={0.2}
-          emissive={isDead ? '#4488cc' : '#335588'}
-          emissiveIntensity={isDead ? 0.5 : 0.2}
+          color="#e8e8e8"
+          metalness={0.1}
+          roughness={0.65}
         />
       </mesh>
 
-      <group position={[halfWidth, 1.3, -0.1]} name="portal">
-        <mesh>
-          <planeGeometry args={[2.2, 2.2]} />
-          <meshBasicMaterial 
-            color={isDead ? '#88ccff' : '#6699cc'} 
-            transparent 
-            opacity={isDead ? 0.85 : 0.55} 
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-        <mesh position={[0, 0, 0.01]}>
-          <ringGeometry args={[0.9, 1.0, 32]} />
-          <meshBasicMaterial 
-            color={isDead ? '#aaddff' : '#88aadd'} 
-            transparent 
-            opacity={isDead ? 0.9 : 0.7} 
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-        <mesh position={[0, 0, 0.02]}>
-          <ringGeometry args={[0.6, 0.7, 32]} />
-          <meshBasicMaterial 
-            color={isDead ? '#cceeFF' : '#aaccee'} 
-            transparent 
-            opacity={isDead ? 0.7 : 0.5} 
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-        <mesh position={[0, 0, 0.03]}>
-          <circleGeometry args={[0.5, 32]} />
-          <meshBasicMaterial 
-            color="#ffffff" 
-            transparent 
-            opacity={isDead ? 0.6 : 0.3} 
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      </group>
-
-      <points ref={particlesRef} position={[halfWidth, 0, -0.1]}>
-        <bufferGeometry />
-        <pointsMaterial 
-          color={isDead ? '#88ccff' : '#6699cc'} 
-          size={0.05} 
-          transparent 
-          opacity={isDead ? 0.9 : 0.6}
+      <mesh position={[halfWidth, 3.1, -0.15]} castShadow>
+        <boxGeometry args={[4.2, 0.4, 1.0]} />
+        <meshStandardMaterial 
+          color="#d8d8d8"
+          metalness={0.1}
+          roughness={0.55}
         />
-      </points>
+      </mesh>
 
-      <pointLight 
-        name="gateLight"
-        position={[halfWidth, 2, 0.5]} 
-        color={isDead ? '#88ccff' : '#6699cc'} 
-        intensity={isDead ? 3 : 1.2} 
-        distance={15} 
-        decay={2}
-        castShadow 
-      />
+      <mesh position={[0, 0.3, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.7, 0.6, 1.0]} />
+        <meshStandardMaterial 
+          color="#d0d0d0"
+          metalness={0.1}
+          roughness={0.7}
+        />
+      </mesh>
 
-      <pointLight 
-        name="gateInnerLight"
-        position={[halfWidth, 1.5, -0.5]} 
-        color={isDead ? '#aaddff' : '#88bbff'} 
-        intensity={isDead ? 2 : 0.8} 
-        distance={8} 
-        decay={2} 
-      />
-
-      <mesh position={[halfWidth, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.8, 2.0, 32]} />
-        <meshBasicMaterial 
-          color={isDead ? '#88ccff' : '#6699cc'} 
-          transparent 
-          opacity={isDead ? 0.6 : 0.35} 
-          side={THREE.DoubleSide}
+      <mesh position={[halfWidth * 2, 0.3, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.7, 0.6, 1.0]} />
+        <meshStandardMaterial 
+          color="#d0d0d0"
+          metalness={0.1}
+          roughness={0.7}
         />
       </mesh>
 
       <mesh position={[halfWidth, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.4, 1.6, 32]} />
+        <ringGeometry args={[1.8, 2.0, 32]} />
         <meshBasicMaterial 
-          color={isDead ? '#aaddff' : '#88aadd'} 
+          color={isDead ? '#88ccff' : '#cccccc'} 
           transparent 
-          opacity={isDead ? 0.4 : 0.25} 
+          opacity={isDead ? 0.4 : 0.2} 
           side={THREE.DoubleSide}
         />
       </mesh>
 
-      <mesh position={[halfWidth, 0.12, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[1.0, 1.2, 32]} />
-        <meshBasicMaterial 
-          color={isDead ? '#cceeFF' : '#aaccee'} 
-          transparent 
-          opacity={isDead ? 0.3 : 0.2} 
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-
-      <mesh position={[0, 0.25, 0]} castShadow>
-        <boxGeometry args={[0.6, 0.5, 0.6]} />
-        <meshStandardMaterial color="#3a3a5a" metalness={0.6} roughness={0.4} />
-      </mesh>
-      <mesh position={[halfWidth * 2, 0.25, 0]} castShadow>
-        <boxGeometry args={[0.6, 0.5, 0.6]} />
-        <meshStandardMaterial color="#3a3a5a" metalness={0.6} roughness={0.4} />
-      </mesh>
+      <pointLight 
+        name="gateLight"
+        position={[halfWidth, 2.5, 0]} 
+        color={isDead ? '#88ccff' : '#ffffee'} 
+        intensity={isDead ? 2.5 : 1.5} 
+        distance={12} 
+        decay={2}
+        castShadow 
+      />
     </group>
   )
 }
