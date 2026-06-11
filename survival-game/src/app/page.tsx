@@ -8,10 +8,13 @@ import { MapButton, MapOverlay } from '@/components/ui/MapButton'
 import { ControlsHint } from '@/components/ui/ControlsHint'
 import { MessageDisplay } from '@/components/ui/MessageDisplay'
 import { PlacementHint } from '@/components/ui/PlacementHint'
-import { GameClock } from '@/components/ui/GameClock'
 import { DevTools } from '@/components/ui/DevTools'
 
 const GameScene = dynamic(() => import('@/components/game/GameScene').then((mod) => mod.GameScene), {
+  ssr: false,
+})
+
+const GameClock = dynamic(() => import('@/components/ui/GameClock').then((mod) => mod.GameClock), {
   ssr: false,
 })
 
