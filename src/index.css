@@ -17,12 +17,22 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html, body, #root {
   height: 100%;
   width: 100%;
   overflow: hidden;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  overscroll-behavior: none;
+  touch-action: manipulation;
 }
 
 @keyframes fadeIn {
@@ -48,4 +58,20 @@ html, body, #root {
 
 .reader-content {
   font-family: Georgia, "Times New Roman", Times, serif;
+}
+
+@media (max-width: 768px) {
+  .line-clamp-2 {
+    -webkit-line-clamp: 2;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .line-clamp-4 {
+    -webkit-line-clamp: 4;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 }

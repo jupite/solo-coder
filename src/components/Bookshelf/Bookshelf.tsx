@@ -183,11 +183,11 @@ export default function Bookshelf() {
       className="flex-1 h-full overflow-y-auto"
       style={{ backgroundColor: bgColor }}
     >
-      <div className="max-w-6xl mx-auto px-8 py-10">
-        <div className="flex items-center justify-between mb-8">
+      <div className="max-w-6xl mx-auto md:px-8 md:py-10 px-4 py-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 md:mb-8 gap-4">
           <div>
             <h1
-              className="text-2xl font-serif font-semibold mb-1"
+              className="text-xl md:text-2xl font-serif font-semibold mb-1"
               style={{ color: activeText }}
             >
               我的书架
@@ -224,7 +224,7 @@ export default function Bookshelf() {
 
         {books.length === 0 ? (
           <div
-            className={`border-2 border-dashed rounded-2xl p-16 text-center transition-all duration-300
+            className={`border-2 border-dashed rounded-2xl p-8 md:p-16 text-center transition-all duration-300
               ${isDragging ? 'scale-105' : ''}`}
             style={{
               borderColor: isDragging ? activeText : borderColor,
@@ -236,18 +236,18 @@ export default function Bookshelf() {
             onClick={() => fileInputRef.current?.click()}
           >
             <Upload
-              className="w-12 h-12 mx-auto mb-4"
+              className="w-10 md:w-12 h-10 md:h-12 mx-auto mb-4"
               style={{ color: mutedColor }}
             />
-            <p className="text-lg font-serif mb-2" style={{ color: textColor }}>
+            <p className="text-base md:text-lg font-serif mb-2" style={{ color: textColor }}>
               点击或拖拽 EPUB/MOBI/PDF 文件到此处
             </p>
-            <p className="text-sm font-serif" style={{ color: mutedColor }}>
+            <p className="text-xs md:text-sm font-serif" style={{ color: mutedColor }}>
               支持 .epub、.mobi、.azw、.azw3、.pdf 格式文件
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-5">
             {sortedBooks.map((book) => {
               const progress = getProgress(book.id);
               return (
@@ -262,18 +262,18 @@ export default function Bookshelf() {
                 >
                   <button
                     onClick={(e) => handleDeleteBook(e, book.id)}
-                    className="absolute top-3 right-3 z-10 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200"
+                    className="absolute top-2 md:top-3 right-2 md:right-3 z-10 p-1 md:p-1.5 rounded-lg opacity-70 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200"
                     style={{
                       backgroundColor: theme === 'night' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.9)',
                       color: theme === 'night' ? '#f87171' : '#ef4444',
                     }}
                     title="删除书籍"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 md:w-4 h-3.5 md:h-4" />
                   </button>
 
                   <div
-                    className="h-44 flex items-center justify-center overflow-hidden"
+                    className="h-32 md:h-44 flex items-center justify-center overflow-hidden"
                     style={{
                       background: book.cover ? 'transparent' : theme === 'night'
                         ? 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)'
@@ -293,28 +293,28 @@ export default function Bookshelf() {
                       />
                     ) : (
                       <BookOpen
-                        className="w-14 h-14"
+                        className="w-10 md:w-14 h-10 md:h-14"
                         style={{ color: mutedColor }}
                       />
                     )}
                   </div>
 
-                  <div className="p-4">
+                  <div className="p-3 md:p-4">
                     <h3
-                      className="font-serif text-sm font-medium mb-2 truncate"
+                      className="font-serif text-xs md:text-sm font-medium mb-1.5 md:mb-2 truncate"
                       style={{ color: activeText }}
                       title={book.title}
                     >
                       {book.title}
                     </h3>
 
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-serif" style={{ color: mutedColor }}>
+                    <div className="flex items-center justify-between mb-2 md:mb-3">
+                      <span className="text-[10px] md:text-xs font-serif" style={{ color: mutedColor }}>
                         {formatSize(book.fileSize)}
                       </span>
                       {progress > 0 && (
                         <span
-                          className="text-xs font-serif px-2 py-0.5 rounded-full"
+                          className="text-[10px] md:text-xs font-serif px-1.5 md:px-2 py-0.5 rounded-full"
                           style={{
                             backgroundColor: theme === 'night' ? 'rgba(255,255,255,0.1)' : theme === 'eye' ? 'rgba(91,70,54,0.12)' : 'rgba(0,0,0,0.06)',
                             color: textColor,
@@ -325,7 +325,7 @@ export default function Bookshelf() {
                       )}
                     </div>
 
-                    <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: theme === 'night' ? '#333' : theme === 'eye' ? '#e5dfcc' : '#e5e7eb' }}>
+                    <div className="h-0.5 md:h-1 rounded-full overflow-hidden" style={{ backgroundColor: theme === 'night' ? '#333' : theme === 'eye' ? '#e5dfcc' : '#e5e7eb' }}>
                       <div
                         className="h-full rounded-full transition-all duration-300"
                         style={{

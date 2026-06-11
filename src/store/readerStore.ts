@@ -9,6 +9,9 @@ interface ReaderState {
   activePanel: SidebarPanel;
   setActivePanel: (panel: SidebarPanel) => void;
   togglePanel: (panel: Exclude<SidebarPanel, null>) => void;
+  toolbarVisible: boolean;
+  setToolbarVisible: (visible: boolean) => void;
+  toggleToolbarVisible: () => void;
   books: BookInfo[];
   loadBooks: () => void;
   addBook: (book: BookInfo) => Promise<void>;
@@ -57,6 +60,12 @@ export const useReaderStore = create<ReaderState>((set, get) => ({
   togglePanel: (panel) => {
     const current = get().activePanel;
     set({ activePanel: current === panel ? null : panel });
+  },
+  toolbarVisible: true,
+  setToolbarVisible: (visible) => set({ toolbarVisible: visible }),
+  toggleToolbarVisible: () => {
+    const current = get().toolbarVisible;
+    set({ toolbarVisible: !current });
   },
   books: [],
   loadBooks: () => {

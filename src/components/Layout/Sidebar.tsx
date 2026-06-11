@@ -3,6 +3,7 @@ import { FONT_SIZE_LABELS, THEMES, FontSize, ThemeId, TocItem, Annotation, ANNOT
 import { ChevronRight, BookMarked, Trash2, X, Type, Sun, Moon, Eye, List, Highlighter, MessageSquare, Edit3, Check, Palette } from 'lucide-react';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useMobile } from '@/hooks/useMobile';
 
 const normalizeHref = (href: string): string => {
   if (!href) return '';
@@ -204,6 +205,8 @@ export default function Sidebar() {
     updateAnnotation(effectiveBookId, annotationId, { style });
     setStylePickerFor(null);
   };
+
+  const isMobile = useMobile();
 
   if (!activePanel) return null;
 
@@ -694,6 +697,46 @@ export default function Sidebar() {
         return null;
     }
   };
+
+  if (isMobile) {
+    return (
+      <>
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
+          onClick={() => setActivePanel(null)}
+        />
+        <div
+          className="fixed right-0 top-0 bottom-0 z-50 w-80 max-w-[85vw] flex flex-col shrink-0 border-l shadow-2xl transition-transform duration-300 ease-out"
+          style={{
+            backgroundColor: bgColor,
+            borderColor: borderColor,
+          }}
+        >
+          <div
+            className="flex items-center justify-between px-4 h-14 shrink-0 border-b"
+            style={{ borderColor: borderColor }}
+          >
+            <h3
+              className="font-serif text-base font-medium flex items-center gap-2"
+              style={{ color: activeText }}
+            >
+              {panelIcon}
+              {panelTitle}
+            </h3>
+            <button
+              onClick={() => setActivePanel(null)}
+              className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              style={{ color: textColor }}
+              title="关闭"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          {renderContent()}
+        </div>
+      </>
+    );
+  }
 
   return (
     <div

@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useReaderStore, getCurrentTheme, getFontSizeValue, isCurrentPageBookmarked } from '@/store/readerStore';
+import { useReaderStore, getFontSizeValue, isCurrentPageBookmarked } from '@/store/readerStore';
 import { useEpub, SelectionInfo } from '@/hooks/useEpub';
 import { usePdf } from '@/hooks/usePdf';
 import { useReadingProgress } from '@/hooks/useReadingProgress';
+import { useMobile } from '@/hooks/useMobile';
 import ProgressBar from '../Reader/ProgressBar';
 import AnnotationToolbar from '../Reader/AnnotationToolbar';
 import AnnotationNoteModal from '../Reader/AnnotationNoteModal';
@@ -30,12 +31,11 @@ export default function ReaderView() {
     fontSize,
     toggleBookmark,
     loadBookmarks,
-    bookmarks,
     loadAnnotations,
     addAnnotation,
     updateAnnotation,
-    removeAnnotation,
     annotations,
+    toggleToolbarVisible,
   } = useReaderStore();
 
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -44,6 +44,12 @@ export default function ReaderView() {
   const [showJumpTip, setShowJumpTip] = useState(false);
   const hasJumpedRef = useRef(false);
   const isFirstRenderRef = useRef(true);
+  const isMobile = useMobile();
+
+  const touchStartXRef = useRef<number>(0);
+  const touchStartYRef = useRef<number>(0);
+  const touchStartTimeRef = useRef<number>(0);
+  const lastTapTimeRef = useRef<number>(0);
 
   const [toolbarSelection, setToolbarSelection] = useState<SelectionInfo | null>(null);
   const [noteModalOpen, setNoteModalOpen] = useState(false);
@@ -96,13 +102,11 @@ export default function ReaderView() {
   const epubSelectionInfo = (epubHook as any).selectionInfo as SelectionInfo | null;
   const epubClearSelection = (epubHook as any).clearSelection as () => void;
   const epubHighlightAnnotation = (epubHook as any).highlightAnnotation as (ann: Annotation) => void;
-  const epubRemoveHighlight = (epubHook as any).removeHighlight as (id: string) => void;
   const epubRenderAllAnnotations = (epubHook as any).renderAllAnnotations as (anns: Annotation[]) => void;
 
   const selectionInfo = isPdf ? null : epubSelectionInfo;
   const clearSelection = isPdf ? () => {} : epubClearSelection;
   const highlightAnnotation = isPdf ? () => {} : epubHighlightAnnotation;
-  const removeHighlight = isPdf ? () => {} : epubRemoveHighlight;
   const renderAllAnnotations = isPdf ? () => {} : epubRenderAllAnnotations;
 
   const { saveProgress, progress: savedProgress } = useReadingProgress(bookIdForProgress);
@@ -297,6 +301,56 @@ export default function ReaderView() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!isMobile) return;
+    const touch = e.touches[0];
+    touchStartXRef.current = touch.clientX;
+    touchStartYRef.current = touch.clientY;
+    touchStartTimeRef.current = Date.now();
+  }, [isMobile]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!isMobile) return;
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchStartXRef.current;
+    const deltaY = touch.clientY - touchStartYRef.current;
+    const deltaTime = Date.now() - touchStartTimeRef.current;
+
+    const minSwipeDistance = 50;
+    const maxSwipeTime = 500;
+    const isHorizontalSwipe = Math.abs(deltaX) > Math.abs(deltaY);
+
+    if (isHorizontalSwipe && Math.abs(deltaX) > minSwipeDistance && deltaTime < maxSwipeTime) {
+      if (deltaX < 0) {
+        handleNextPage();
+      } else {
+        handlePrevPage();
+      }
+      return;
+    }
+
+    if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10 && deltaTime < 300) {
+      const now = Date.now();
+      if (now - lastTapTimeRef.current < 300) {
+        lastTapTimeRef.current = 0;
+      } else {
+        lastTapTimeRef.current = now;
+        setTimeout(() => {
+          if (lastTapTimeRef.current !== 0) {
+            toggleToolbarVisible();
+            lastTapTimeRef.current = 0;
+          }
+        }, 250);
+      }
+    }
+  }, [isMobile, handleNextPage, handlePrevPage, toggleToolbarVisible]);
+
+  const handleViewerClick = useCallback(() => {
+    if (isMobile && !toolbarSelection) {
+      toggleToolbarVisible();
+    }
+  }, [isMobile, toolbarSelection, toggleToolbarVisible]);
+
   const handleSeek = (percentage: number) => {
     goToPercentage(percentage);
   };
@@ -450,14 +504,17 @@ export default function ReaderView() {
 
   return (
     <div
-      className="relative flex-1 h-full overflow-hidden transition-colors duration-300"
+      className="relative flex-1 h-full overflow-hidden transition-colors duration-300 select-none"
       style={{ backgroundColor: currentTheme.background }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onClick={handleViewerClick}
     >
       <div className="relative h-full">
         {isBookmarked && (
-          <div className="absolute top-4 right-6 z-20 pointer-events-none">
+          <div className={`absolute z-20 pointer-events-none ${isMobile ? 'top-2 right-3' : 'top-4 right-6'}`}>
             <BookmarkCheck
-              className="w-5 h-5"
+              className={isMobile ? 'w-4 h-4' : 'w-5 h-5'}
               style={{
                 color: currentTheme.text,
                 fill: currentTheme.text,
@@ -467,23 +524,28 @@ export default function ReaderView() {
           </div>
         )}
 
-        <button
-          onClick={handleBookmarkToggle}
-          className="absolute top-4 right-20 z-20 p-2 rounded-lg opacity-0 hover:opacity-100 transition-opacity"
-          style={{ color: currentTheme.text }}
-          title={isBookmarked ? '取消书签' : '添加书签'}
-        >
-          {isBookmarked ? (
-            <Bookmark className="w-5 h-5 fill-current" />
-          ) : (
-            <Bookmark className="w-5 h-5" />
-          )}
-        </button>
+        {!isMobile && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleBookmarkToggle();
+            }}
+            className="absolute top-4 right-20 z-20 p-2 rounded-lg opacity-0 hover:opacity-100 transition-opacity"
+            style={{ color: currentTheme.text }}
+            title={isBookmarked ? '取消书签' : '添加书签'}
+          >
+            {isBookmarked ? (
+              <Bookmark className="w-5 h-5 fill-current" />
+            ) : (
+              <Bookmark className="w-5 h-5" />
+            )}
+          </button>
+        )}
 
         {showJumpTip && (
           <div
-            className="absolute top-20 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-lg text-sm font-serif
-              shadow-lg animate-fade-in"
+            className={`absolute z-30 px-4 py-2 rounded-lg text-sm font-serif
+              shadow-lg animate-fade-in ${isMobile ? 'top-16 left-1/2 -translate-x-1/2' : 'top-20 left-1/2 -translate-x-1/2'}`}
             style={{
               backgroundColor: theme === 'night' ? 'rgba(60, 60, 60, 0.95)' : 'rgba(0, 0, 0, 0.8)',
               color: '#fff',
@@ -494,20 +556,22 @@ export default function ReaderView() {
         )}
 
         <div className="relative h-full flex items-stretch">
-          <button
-            className="absolute left-0 top-0 bottom-0 w-16 md:w-20 z-10 flex items-center justify-center
-              transition-colors duration-200 group"
-            onClick={(e) => {
-              e.stopPropagation();
-              handlePrevPage();
-            }}
-            title="上一页"
-          >
-            <ChevronLeft
-              className="w-8 h-8 opacity-0 group-hover:opacity-30 transition-opacity duration-200"
-              style={{ color: currentTheme.text }}
-            />
-          </button>
+          {!isMobile && (
+            <button
+              className="absolute left-0 top-0 bottom-0 w-16 md:w-20 z-10 flex items-center justify-center
+                transition-colors duration-200 group"
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePrevPage();
+              }}
+              title="上一页"
+            >
+              <ChevronLeft
+                className="w-8 h-8 opacity-0 group-hover:opacity-30 transition-opacity duration-200"
+                style={{ color: currentTheme.text }}
+              />
+            </button>
+          )}
 
           <div
             ref={viewerRef}
@@ -515,38 +579,43 @@ export default function ReaderView() {
               ${turnDirection === 'next' ? 'translate-x-[-50px] opacity-0' : ''}
               ${turnDirection === 'prev' ? 'translate-x-[50px] opacity-0' : ''}`}
             style={{
-              paddingTop: '20px',
-              paddingBottom: '80px',
-              maxWidth: '800px',
+              paddingTop: isMobile ? '8px' : '20px',
+              paddingBottom: isMobile ? '8px' : '80px',
+              paddingLeft: isMobile ? '16px' : undefined,
+              paddingRight: isMobile ? '16px' : undefined,
+              maxWidth: isMobile ? '100%' : '800px',
               width: '100%',
             }}
           />
 
-          <button
-            className="absolute right-0 top-0 bottom-0 w-16 md:w-20 z-10 flex items-center justify-center
-              transition-colors duration-200 group"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleNextPage();
-            }}
-            title="下一页"
-          >
-            <ChevronRight
-              className="w-8 h-8 opacity-0 group-hover:opacity-30 transition-opacity duration-200"
-              style={{ color: currentTheme.text }}
-            />
-          </button>
+          {!isMobile && (
+            <button
+              className="absolute right-0 top-0 bottom-0 w-16 md:w-20 z-10 flex items-center justify-center
+                transition-colors duration-200 group"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleNextPage();
+              }}
+              title="下一页"
+            >
+              <ChevronRight
+                className="w-8 h-8 opacity-0 group-hover:opacity-30 transition-opacity duration-200"
+                style={{ color: currentTheme.text }}
+              />
+            </button>
+          )}
         </div>
 
         <ProgressBar
           progress={progress}
           theme={theme}
           onSeek={handleSeek}
+          isMobile={isMobile}
         />
 
         {!locationsReady && isLoaded && (
           <div
-            className="absolute bottom-20 left-1/2 -translate-x-1/2 text-xs font-serif"
+            className={`absolute text-xs font-serif ${isMobile ? 'bottom-16 left-1/2 -translate-x-1/2' : 'bottom-20 left-1/2 -translate-x-1/2'}`}
             style={{ color: currentTheme.text, opacity: 0.5 }}
           >
             正在生成阅读进度...
@@ -561,6 +630,7 @@ export default function ReaderView() {
           onApply={handleApplyAnnotation}
           onAddNote={handleAddNote}
           theme={theme}
+          isMobile={isMobile}
         />
       )}
 
@@ -573,6 +643,7 @@ export default function ReaderView() {
         color={noteModalData?.color || 'yellow'}
         annotation={noteModalData?.annotation || null}
         theme={theme}
+        isMobile={isMobile}
       />
     </div>
   );
