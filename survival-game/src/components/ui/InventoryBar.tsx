@@ -45,7 +45,7 @@ function getEquipSlotForItem(item: InventoryItem): EquipSlotType | null {
 }
 
 export function InventoryBar() {
-  const { inventory, equipment, moveInventoryItem, equipItem, unequipItem, getInventorySize, hasBackpack, setDraggedItem } = useGameStore()
+  const { inventory, equipment, moveInventoryItem, equipItem, unequipItem, getInventorySize, hasBackpack, setDraggedItem, isDead } = useGameStore()
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null)
   const [dragOverEquipSlot, setDragOverEquipSlot] = useState<EquipSlotType | null>(null)
   const [localDraggedItem, setLocalDraggedItem] = useState<{ source: string; index?: number; slot?: EquipSlotType } | null>(null)
@@ -152,10 +152,12 @@ export function InventoryBar() {
     return (
       <div
         key={index}
-        onDragOver={(e) => handleInventoryDragOver(e, index)}
-        onDragLeave={() => setDragOverSlot(null)}
-        onDrop={(e) => handleInventoryDrop(e, index)}
-        className={`w-12 h-12 rounded-lg flex items-center justify-center relative border-2 transition-all cursor-pointer ${
+        onDragOver={!isDead ? (e) => handleInventoryDragOver(e, index) : undefined}
+        onDragLeave={!isDead ? () => setDragOverSlot(null) : undefined}
+        onDrop={!isDead ? (e) => handleInventoryDrop(e, index) : undefined}
+        className={`w-12 h-12 rounded-lg flex items-center justify-center relative border-2 transition-all ${
+          isDead ? 'cursor-default opacity-70' : 'cursor-pointer'
+        } ${
           isBackpack
             ? 'bg-indigo-900/50 border-indigo-600 hover:border-indigo-400'
             : dragOverSlot === index
@@ -167,13 +169,13 @@ export function InventoryBar() {
         {item && (
           <>
             <div
-              draggable
-              onDragStart={(e) => {
+              draggable={!isDead}
+              onDragStart={!isDead ? (e) => {
                 e.stopPropagation()
                 handleDragStart(e, 'inventory', index)
-              }}
-              onDragEnd={handleDragEnd}
-              className="cursor-grab active:cursor-grabbing hover:scale-110 transition-transform relative"
+              } : undefined}
+              onDragEnd={!isDead ? handleDragEnd : undefined}
+              className={`${isDead ? '' : 'cursor-grab active:cursor-grabbing hover:scale-110'} transition-transform relative`}
             >
               <span className="text-xl">{ITEM_ICONS[item.type] || '📦'}</span>
             </div>
@@ -235,10 +237,12 @@ export function InventoryBar() {
           return (
             <div
               key={slot}
-              onDragOver={(e) => handleEquipmentDragOver(e, slot)}
-              onDragLeave={() => setDragOverEquipSlot(null)}
-              onDrop={(e) => handleEquipmentDrop(e, slot)}
+              onDragOver={!isDead ? (e) => handleEquipmentDragOver(e, slot) : undefined}
+              onDragLeave={!isDead ? () => setDragOverEquipSlot(null) : undefined}
+              onDrop={!isDead ? (e) => handleEquipmentDrop(e, slot) : undefined}
               className={`w-14 h-14 bg-gray-900/80 rounded-lg flex items-center justify-center relative border-2 transition-all ${
+                isDead ? 'opacity-70' : ''
+              } ${
                 item
                   ? 'border-purple-500 bg-purple-900/30'
                   : dragOverEquipSlot === slot
@@ -249,10 +253,10 @@ export function InventoryBar() {
             >
               {item ? (
                 <div
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, 'equipment', undefined, slot)}
-                  onDragEnd={handleDragEnd}
-                  className="cursor-grab active:cursor-grabbing hover:scale-110 transition-transform relative"
+                  draggable={!isDead}
+                  onDragStart={!isDead ? (e) => handleDragStart(e, 'equipment', undefined, slot) : undefined}
+                  onDragEnd={!isDead ? handleDragEnd : undefined}
+                  className={`${isDead ? '' : 'cursor-grab active:cursor-grabbing hover:scale-110'} transition-transform relative`}
                 >
                   <span className="text-2xl">{ITEM_ICONS[item.type] || icon}</span>
                   {renderDurabilityBar(item)}

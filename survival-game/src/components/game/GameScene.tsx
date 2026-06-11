@@ -325,7 +325,7 @@ function SceneContent() {
       <Ground />
       <Player />
 
-      <SpawnGate position={[spawnPoint[0] - 2, 0, spawnPoint[2]]} />
+      <SpawnGate position={[spawnPoint[0], 0, spawnPoint[2]]} />
 
       {resources.map((resource) => (
         <ResourceNode key={resource.id} resource={resource} />

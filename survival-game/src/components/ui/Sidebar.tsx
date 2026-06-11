@@ -47,6 +47,7 @@ export function Sidebar() {
     hasResources,
     showMessage,
     infiniteBuild,
+    isDead,
   } = useGameStore()
 
   const tools: CraftableItem[] = useMemo(() => [
@@ -218,17 +219,24 @@ export function Sidebar() {
                   </div>
                 </div>
 
-                <button
-                  onClick={handleCraft}
-                  disabled={!hasResources(selected.requirements)}
-                  className={`w-full py-2 rounded text-sm font-bold transition-colors ${
-                    hasResources(selected.requirements)
-                      ? 'bg-yellow-600 hover:bg-yellow-500 text-white'
-                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  {hasResources(selected.requirements) ? '🔨 制作' : '材料不足'}
-                </button>
+                {!isDead && (
+                  <button
+                    onClick={handleCraft}
+                    disabled={!hasResources(selected.requirements)}
+                    className={`w-full py-2 rounded text-sm font-bold transition-colors ${
+                      hasResources(selected.requirements)
+                        ? 'bg-yellow-600 hover:bg-yellow-500 text-white'
+                        : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    {hasResources(selected.requirements) ? '🔨 制作' : '材料不足'}
+                  </button>
+                )}
+                {isDead && (
+                  <div className="w-full py-2 rounded text-sm text-center text-gray-400 bg-gray-700/50">
+                    💀 死亡状态无法制作
+                  </div>
+                )}
               </>
             ) : (
               <div className="text-gray-500 text-xs text-center py-4">请选择一个项目</div>
